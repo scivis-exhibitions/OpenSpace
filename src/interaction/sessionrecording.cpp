@@ -198,6 +198,7 @@ bool SessionRecording::startPlayback(const std::string& filename,
     else if (_state == SessionState::Playback) {
         LERROR("Unable to start new playback while in session playback mode");
         return false;
+
     }
 
     if (!FileSys.fileExists(absFilename)) {
