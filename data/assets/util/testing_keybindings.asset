@@ -1,17 +1,24 @@
 --testing_keybindings.asset
-
 local sceneHelper = asset.require('./scene_helper')
 local propertyHelper = asset.require('./property_helper')
 
 local Keybindings = {
+local sceneHelper = asset.require('./scene_helper')
+
+local TestKeybindings = {
     {
-        Key = "F7",
-        Name = "Take Screenshot",
-        Command = "openspace.setPropertyValueSingle('RenderEngine.TakeScreenshot', nil)",
-        Documentation = "Saves the contents of the screen to a file in the working directory.",
-        GuiPath = "/Rendering",
+        Key = "F6",
+        Name = "Hide All UI",
+        Command = "openspace.setPropertyValueSingle('Dashboard.IsEnabled', false);" ..
+                "openspace.setPropertyValueSingle('Dashboard.IsEnabled', false);" ..
+                "openspace.setPropertyValueSingle('RenderEngine.ShowLog', false);" ..
+                "openspace.setPropertyValueSingle('RenderEngine.ShowVersion', false);" ..
+                "openspace.setPropertyValueSingle('RenderEngine.ShowCamera', false);" ..
+                "openspace.setPropertyValueSingle('Modules.ImGUI.Main.Enabled',false);" ..
+                "openspace.setPropertyValueSingle('Modules.CefWebGui.Visible', false);",
+        Documentation = "Hide all ui",
         Local = true
-    }
+    },
 }
 
 asset.onInitialize(function()

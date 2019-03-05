@@ -55,18 +55,23 @@
 #include <openspace/util/factorymanager.h>
 #include <openspace/util/spicemanager.h>
 #include <openspace/util/time.h>
+#include <openspace/engine/globals.h>
+#include <ghoul/filesystem/file.h>
+#include <ghoul/filesystem/filesystem.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/lua/ghoul_lua.h>
 #include <ghoul/misc/dictionary.h>
 #include <ghoul/ghoul.h>
+
+
 #include <iostream>
 
 #include <test_common.inl>
 #include <test_assetloader.inl>
 #include <test_documentation.inl>
-#include <test_luaconversions.inl>
+//#include <test_luaconversions.inl>
 #include <test_optionproperty.inl>
-#include <test_powerscalecoordinates.inl>
+//#include <test_powerscalecoordinates.inl>
 #include <test_scriptscheduler.inl>
 #include <test_spicemanager.inl>
 #include <test_timeline.inl>
@@ -108,19 +113,26 @@ int main(int argc, char** argv) {
     // Workaround for Visual Studio Google Test Adapter:
     // Do not try to initialize osengine if gtest is just listing tests
     std::vector<std::string> gtestArgs(argv, argv + argc);
-    if (std::find(gtestArgs.begin(), gtestArgs.end(), "--gtest_list_tests") != gtestArgs.end()) {
+    //if (std::find(gtestArgs.begin(), gtestArgs.end(), "--gtest_list_tests") != gtestArgs.end()) {
         using namespace openspace;
         ghoul::initialize();
-
+        // Register the path of the executable,
+        // to make it possible to find other files in the same directory.
+        FileSys.registerPathToken(
+            "${BIN}",
+            ghoul::filesystem::File(absPath(argv[0])).directoryName(),
+            ghoul::filesystem::FileSystem::Override::Yes
+        );
         std::string configFile = configuration::findConfiguration();
         global::configuration = configuration::loadConfigurationFromFile(configFile);
+        openspace::global::openSpaceEngine.registerPathTokens();
         global::openSpaceEngine.initialize();
 
         FileSys.registerPathToken("${TESTDIR}", "${BASE}/tests");
 
         // All of the relevant tests initialize the SpiceManager
         openspace::SpiceManager::deinitialize();
-    }
+    //}
 
     testing::InitGoogleTest(&argc, argv);
 

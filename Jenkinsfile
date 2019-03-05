@@ -164,3 +164,42 @@ node('master') {
     slackHelper.sendChangeSetSlackMessage(currentBuild);
   }
 }
+
+
+stage('Test') {
+    windows: {
+        node('windows') {
+            timeout(time: 90, unit: 'MINUTES') {
+                ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
+                    bat '''
+                        cd OpenSpace/bin/RelWithDebInfo/
+                        GhoulTest.exe --gtest_output="xml:testresults.xml"
+                        OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
+                    '''
+                    junit 'OpenSpace/bin/**/*.xml'
+                }
+            }
+        }
+    }
+}
+
+
+stage('Visual Test') {
+    windows: {
+        node('windows') {
+            timeout(time: 90, unit: 'MINUTES') {
+                ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
+                    bat '''
+                        cd OpenSpace/
+                        git clone git@github.com:OpenSpace/OpenSpaceVisualTesting.git
+                        cd OpenSpaceVisualTesting
+                        msbuild.exe OpenSpaceVisualTesting.sln
+                        vstest.console.exe bin/Debug/OpenSpaceVisualTesting.dll
+                        cd TestGroups
+                        call targetcompare.bat
+                    '''
+                }
+            }
+        }
+    }
+}
