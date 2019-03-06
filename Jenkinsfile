@@ -193,9 +193,10 @@ stage('Visual Test') {
                         cd OpenSpace/
                         git clone git@github.com:OpenSpace/OpenSpaceVisualTesting.git
                         cd OpenSpaceVisualTesting
+                        nuget.exe restore OpenSpaceVisualTesting.sln
                         msbuild.exe OpenSpaceVisualTesting.sln
-                        vstest.console.exe bin/Debug/OpenSpaceVisualTesting.dll
-                        cd TestGroups
+                        vstest.console.exe OpenSpaceVisualTesting/bin/Debug/OpenSpaceVisualTesting.dll
+                        cd OpenSpaceVisualTesting/TestGroups
                         call targetcompare.bat
                     '''
                 }
