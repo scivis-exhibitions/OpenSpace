@@ -172,12 +172,12 @@ stage('Test') {
         node('windows') {
             timeout(time: 90, unit: 'MINUTES') {
                 ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
-                    powershell '''
+                    powershell """
                         cp %OPENSPACE_SYNC_DIR% sync -R
                         cd bin/RelWithDebInfo/
                         GhoulTest.exe --gtest_output="xml:testresults.xml"
                         OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
-                    '''
+                    """
                     junit 'bin/**/*.xml'
                 }
             }
