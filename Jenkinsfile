@@ -29,6 +29,7 @@ def moduleCMakeFlags() {
     modules = bat(returnStdout: true, script: '@dir modules /b /ad /on').trim().split('\r\n');
   }
 
+
   // def dirs = readDir();
   // def currentDir = new File('.')
   // def dirs = []
@@ -172,6 +173,7 @@ stage('Test') {
             timeout(time: 90, unit: 'MINUTES') {
                 ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
                     bat '''
+                        cp %OPENSPACE_SYNC_DIR% sync -R
                         cd OpenSpace/bin/RelWithDebInfo/
                         GhoulTest.exe --gtest_output="xml:testresults.xml"
                         OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
