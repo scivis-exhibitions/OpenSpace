@@ -175,8 +175,8 @@ stage('Test') {
                     powershell """
                         cp $env.OPENSPACE_SYNC_DIR sync -R
                         cd bin/RelWithDebInfo/
-                        GhoulTest.exe --gtest_output="xml:testresults.xml"
-                        OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
+                        ./GhoulTest.exe --gtest_output="xml:testresults.xml"
+                        ./OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
                     """
                     junit 'bin/**/*.xml'
                 }
