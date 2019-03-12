@@ -178,7 +178,7 @@ stage('Test') {
                         GhoulTest.exe --gtest_output="xml:testresults.xml"
                         OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
                     '''
-                    junit 'OpenSpace/bin/**/*.xml'
+                    junit 'bin/**/*.xml'
                 }
             }
         }
