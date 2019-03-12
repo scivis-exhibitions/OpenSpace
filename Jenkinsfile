@@ -174,7 +174,7 @@ stage('Test') {
                 ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
                     bat '''
                         cp %OPENSPACE_SYNC_DIR% sync -R
-                        cd OpenSpace/bin/RelWithDebInfo/
+                        cd bin/RelWithDebInfo/
                         GhoulTest.exe --gtest_output="xml:testresults.xml"
                         OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
                     '''
@@ -192,8 +192,12 @@ stage('Visual Test') {
             timeout(time: 90, unit: 'MINUTES') {
                 ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
                     powershell '''
+<<<<<<< HEAD
                         cd OpenSpace/
                         git clone git@github.com:OpenSpace/OpenSpaceVisualTesting.git
+=======
+                        git clone git@github.com:micahnyc/OpenSpaceVisualTesting.git
+>>>>>>> fixing paths and switching to reldebinfo
                         cd OpenSpaceVisualTesting
                         nuget.exe restore OpenSpaceVisualTesting.sln
                         msbuild.exe OpenSpaceVisualTesting.sln
