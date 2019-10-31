@@ -69,9 +69,7 @@
 #include <test_common.inl>
 #include <test_assetloader.inl>
 #include <test_documentation.inl>
-//#include <test_luaconversions.inl>
 #include <test_optionproperty.inl>
-//#include <test_powerscalecoordinates.inl>
 #include <test_scriptscheduler.inl>
 #include <test_spicemanager.inl>
 #include <test_timeline.inl>
@@ -113,26 +111,24 @@ int main(int argc, char** argv) {
     // Workaround for Visual Studio Google Test Adapter:
     // Do not try to initialize osengine if gtest is just listing tests
     std::vector<std::string> gtestArgs(argv, argv + argc);
-    //if (std::find(gtestArgs.begin(), gtestArgs.end(), "--gtest_list_tests") != gtestArgs.end()) {
-        using namespace openspace;
-        ghoul::initialize();
-        // Register the path of the executable,
-        // to make it possible to find other files in the same directory.
-        FileSys.registerPathToken(
-            "${BIN}",
-            ghoul::filesystem::File(absPath(argv[0])).directoryName(),
-            ghoul::filesystem::FileSystem::Override::Yes
-        );
-        std::string configFile = configuration::findConfiguration();
-        global::configuration = configuration::loadConfigurationFromFile(configFile);
-        openspace::global::openSpaceEngine.registerPathTokens();
-        global::openSpaceEngine.initialize();
+    using namespace openspace;
+    ghoul::initialize();
+    // Register the path of the executable,
+    // to make it possible to find other files in the same directory.
+    FileSys.registerPathToken(
+        "${BIN}",
+        ghoul::filesystem::File(absPath(argv[0])).directoryName(),
+        ghoul::filesystem::FileSystem::Override::Yes
+    );
+    std::string configFile = configuration::findConfiguration();
+    global::configuration = configuration::loadConfigurationFromFile(configFile);
+    openspace::global::openSpaceEngine.registerPathTokens();
+    global::openSpaceEngine.initialize();
 
-        FileSys.registerPathToken("${TESTDIR}", "${BASE}/tests");
+    FileSys.registerPathToken("${TESTDIR}", "${BASE}/tests");
 
-        // All of the relevant tests initialize the SpiceManager
-        openspace::SpiceManager::deinitialize();
-    //}
+    // All of the relevant tests initialize the SpiceManager
+    openspace::SpiceManager::deinitialize();
 
     testing::InitGoogleTest(&argc, argv);
 
