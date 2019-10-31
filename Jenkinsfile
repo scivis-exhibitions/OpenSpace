@@ -127,7 +127,12 @@ windows: {
       }
       stage('windows/test') {
         // Currently, the unit tests are failing on Windows
-        // testHelper.runUnitTests('bin\\Debug\\OpenSpaceTest')
+        testHelper.copySyncFiles($env.OPENSPACE_SYNC_DIR);
+        testHelper.runUnitTests('bin\\RelWithDebInfo\\OpenSpaceTest')
+        testHelper.runUiTests()
+      }
+      stage('windows/package') {
+        packageHelper.buildWindowsPackage();
       }
     } // node('windows')
   }
@@ -164,49 +169,4 @@ node('master') {
   stage('master/notifications') {
     slackHelper.sendChangeSetSlackMessage(currentBuild);
   }
-}
-
-
-stage('Test') {
-    windows: {
-        node('windows') {
-            timeout(time: 90, unit: 'MINUTES') {
-                ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
-                    powershell """
-                        cp $env.OPENSPACE_SYNC_DIR sync -R
-                        cd bin/RelWithDebInfo/
-                        ./GhoulTest.exe --gtest_output="xml:testresults.xml"
-                        ./OpenSpaceTest.exe --gtest_output="xml:testresults.xml"
-                    """
-                    junit 'bin/**/*.xml'
-                }
-            }
-        }
-    }
-}
-
-
-stage('Visual Test') {
-    windows: {
-        node('windows') {
-            timeout(time: 90, unit: 'MINUTES') {
-                ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
-                    powershell '''
-<<<<<<< HEAD
-                        cd OpenSpace/
-                        git clone git@github.com:OpenSpace/OpenSpaceVisualTesting.git
-=======
-                        git clone git@github.com:micahnyc/OpenSpaceVisualTesting.git
->>>>>>> fixing paths and switching to reldebinfo
-                        cd OpenSpaceVisualTesting
-                        nuget.exe restore OpenSpaceVisualTesting.sln
-                        msbuild.exe OpenSpaceVisualTesting.sln
-                        vstest.console.exe OpenSpaceVisualTesting/bin/Debug/OpenSpaceVisualTesting.dll
-                        cd OpenSpaceVisualTesting/TestGroups
-                        ./targetcompare.bat
-                    '''
-                }
-            }
-        }
-    }
 }
