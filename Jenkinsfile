@@ -136,7 +136,7 @@ windows: {
       }
     } // node('windows')
   }
-},
+}
 // osx: {
 //   node('osx') {
 //     stage('osx/scm') {
