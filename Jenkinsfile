@@ -132,7 +132,7 @@ windows: {
         testHelper.runUiTests()
       }
       stage('windows/package') {
-        packageHelper.buildWindowsPackage();
+        //packageHelper.buildWindowsPackage();
       }
     } // node('windows')
   }
