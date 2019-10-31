@@ -79,21 +79,21 @@ def moduleCMakeFlags() {
 // Pipeline start
 //
 
-parallel master: {
-  node('master') {
-    stage('master/scm') {
-      deleteDir();
-      gitHelper.checkoutGit(url, branch);
-      helper.createDirectory('build');
-    }
-    stage('master/cppcheck/create') {
-      sh 'cppcheck --enable=all --xml --xml-version=2 -i ext --suppressions-list=support/cppcheck/suppressions.txt include modules src tests 2> build/cppcheck.xml';
-    }
-    stage('master/cloc/create') {
-      sh 'cloc --by-file --exclude-dir=build,data,ext --xml --out=build/cloc.xml --force-lang-def=support/cloc/langDef --quiet .';
-    }
-  }
-},
+// parallel master: {
+//   node('master') {
+//     stage('master/scm') {
+//       deleteDir();
+//       gitHelper.checkoutGit(url, branch);
+//       helper.createDirectory('build');
+//     }
+//     stage('master/cppcheck/create') {
+//       sh 'cppcheck --enable=all --xml --xml-version=2 -i ext --suppressions-list=support/cppcheck/suppressions.txt include modules src tests 2> build/cppcheck.xml';
+//     }
+//     stage('master/cloc/create') {
+//       sh 'cloc --by-file --exclude-dir=build,data,ext --xml --out=build/cloc.xml --force-lang-def=support/cloc/langDef --quiet .';
+//     }
+//   }
+// },
 // linux: {
 //   node('linux') {
 //     stage('linux/scm') {
