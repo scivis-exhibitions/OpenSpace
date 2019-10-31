@@ -4,7 +4,7 @@ library('sharedSpace'); // jenkins-pipeline-lib
 
 
 def url = 'https://github.com/OpenSpace/OpenSpace';
-def branch = 'feature/visual-testing'//env.BRANCH_NAME;
+def branch = 'feature/visual-testing';//env.BRANCH_NAME;
 
 @NonCPS
 def readDir() {
