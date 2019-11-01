@@ -129,6 +129,7 @@ windows: {
         // Currently, the unit tests are failing on Windows
         testHelper.copySyncFiles(env.OPENSPACE_SYNC_DIR);
         testHelper.runUnitTests('bin\\RelWithDebInfo\\OpenSpaceTest')
+        testHelper.startTestRunner();
         testHelper.runUiTests()
       }
       stage('windows/package') {
