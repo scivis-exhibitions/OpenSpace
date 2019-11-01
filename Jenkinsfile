@@ -68,7 +68,7 @@ def moduleCMakeFlags() {
 
   def flags = '';
   for (module in modules) {
-      flags += "-D OPENSPACE_MODULE_${module.toUpperCase()}=ON "
+      flags += "-D OPENSPACE_MODULE_${module.toUpperCase()}=ON -D CMAKE_BUILD_TYPE=RelWithDebInfo"
   }
   return flags;
 }
@@ -127,7 +127,7 @@ windows: {
       }
       stage('windows/test') {
         // Currently, the unit tests are failing on Windows
-        testHelper.copySyncFiles($env.OPENSPACE_SYNC_DIR);
+        testHelper.copySyncFiles(env.OPENSPACE_SYNC_DIR);
         testHelper.runUnitTests('bin\\RelWithDebInfo\\OpenSpaceTest')
         testHelper.runUiTests()
       }
