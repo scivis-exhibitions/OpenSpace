@@ -68,7 +68,7 @@ def moduleCMakeFlags() {
 
   def flags = '';
   for (module in modules) {
-      flags += "-D OPENSPACE_MODULE_${module.toUpperCase()}=ON -D CMAKE_BUILD_TYPE=RelWithDebInfo"
+      flags += "-D OPENSPACE_MODULE_${module.toUpperCase()}=ON"
   }
   return flags;
 }
@@ -120,7 +120,7 @@ windows: {
         gitHelper.checkoutGit(url, branch);
       }
       stage('windows/build') {
-        compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '', 'build-all');
+        compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), ' /p:Configuration=RelWithDebInfo', 'build-all');
       }
       stage('windows/warnings') {
         // compileHelper.recordCompileIssues(compileHelper.VisualStudio());
