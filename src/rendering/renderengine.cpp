@@ -222,6 +222,12 @@ namespace {
         "Value"
     };
 
+    constexpr openspace::properties::Property::PropertyInfo ATMDownscaleValueInfo = {
+        "ATMDownscaleValue",
+        "ATM Downscale Value",
+        "Ratio of downscaling the original resolution for the ATMs rendering."
+    };
+
     constexpr openspace::properties::Property::PropertyInfo HorizFieldOfViewInfo = {
         "HorizFieldOfView",
         "Horizontal Field of View",
@@ -265,6 +271,7 @@ RenderEngine::RenderEngine()
     , _disableHDRPipeline(DisableHDRPipelineInfo, false)
     , _hdrExposure(HDRExposureInfo, 3.7f, 0.01f, 10.f)
     , _gamma(GammaInfo, 0.95f, 0.01f, 5.f)
+    , _atmDownscaleValue(ATMDownscaleValueInfo, 1.f, 0.1f, 1.f)
     , _hue(HueInfo, 0.f, 0.f, 360.f)
     , _saturation(SaturationInfo, 1.f, 0.0f, 2.f)
     , _value(ValueInfo, 1.f, 0.f, 2.f)
@@ -357,6 +364,15 @@ RenderEngine::RenderEngine()
     });
 
     addProperty(_value);
+
+    _atmDownscaleValue.onChange([this]() {
+        if (_renderer) {
+            _renderer->setATMDownscaleValue(_atmDownscaleValue);
+        }
+    });
+
+    addProperty(_atmDownscaleValue);
+
 
     addProperty(_globalBlackOutFactor);
     addProperty(_applyWarping);

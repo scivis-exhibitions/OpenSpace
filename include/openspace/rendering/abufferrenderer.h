@@ -80,6 +80,7 @@ public:
     void setLightness(float lightness) override;
     void setColorSpace(unsigned int colorspace) override;
 
+    void setATMDownscaleValue(float value) override;
     
     void enableBloom(bool enable) override;
     void enableHistogram(bool enable) override;

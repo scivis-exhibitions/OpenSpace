@@ -22,63 +22,14 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_CORE___RENDERER___H__
-#define __OPENSPACE_CORE___RENDERER___H__
+#version __CONTEXT__
 
-#include <ghoul/glm.h>
-#include <vector>
+layout (location = 0) out vec4 finalColor;
 
-namespace ghoul { class Dictionary; }
-namespace ghoul::filesystem { class File; }
-namespace ghoul::opengl {
-    class ProgramObject;
-    class Texture;
-} // namespace ghoul::opengl
+uniform sampler2D pingPongResultTexture;
 
-namespace openspace {
+in vec2 texCoord;
 
-class RenderableVolume;
-class Camera;
-class Scene;
-
-class Renderer {
-public:
-    virtual ~Renderer() = default;
-
-    virtual void initialize() = 0;
-    virtual void deinitialize() = 0;
-
-    virtual void setResolution(glm::ivec2 res) = 0;
-    virtual void setHDRExposure(float hdrExposure) = 0;
-    virtual void setGamma(float gamma) = 0;
-    virtual void setHue(float hue) = 0;
-    virtual void setValue(float value) = 0;
-    virtual void setSaturation(float sat) = 0;
-    virtual void enableFXAA(bool enable) = 0;
-    virtual void setDisableHDR(bool disable) = 0;
-    virtual void setATMDownscaleValue(float value) = 0;
-
-    /**
-    * Set raycasting uniforms on the program object, and setup raycasting.
-    */
-    virtual void preRaycast(ghoul::opengl::ProgramObject& /*programObject*/) {};
-
-    /**
-    * Tear down raycasting for the specified program object.
-    */
-    virtual void postRaycast(ghoul::opengl::ProgramObject& /*programObject*/) {};
-
-
-    virtual void update() = 0;
-
-    virtual void render(Scene* scene, Camera* camera, float blackoutFactor) = 0;
-    /**
-     * Update render data
-     * Responsible for calling renderEngine::setRenderData
-     */
-    virtual void updateRendererData() = 0;
-};
-
-} // openspace
-
-#endif // __OPENSPACE_CORE___RENDERER___H__
+void main() {
+    finalColor = texture(pingPongResultTexture, texCoord);
+}

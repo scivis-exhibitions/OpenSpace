@@ -218,6 +218,8 @@ private:
     properties::FloatProperty _hdrExposure;
     properties::FloatProperty _gamma;
 
+    properties::FloatProperty _atmDownscaleValue;
+
     properties::FloatProperty _hue;
     properties::FloatProperty _saturation;
     properties::FloatProperty _value;

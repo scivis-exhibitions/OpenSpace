@@ -166,9 +166,7 @@ void FramebufferRenderer::initialize() {
     glGenFramebuffers(1, &_gBuffers.framebuffer);
 
     // PingPong Buffers
-    // The first pingpong buffer shares the color texture with the renderbuffer:
-    _pingPongBuffers.colorTexture[0] = _gBuffers.colorTexture;
-    glGenTextures(1, &_pingPongBuffers.colorTexture[1]);
+    glGenTextures(2, _pingPongBuffers.colorTexture);
     glGenFramebuffers(1, &_pingPongBuffers.framebuffer);
     
     // Exit framebuffer
@@ -312,6 +310,7 @@ void FramebufferRenderer::initialize() {
     updateHDRAndFiltering();
     updateFXAA();
     updateDeferredcastData();
+    updateATMDownscale();
 
     // Sets back to default FBO
     glBindFramebuffer(GL_FRAMEBUFFER, _defaultFBO);
@@ -351,8 +350,8 @@ void FramebufferRenderer::deinitialize() {
     glDeleteTextures(1, &_gBuffers.positionTexture);
     glDeleteTextures(1, &_gBuffers.normalTexture);
     
-    glDeleteTextures(1, &_pingPongBuffers.colorTexture[1]);
-
+    glDeleteTextures(2, _pingPongBuffers.colorTexture);
+    
     glDeleteTextures(1, &_exitColorTexture);
     glDeleteTextures(1, &_exitDepthTexture);
 
@@ -375,6 +374,171 @@ void FramebufferRenderer::deferredcastersChanged(Deferredcaster&,
     _dirtyDeferredcastData = true;
 }
 
+void FramebufferRenderer::updateGBufferTextures() {
+    glBindTexture(GL_TEXTURE_2D, _gBuffers.colorTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA32F,
+        _resolution.x,
+        _resolution.y,
+        0,
+        GL_RGBA,
+        GL_FLOAT,
+        nullptr
+    );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, _gBuffers.positionTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA32F,
+        _resolution.x,
+        _resolution.y,
+        0,
+        GL_RGBA,
+        GL_FLOAT,
+        nullptr
+    );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, _gBuffers.normalTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA32F,
+        _resolution.x,
+        _resolution.y,
+        0,
+        GL_RGBA,
+        GL_FLOAT,
+        nullptr
+    );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, _gBuffers.depthTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_DEPTH_COMPONENT32F,
+        _resolution.x,
+        _resolution.y,
+        0,
+        GL_DEPTH_COMPONENT,
+        GL_FLOAT,
+        nullptr
+    );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+}
+
+void FramebufferRenderer::updatePingPongTextures() {
+    glBindTexture(GL_TEXTURE_2D, _pingPongBuffers.colorTexture[0]);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA32F,
+        _resolution.x * _atmDownscaleValue,
+        _resolution.y * _atmDownscaleValue,
+        0,
+        GL_RGBA,
+        GL_FLOAT,
+        nullptr
+    );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glBindTexture(GL_TEXTURE_2D, _pingPongBuffers.colorTexture[1]);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA32F,
+        _resolution.x * _atmDownscaleValue,
+        _resolution.y * _atmDownscaleValue,
+        0,
+        GL_RGBA,
+        GL_FLOAT,
+        nullptr
+    );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+}
+
+void FramebufferRenderer::writePingPongToCurrentFBO() {
+    const bool doPerformanceMeasurements = global::performanceManager.isEnabled();
+    std::unique_ptr<performance::PerformanceMeasurement> perfInternal;
+
+    if (doPerformanceMeasurements) {
+        perfInternal = std::make_unique<performance::PerformanceMeasurement>(
+            "FramebufferRenderer::render::writePingPongToDefaultFBO"
+            );
+    }
+
+    // Saving current OpenGL state
+    GLboolean blendEnabled = glIsEnabledi(GL_BLEND, 0);
+
+    GLenum blendEquationRGB;
+    glGetIntegerv(GL_BLEND_EQUATION_RGB, &blendEquationRGB);
+
+    GLenum blendEquationAlpha;
+    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &blendEquationAlpha);
+
+    GLenum blendDestAlpha;
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDestAlpha);
+
+    GLenum blendDestRGB;
+    glGetIntegerv(GL_BLEND_DST_RGB, &blendDestRGB);
+
+    GLenum blendSrcAlpha;
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcAlpha);
+
+    GLenum blendSrcRGB;
+    glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRGB);
+
+    glEnablei(GL_BLEND, 0);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    _writePPToFBOProgram->activate();
+
+    ghoul::opengl::TextureUnit downscaledTextureUnit;
+    downscaledTextureUnit.activate();
+    glBindTexture(
+        GL_TEXTURE_2D,
+        _pingPongBuffers.colorTexture[_pingPongIndex]
+    );
+
+    _writePPToFBOProgram->setUniform(
+        "pingPongResultTexture",
+        downscaledTextureUnit
+    );
+
+    glEnablei(GL_BLEND, 0);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    glDisable(GL_DEPTH_TEST);
+
+    glBindVertexArray(_screenQuad);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    glEnable(GL_DEPTH_TEST);
+
+    _writePPToFBOProgram->deactivate();
+
+    // Restores blending state
+    glBlendEquationSeparate(blendEquationRGB, blendEquationAlpha);
+    glBlendFuncSeparate(blendSrcRGB, blendDestRGB, blendSrcAlpha, blendDestAlpha);
+
+    if (!blendEnabled) {
+        glDisablei(GL_BLEND, 0);
+    }
+
+}
+
 void FramebufferRenderer::applyTMO(float blackoutFactor) {
     const bool doPerformanceMeasurements = global::performanceManager.isEnabled();
     std::unique_ptr<performance::PerformanceMeasurement> perfInternal;
@@ -388,9 +552,14 @@ void FramebufferRenderer::applyTMO(float blackoutFactor) {
 
     ghoul::opengl::TextureUnit hdrFeedingTextureUnit;
     hdrFeedingTextureUnit.activate();
-    glBindTexture(
+    /*glBindTexture(
         GL_TEXTURE_2D,
         _pingPongBuffers.colorTexture[_pingPongIndex]
+    );*/
+
+    glBindTexture(
+        GL_TEXTURE_2D,
+        _gBuffers.colorTexture
     );
     
     _hdrFilteringProgram->setUniform(
@@ -492,6 +661,16 @@ void FramebufferRenderer::update() {
         );
     }
 
+    if (_writePPToFBOProgram->isDirty()) {
+        _writePPToFBOProgram->rebuildFromFile();
+
+        /*ghoul::opengl::updateUniformLocations(
+            *_writePPToFBOProgram,
+            _writeDownscaledVolumeUniformCache,
+            DownscaledVolumeUniformNames
+        );*/
+    }
+
     using K = VolumeRaycaster*;
     using V = std::unique_ptr<ghoul::opengl::ProgramObject>;
     for (const std::pair<const K, V>& program : _exitPrograms) {
@@ -544,80 +723,11 @@ void FramebufferRenderer::update() {
 }
 
 void FramebufferRenderer::updateResolution() {
-    glBindTexture(GL_TEXTURE_2D, _gBuffers.colorTexture);
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA32F,
-        _resolution.x,
-        _resolution.y,
-        0,
-        GL_RGBA,
-        GL_FLOAT,
-        nullptr
-    );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // G-Buffer
+    updateGBufferTextures();
 
-    glBindTexture(GL_TEXTURE_2D, _gBuffers.positionTexture);
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA32F,
-        _resolution.x,
-        _resolution.y,
-        0,
-        GL_RGBA,
-        GL_FLOAT,
-        nullptr
-    );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    glBindTexture(GL_TEXTURE_2D, _gBuffers.normalTexture);
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA32F,
-        _resolution.x,
-        _resolution.y,
-        0,
-        GL_RGBA,
-        GL_FLOAT,
-        nullptr
-    );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    glBindTexture(GL_TEXTURE_2D, _gBuffers.depthTexture);
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_DEPTH_COMPONENT32F,
-        _resolution.x,
-        _resolution.y,
-        0,
-        GL_DEPTH_COMPONENT,
-        GL_FLOAT,
-        nullptr
-    );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    glBindTexture(GL_TEXTURE_2D, _pingPongBuffers.colorTexture[1]);
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA32F,
-        _resolution.x,
-        _resolution.y,
-        0,
-        GL_RGBA,
-        GL_FLOAT,
-        nullptr
-    );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //Ping-Pong Textures 
+    updatePingPongTextures();
 
     // HDR / Filtering
     glBindTexture(GL_TEXTURE_2D, _hdrBuffers.hdrFilteringTexture);
@@ -834,6 +944,18 @@ void FramebufferRenderer::updateFXAA() {
     //_fxaaProgram->setIgnoreUniformLocationError(IgnoreError::Yes);
 }
 
+void FramebufferRenderer::updateATMDownscale() {
+    _writePPToFBOProgram = ghoul::opengl::ProgramObject::Build(
+        "Write Downscaled ATM Program",
+        absPath("${SHADERS}/framebuffer/mergeDownscaledATM.vert"),
+        absPath("${SHADERS}/framebuffer/mergeDownscaledATM.frag")
+    );
+    using IgnoreError = ghoul::opengl::ProgramObject::IgnoreError;
+    //_downscaledVolumeProgram->setIgnoreSubroutineUniformLocationError(IgnoreError::Yes);
+    //_downscaledVolumeProgram->setIgnoreUniformLocationError(IgnoreError::Yes);
+}
+
+
 void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFactor) {
     // Set OpenGL default rendering state
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &_defaultFBO);
@@ -895,12 +1017,16 @@ void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFac
         performRaycasterTasks(tasks.raycasterTasks);
     }
 
+    // Run Deferred Tasks
     if (!tasks.deferredcasterTasks.empty()) {
         // We use ping pong rendering in order to be able to
         // render to the same final buffer, multiple 
         // deferred tasks at same time (e.g. more than 1 ATM being seen at once)
         glBindFramebuffer(GL_FRAMEBUFFER, _pingPongBuffers.framebuffer);
         glDrawBuffers(1, &ColorAttachment01Array[_pingPongIndex]);
+
+        // JCC: We may not need this here.
+        glClear(GL_COLOR_BUFFER_BIT);
 
         std::unique_ptr<performance::PerformanceMeasurement> perfInternal;
         if (doPerformanceMeasurements) {
@@ -911,7 +1037,14 @@ void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFac
         performDeferredTasks(tasks.deferredcasterTasks);
     }
     
-    glDrawBuffers(1, &ColorAttachment01Array[_pingPongIndex]);
+    //glDrawBuffers(1, &ColorAttachment01Array[_pingPongIndex]);
+    glBindFramebuffer(GL_FRAMEBUFFER, _gBuffers.framebuffer);
+    glDrawBuffer(GL_COLOR_ATTACHMENT0);
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT);
+    writePingPongToCurrentFBO();
+    
+    glEnable(GL_DEPTH_TEST);
     glEnablei(GL_BLEND, 0);
 
     data.renderBinMask = static_cast<int>(Renderable::RenderBin::Overlay);
@@ -1036,6 +1169,7 @@ void FramebufferRenderer::performDeferredTasks(
                                              const std::vector<DeferredcasterTask>& tasks
                                               )
 {   
+    bool firstIteraction = true;
     for (const DeferredcasterTask& deferredcasterTask : tasks) {
         Deferredcaster* deferredcaster = deferredcasterTask.deferredcaster;
 
@@ -1048,6 +1182,14 @@ void FramebufferRenderer::performDeferredTasks(
         }
 
         if (deferredcastProgram) {
+            if (_previousAtmDownscaleValue != _atmDownscaleValue) {
+                glViewport(0, 0, _resolution.x * _atmDownscaleValue, 
+                                 _resolution.y * _atmDownscaleValue
+                );
+                _previousAtmDownscaleValue = _atmDownscaleValue;
+                updatePingPongTextures();
+            }
+           
             _pingPongIndex = _pingPongIndex == 0 ? 1 : 0;
             int fromIndex = _pingPongIndex == 0 ? 1 : 0;
             glDrawBuffers(1, &ColorAttachment01Array[_pingPongIndex]);
@@ -1059,10 +1201,19 @@ void FramebufferRenderer::performDeferredTasks(
             // adding G-Buffer
             ghoul::opengl::TextureUnit mainDColorTextureUnit;
             mainDColorTextureUnit.activate();
-            glBindTexture(
-                GL_TEXTURE_2D,
-                _pingPongBuffers.colorTexture[fromIndex]
-            );
+            if (firstIteraction) {
+                glBindTexture(
+                    GL_TEXTURE_2D,
+                    _gBuffers.colorTexture
+                );
+                firstIteraction = false;
+            }
+            else {
+                glBindTexture(
+                    GL_TEXTURE_2D,
+                    _pingPongBuffers.colorTexture[fromIndex]
+                );
+            }
             deferredcastProgram->setUniform(
                 "mainColorTexture",
                 mainDColorTextureUnit
@@ -1114,6 +1265,11 @@ void FramebufferRenderer::performDeferredTasks(
             );
         }
     }
+
+    if (_atmDownscaleValue < 1.f) {
+        glViewport(0, 0, _resolution.x, _resolution.y);
+        // copy the results from the ping pong to somewhere?
+    }
 }
 
 void FramebufferRenderer::setResolution(glm::ivec2 res) {
@@ -1146,6 +1302,10 @@ void FramebufferRenderer::setValue(float value) {
 
 void FramebufferRenderer::setSaturation(float sat) {
     _saturation = std::move(sat);
+}
+
+void FramebufferRenderer::setATMDownscaleValue(float value) {
+    _atmDownscaleValue = std::move(value);
 }
 
 void FramebufferRenderer::enableFXAA(bool enable) {

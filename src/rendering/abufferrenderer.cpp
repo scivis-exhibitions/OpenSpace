@@ -1028,6 +1028,8 @@ void ABufferRenderer::updateRendererData() {
     _dirtyRendererData = false;
 }
 
+void ABufferRenderer::setATMDownscaleValue(float value) {}
+
 void ABufferRenderer::saveTextureToMemory(GLenum color_buffer_attachment, int width,
                                           int height, std::vector<double>& memory) const
 {

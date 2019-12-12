@@ -70,6 +70,7 @@ public:
     void updateDeferredcastData();
     void updateHDRAndFiltering();
     void updateFXAA();
+    void updateATMDownscale();
     
     void setResolution(glm::ivec2 res) override;
     void setHDRExposure(float hdrExposure) override;
@@ -77,6 +78,8 @@ public:
     void setHue(float hue) override;
     void setValue(float value) override;
     void setSaturation(float sat) override;
+
+    void setATMDownscaleValue(float value) override;
     
     void enableFXAA(bool enable) override;
     void setDisableHDR(bool disable) override;
@@ -107,7 +110,9 @@ private:
         std::unique_ptr<ghoul::opengl::ProgramObject>
     >;
 
-    void resolveMSAA(float blackoutFactor);
+    void updateGBufferTextures();
+    void updatePingPongTextures();
+    void writePingPongToCurrentFBO();
     void applyTMO(float blackoutFactor);
     void applyFXAA();
     
@@ -122,6 +127,7 @@ private:
     std::unique_ptr<ghoul::opengl::ProgramObject> _hdrFilteringProgram;
     std::unique_ptr<ghoul::opengl::ProgramObject> _tmoProgram;
     std::unique_ptr<ghoul::opengl::ProgramObject> _fxaaProgram;
+    std::unique_ptr<ghoul::opengl::ProgramObject> _writePPToFBOProgram;
 
     UniformCache(hdrFeedingTexture, blackoutFactor, hdrExposure, gamma,
                  Hue, Saturation, Value) _hdrUniformCache;
@@ -173,6 +179,9 @@ private:
     float _hue = 1.f;
     float _saturation = 1.f;
     float _value = 1.f;
+
+    float _atmDownscaleValue = 1.f;
+    float _previousAtmDownscaleValue = 1.f;
     
     ghoul::Dictionary _rendererData;
 };
