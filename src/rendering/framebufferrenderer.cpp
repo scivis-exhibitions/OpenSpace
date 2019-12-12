@@ -1182,16 +1182,14 @@ void FramebufferRenderer::performDeferredTasks(
         }
 
         if (deferredcastProgram) {
-            if (_atmDownscaleValue < 1.f) {
-                glViewport(0, 0, _resolution.x * _atmDownscaleValue, 
-                                 _resolution.y * _atmDownscaleValue
-                );
-                if (_previousAtmDownscaleValue != _atmDownscaleValue) {
-                    _previousAtmDownscaleValue = _atmDownscaleValue;
-                    updatePingPongTextures();
-                }
+            glViewport(0, 0, _resolution.x * _atmDownscaleValue, 
+                             _resolution.y * _atmDownscaleValue
+            );
+            if (_previousAtmDownscaleValue != _atmDownscaleValue) {
+                _previousAtmDownscaleValue = _atmDownscaleValue;
+                updatePingPongTextures();
             }
-           
+            
             _pingPongIndex = _pingPongIndex == 0 ? 1 : 0;
             int fromIndex = _pingPongIndex == 0 ? 1 : 0;
             glDrawBuffers(1, &ColorAttachment01Array[_pingPongIndex]);
@@ -1268,9 +1266,7 @@ void FramebufferRenderer::performDeferredTasks(
         }
     }
 
-    if (_atmDownscaleValue < 1.f) {
-        glViewport(0, 0, _resolution.x, _resolution.y);
-    }
+    glViewport(0, 0, _resolution.x, _resolution.y);
 }
 
 void FramebufferRenderer::setResolution(glm::ivec2 res) {
