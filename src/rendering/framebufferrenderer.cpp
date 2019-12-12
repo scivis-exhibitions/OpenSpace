@@ -1182,12 +1182,14 @@ void FramebufferRenderer::performDeferredTasks(
         }
 
         if (deferredcastProgram) {
-            if (_previousAtmDownscaleValue != _atmDownscaleValue) {
+            if (_atmDownscaleValue < 1.f) {
                 glViewport(0, 0, _resolution.x * _atmDownscaleValue, 
                                  _resolution.y * _atmDownscaleValue
                 );
-                _previousAtmDownscaleValue = _atmDownscaleValue;
-                updatePingPongTextures();
+                if (_previousAtmDownscaleValue != _atmDownscaleValue) {
+                    _previousAtmDownscaleValue = _atmDownscaleValue;
+                    updatePingPongTextures();
+                }
             }
            
             _pingPongIndex = _pingPongIndex == 0 ? 1 : 0;
@@ -1268,7 +1270,6 @@ void FramebufferRenderer::performDeferredTasks(
 
     if (_atmDownscaleValue < 1.f) {
         glViewport(0, 0, _resolution.x, _resolution.y);
-        // copy the results from the ping pong to somewhere?
     }
 }
 

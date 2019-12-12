@@ -403,7 +403,7 @@ vec3 inscatterRadiance(inout vec3 x, inout float t, inout float irradianceFactor
     vec3 inscatterMie    = inscatterRadiance.rgb * inscatterRadiance.a / max(inscatterRadiance.r, 1e-4) *
       (betaRayleigh.r / betaRayleigh);
       
-    radiance = max(inscatterRadiance.rgb * rayleighPhase + inscatterMie * miePhase, 0.0f);    
+    radiance = max(inscatterRadiance.rgb * rayleighPhase + inscatterMie * miePhase, 0.0f);
     
     // Finally we add the Lsun (all calculations are done with no Lsun so
     // we can change it on the fly with no precomputations)
@@ -494,10 +494,10 @@ vec3 groundColor(const vec3 x, const float t, const vec3 v, const vec3 s, const 
     }
     //return groundRadiance;  
     // Finally, we attenuate the surface Radiance from the the point x0 to the camera location.
-    reflectedRadiance = attenuationXtoX0 * groundRadiance;    
+    reflectedRadiance = attenuationXtoX0 * groundRadiance;
       
     // Returns reflectedRadiance = 0.0 if the ray doesn't hit the ground.
-    return reflectedRadiance;  
+    return reflectedRadiance;
 }
 
 /* 
@@ -520,10 +520,10 @@ vec3 groundColor(const vec3 x, const float t, const vec3 v, const vec3 s, const 
 vec3 sunColor(const vec3 x, const float t, const vec3 v, const vec3 s, const float r,
               const float mu, const float irradianceFactor) {
     vec3 transmittance  = (r <= Rt) ? ( mu < -sqrt(1.0f - Rg2/(r*r)) ? 
-                          vec3(0.0f) : transmittanceLUT(r, mu)) : vec3(1.0f);  
+                          vec3(0.0f) : transmittanceLUT(r, mu)) : vec3(1.0f);
     // JCC: Change this function to a impostor texture with gaussian decay color weighted
-    // by tge sunRadiance, transmittance and irradianceColor (11/03/2017)                          
-    float sunFinalColor = smoothstep(cos(M_PI / 500.0f), cos(M_PI / 900.0f), dot(v, s)) * 
+    // by tge sunRadiance, transmittance and irradianceColor (11/03/2017)
+    float sunFinalColor = smoothstep(cos(M_PI / 500.0f), cos(M_PI / 900.0f), dot(v, s)) *
                           sunRadiance * (1.0f - irradianceFactor);
 
     return transmittance * sunFinalColor;
@@ -539,14 +539,14 @@ void main() {
         vec4 oldColor, currentColor;
         vec4 colorTexture;
         
-        colorTexture = texture(mainColorTexture, texCoord);        
+        colorTexture = texture(mainColorTexture, texCoord);
         
         // Color from G-Buffer
         vec4 color = colorTexture;
         // Ray in object space
         dRay ray;
         dvec4 planetPositionObjectCoords = dvec4(0.0);
-        dvec4 cameraPositionInObject     = dvec4(0.0);        
+        dvec4 cameraPositionInObject     = dvec4(0.0);
         
         // Get the ray from camera to atm in object space
         dCalculateRayRenderableGlobe(ray, planetPositionObjectCoords, 
@@ -554,12 +554,13 @@ void main() {
         
         bool  insideATM    = false;
         double offset      = 0.0;   // in Km
-        double maxLength   = 0.0;   // in Km  
+        double maxLength   = 0.0;   // in Km
 
         bool  intersectATM = false;
 
-        intersectATM = dAtmosphereIntersection(planetPositionObjectCoords.xyz, ray,  
-                                                Rt - (ATM_EPSILON * 0.001), insideATM, offset, maxLength);
+        intersectATM = dAtmosphereIntersection(planetPositionObjectCoords.xyz, ray,
+                                               Rt - (ATM_EPSILON * 0.001), insideATM,
+                                               offset, maxLength);
             
         if ( intersectATM ) {
             // Now we check is if the atmosphere is occluded, i.e., if the distance to the pixel 
@@ -609,7 +610,7 @@ void main() {
                 float diffDist  = x2 - x1;
                 float varA      = diffGreek/diffDist;
                 float varB      = (alpha - varA * x1);
-                pixelDepth     += double(varA * dC + varB); 
+                pixelDepth     += double(varA * dC + varB);
             }
 
             // All calculations are done in Km:
@@ -620,9 +621,9 @@ void main() {
                 // ATM Occluded - Something in fron of ATM.
                 atmosphereFinalColor += color;
             } else {
-                // Following paper nomenclature      
-                double t = offset;                  
-                vec3 attenuation;     
+                // Following paper nomenclature
+                double t = offset;
+                vec3 attenuation;
 
                 // Moving observer from camera location to top atmosphere
                 // If the observer is already inside the atm, offset = 0.0
@@ -640,7 +641,7 @@ void main() {
                 pixelDepth -= offset;
                 
                 dvec4 onATMPos           = dModelTransformMatrix * dvec4(x * 1000.0, 1.0);
-                vec4 eclipseShadowATM    = calcShadow(shadowDataArray, onATMPos.xyz, false);            
+                vec4 eclipseShadowATM    = calcShadow(shadowDataArray, onATMPos.xyz, false);
                 float sunIntensityInscatter = sunRadiance * eclipseShadowATM.x;
 
                 float irradianceFactor = 0.0;
@@ -650,9 +651,9 @@ void main() {
                                                         s, r, mu, attenuation, 
                                                         vec3(positionObjectsCoords.xyz),
                                                         groundHit, maxLength, pixelDepth,
-                                                        color, sunIntensityInscatter); 
+                                                        color, sunIntensityInscatter);
                 vec3 groundColorV = vec3(0.0);
-                vec3 sunColorV = vec3(0.0);                                                
+                vec3 sunColorV = vec3(0.0);
                 if (groundHit) {
                     vec4 eclipseShadowPlanet = calcShadow(shadowDataArray, positionWorldCoords.xyz, true);
                     float sunIntensityGround = sunRadiance * eclipseShadowPlanet.x;
@@ -663,7 +664,7 @@ void main() {
                     // In order to get better performance, we are not tracing
                     // multiple rays per pixel when the ray doesn't intersect
                     // the ground.
-                    sunColorV = sunColor(x, tF, v, s, r, mu, irradianceFactor); 
+                    sunColorV = sunColor(x, tF, v, s, r, mu, irradianceFactor);
                 } 
                 
                 // Final Color of ATM plus terrain:
@@ -675,7 +676,7 @@ void main() {
         else { // no intersection
             // Buffer color
             atmosphereFinalColor += color;
-        }           
+        }
         
 
         renderTarget = atmosphereFinalColor;
