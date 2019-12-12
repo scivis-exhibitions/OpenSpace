@@ -552,21 +552,24 @@ void FramebufferRenderer::applyTMO(float blackoutFactor) {
 
     ghoul::opengl::TextureUnit hdrFeedingTextureUnit;
     hdrFeedingTextureUnit.activate();
-    /*glBindTexture(
-        GL_TEXTURE_2D,
-        _pingPongBuffers.colorTexture[_pingPongIndex]
-    );*/
 
-    glBindTexture(
-        GL_TEXTURE_2D,
-        _gBuffers.colorTexture
-    );
+    if (_atmDownscaleValue < 1.f) {
+        glBindTexture(
+            GL_TEXTURE_2D,
+            _gBuffers.colorTexture
+        );
+    }
+    else {
+        glBindTexture(
+            GL_TEXTURE_2D,
+            _pingPongBuffers.colorTexture[_pingPongIndex]
+        );
+    }
     
     _hdrFilteringProgram->setUniform(
         _hdrUniformCache.hdrFeedingTexture,
         hdrFeedingTextureUnit
     );
-
 
     _hdrFilteringProgram->setUniform(_hdrUniformCache.blackoutFactor, blackoutFactor);
     _hdrFilteringProgram->setUniform(_hdrUniformCache.hdrExposure, _hdrExposure);
@@ -1038,19 +1041,26 @@ void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFac
     }
     
     //glDrawBuffers(1, &ColorAttachment01Array[_pingPongIndex]);
-    glBindFramebuffer(GL_FRAMEBUFFER, _gBuffers.framebuffer);
-    glDrawBuffer(GL_COLOR_ATTACHMENT0);
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT);
-    writePingPongToCurrentFBO();
-    
+    if (_atmDownscaleValue < 1.f) {
+        glBindFramebuffer(GL_FRAMEBUFFER, _gBuffers.framebuffer);
+        glDrawBuffer(GL_COLOR_ATTACHMENT0);
+    }
+    else {
+        glDrawBuffers(1, &ColorAttachment01Array[_pingPongIndex]);
+    }
+
+    if (_atmDownscaleValue < 1.f) {
+        glDisable(GL_DEPTH_TEST);
+        glDisablei(GL_BLEND, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        writePingPongToCurrentFBO();
+    }
+
     glEnable(GL_DEPTH_TEST);
     glEnablei(GL_BLEND, 0);
 
     data.renderBinMask = static_cast<int>(Renderable::RenderBin::Overlay);
     scene->render(data, tasks);
-
-    glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
     // Disabling depth test for filtering and hdr
     glDisable(GL_DEPTH_TEST);
