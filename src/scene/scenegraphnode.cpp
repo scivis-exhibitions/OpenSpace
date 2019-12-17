@@ -766,20 +766,61 @@ glm::dvec3 SceneGraphNode::position() const {
     return _transform.translation->position();
 }
 
-const glm::dmat3& SceneGraphNode::rotationMatrix() const {
+glm::dvec3 SceneGraphNode::position(const Time& time) const {
+    UpdateData data = {
+        {},
+        time,
+        time,
+        false
+    };
+
+    return _transform.translation->position(data);
+}
+
+glm::dmat3 SceneGraphNode::rotationMatrix() const {
     return _transform.rotation->matrix();
+}
+
+glm::dmat3 SceneGraphNode::rotationMatrix(const Time& time) const {
+    UpdateData data = {
+        {},
+        time,
+        time,
+        false
+    };
+
+    return _transform.rotation->matrix(data);
 }
 
 double SceneGraphNode::scale() const {
     return _transform.scale->scaleValue();
 }
 
+double SceneGraphNode::scale(const Time& time) const {
+    UpdateData data = {
+        {},
+        time,
+        time,
+        false
+    };
+
+    return _transform.scale->scaleValue(data);
+}
+
 glm::dvec3 SceneGraphNode::worldPosition() const {
     return _worldPositionCached;
 }
 
+glm::dvec3 SceneGraphNode::worldPosition(const Time& time) const {
+    return calculateWorldPosition(time);
+}
+
 const glm::dmat3& SceneGraphNode::worldRotationMatrix() const {
     return _worldRotationCached;
+}
+
+glm::dmat3 SceneGraphNode::worldRotationMatrix(const Time& time) const {
+    return calculateWorldRotation(time);
 }
 
 glm::dmat4 SceneGraphNode::modelTransform() const {
@@ -792,6 +833,10 @@ glm::dmat4 SceneGraphNode::inverseModelTransform() const {
 
 double SceneGraphNode::worldScale() const {
     return _worldScaleCached;
+}
+
+double SceneGraphNode::worldScale(const Time& time) const {
+    return calculateWorldScale(time);
 }
 
 std::string SceneGraphNode::guiPath() const {
@@ -817,6 +862,22 @@ glm::dvec3 SceneGraphNode::calculateWorldPosition() const {
     }
 }
 
+glm::dvec3 SceneGraphNode::calculateWorldPosition(const Time& time) const {
+    // recursive up the hierarchy if there are parents available
+    if (_parent) {
+        const glm::dvec3 wp = _parent->worldPosition(time);
+        const glm::dmat3 wrot = _parent->worldRotationMatrix(time);
+        const double ws = _parent->worldScale(time);
+        const glm::dvec3 p = position(time);
+
+        return wp + wrot * ws * p;
+    }
+    else {
+        return position(time);
+    }
+}
+
+
 bool SceneGraphNode::isTimeFrameActive(const Time& time) const {
     for (SceneGraphNode* dep : _dependencies) {
         if (!dep->isTimeFrameActive(time)) {
@@ -841,6 +902,16 @@ glm::dmat3 SceneGraphNode::calculateWorldRotation() const {
     }
 }
 
+glm::dmat3 SceneGraphNode::calculateWorldRotation(const Time& time) const {
+    // recursive up the hierarchy if there are parents available
+    if (_parent) {
+        return _parent->worldRotationMatrix(time) * rotationMatrix(time);
+    }
+    else {
+        return rotationMatrix(time);
+    }
+}
+
 double SceneGraphNode::calculateWorldScale() const {
     // recursive up the hierarchy if there are parents available
     if (_parent) {
@@ -848,6 +919,16 @@ double SceneGraphNode::calculateWorldScale() const {
     }
     else {
         return scale();
+    }
+}
+
+double SceneGraphNode::calculateWorldScale(const Time& time) const {
+    // recursive up the hierarchy if there are parents available
+    if (_parent) {
+        return _parent->worldScale(time) * scale(time);
+    }
+    else {
+        return scale(time);
     }
 }
 

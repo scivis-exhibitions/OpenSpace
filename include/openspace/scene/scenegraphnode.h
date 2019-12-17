@@ -121,15 +121,26 @@ public:
     void setScene(Scene* scene);
 
     glm::dvec3 position() const;
-    const glm::dmat3& rotationMatrix() const;
+    glm::dmat3 rotationMatrix() const;
     double scale() const;
 
     glm::dvec3 worldPosition() const;
+
     const glm::dmat3& worldRotationMatrix() const;
     glm::dmat4 modelTransform() const;
     glm::dmat4 inverseModelTransform() const;
     double worldScale() const;
     bool isTimeFrameActive(const Time& time) const;
+
+    // These versions of the functions are much more expensive to compute than the one
+    // without the Time parameter, so don't call this function if you don't need to
+    glm::dvec3 worldPosition(const Time& time) const;
+    glm::dmat3 worldRotationMatrix(const Time& time) const;
+    double worldScale(const Time& time) const;
+    glm::dvec3 position(const Time& time) const;
+    glm::dmat3 rotationMatrix(const Time& time) const;
+    double scale(const Time& time) const;
+
 
     SceneGraphNode* parent() const;
     std::vector<SceneGraphNode*> children() const;
@@ -153,6 +164,11 @@ private:
     glm::dvec3 calculateWorldPosition() const;
     glm::dmat3 calculateWorldRotation() const;
     double calculateWorldScale() const;
+
+    glm::dvec3 calculateWorldPosition(const Time& time) const;
+    glm::dmat3 calculateWorldRotation(const Time& time) const;
+    double calculateWorldScale(const Time& time) const;
+
     void computeScreenSpaceData(RenderData& newData);
 
     std::atomic<State> _state = State::Loaded;
