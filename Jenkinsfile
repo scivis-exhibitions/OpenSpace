@@ -93,8 +93,8 @@ windows: {
       }
       stage('windows/visual-tests') {
         dir('OpenSpace') {
-          testHelper.linkFolder(env.OPENSPACE_FILES + "/sync_full", "sync", );
-          testHelper.linkFolder(env.OPENSPACE_FILES + "/cache_gdal", "cache_gdal");
+          testHelper.linkFolder(env.OPENSPACE_FILES + "\\sync_full", "sync", );
+          testHelper.linkFolder(env.OPENSPACE_FILES + "\\cache_gdal", "cache_gdal");
         }
         testHelper.startTestRunner();
         testHelper.runUiTests()
