@@ -79,7 +79,7 @@ windows: {
       dir('OpenSpace') {
         stage('windows/scm') {
           deleteDir();
-            gitHelper.checkoutGit(url, branch);
+          gitHelper.checkoutGit(url, branch);
         }
         stage('windows/build') {
           compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '/p:Configuration=RelWithDebInfo', 'build-all');
@@ -93,8 +93,8 @@ windows: {
       }
       stage('windows/visual-tests') {
         dir('OpenSpace') {
-          testHelper.linkFolder(env.OPENSPACE_FILES, "sync");
-          testHelper.linkFolder(env.OPENSPACE_FILES, "cache_gdal");
+          testHelper.linkFolder(env.OPENSPACE_FILES + "/sync_full", "sync", );
+          testHelper.linkFolder(env.OPENSPACE_FILES + "/cache_gdal", "cache_gdal");
         }
         testHelper.startTestRunner();
         testHelper.runUiTests()
