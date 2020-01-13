@@ -86,12 +86,31 @@ windows: {
       stage('windows/warnings') {
         // compileHelper.recordCompileIssues(compileHelper.VisualStudio());
       }
-      stage('windows/test') {
-        // Currently, the unit tests are failing on Windows
-        testHelper.copySyncFiles(env.OPENSPACE_SYNC_DIR);
-        testHelper.runUnitTests('bin\\RelWithDebInfo\\OpenSpaceTest')
-        //testHelper.startTestRunner();
+      stage('windows/unit-tests') {
+        dir('OpenSpace') {
+          //testHelper.runUnitTests('bin\\RelWithDebInfo\\OpenSpaceTest')
+        }
+      }
+      stage('windows/visual-tests') {
+        dir('OpenSpace') {
+          testHelper.linkFolder(env.OPENSPACE_FILES, "sync");
+          testHelper.linkFolder(env.OPENSPACE_FILES, "cache_gdal";
+        }
+        testHelper.startTestRunner();
         testHelper.runUiTests()
+        //commit new test images
+        //copy test results to static dir
+      }
+      stage('windows/pre-package') {
+        def modulesFolder = new File(workspace + "/OpenSpace/modules")
+        def sha = gitHelper.getCommitSha();
+        packageHelper.createOpenSpaceTree(sha);
+        packageHelper.addModuleFolders(modulesFolder , sha)
+      }
+      stage('windows/package-archive') {
+        def sha = gitHelper.getCommitSha();
+        packageHelper.createOpenSpaceArchives(sha);
+        //copy archives to static dir
       }
     } // node('windows')
   }
