@@ -82,7 +82,7 @@ windows: {
           gitHelper.checkoutGit(url, branch);
         }
         stage('windows/build') {
-        //  compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '/p:Configuration=RelWithDebInfo', 'build-all');
+          compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '/p:Configuration=RelWithDebInfo', 'build-all');
         }
         stage('windows/warnings') {
           //compileHelper.recordCompileIssues(compileHelper.VisualStudio());
@@ -96,8 +96,8 @@ windows: {
           testHelper.linkFolder(env.OPENSPACE_FILES + "\\sync_full", "sync", );
           testHelper.linkFolder(env.OPENSPACE_FILES + "\\cache_gdal", "cache_gdal");
         }
-        //testHelper.startTestRunner();
-        //testHelper.runUiTests()
+        testHelper.startTestRunner();
+        testHelper.runUiTests()
         //commit new test images
         //copy test results to static dir
       }
