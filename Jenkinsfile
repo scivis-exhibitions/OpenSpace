@@ -75,14 +75,14 @@ def moduleCMakeFlags() {
 // },
 windows: {
   node('windows') {
-    ws(branch + env.BUILD_ID) {
+    ws(branch + '\\' +  env.BUILD_ID) {
       dir('OpenSpace') {
         stage('windows/scm') {
           deleteDir();
           gitHelper.checkoutGit(url, branch);
         }
         stage('windows/build') {
-          compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '/p:Configuration=RelWithDebInfo', 'build-all');
+        //  compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '/p:Configuration=RelWithDebInfo', 'build-all');
         }
         stage('windows/warnings') {
           //compileHelper.recordCompileIssues(compileHelper.VisualStudio());
