@@ -96,19 +96,17 @@ windows: {
           testHelper.linkFolder(env.OPENSPACE_FILES + "\\sync_full", "sync", );
           testHelper.linkFolder(env.OPENSPACE_FILES + "\\cache_gdal", "cache_gdal");
         }
-        testHelper.startTestRunner();
-        testHelper.runUiTests()
+        //testHelper.startTestRunner();
+        //testHelper.runUiTests()
         //commit new test images
         //copy test results to static dir
       }
+      def sha = gitHelper.getCommitSha();
       stage('windows/pre-package') {
-        def modulesFolder = new File(workspace + "/OpenSpace/modules")
-        def sha = gitHelper.getCommitSha();
         packageHelper.createOpenSpaceTree(sha);
-        packageHelper.addModuleFolders(modulesFolder , sha)
+        packageHelper.addModuleFolders(sha)
       }
       stage('windows/package-archive') {
-        def sha = gitHelper.getCommitSha();
         packageHelper.createOpenSpaceArchives(sha);
         //copy archives to static dir
       }
