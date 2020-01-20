@@ -71,7 +71,20 @@ namespace {
         "Color",
         "This value determines the RGB main color for the lines and points of the trail."
     };
-    
+    constexpr openspace::properties::Property::PropertyInfo OnlyThisIndexInfo = {
+        "OnlyThisIndex",
+        "Only This Index",
+        "Specifies an entry index from the satellite TLE file as the only entry to be "
+        "used in the file. This corresponds to line number (3 * index) in the file, "
+        "since there are 3 lines per satellite entry."
+    };
+    constexpr openspace::properties::Property::PropertyInfo OnlyThisNameInfo = {
+        "OnlyThisName",
+        "Only This Name",
+        "Specifies which entry (only one) to be selected from the satellite TLE file. "
+        "The first entry in the file with an international designator that matches the "
+        "exact substring provided (starting at index 0 of designator) will be used."
+    };
     constexpr const char* KeyFile = "Path";
     constexpr const char* KeyLineNum = "LineNumber";
 }
@@ -299,6 +312,18 @@ documentation::Documentation RenderableSatellites::Documentation() {
                 new DoubleVector3Verifier,
                 Optional::No,
                 LineColorInfo.description
+            },
+            {
+                OnlyThisIndexInfo.identifier,
+                new IntVerifier,
+                Optional::Yes,
+                OnlyThisIndexInfo.description
+            },
+            {
+                OnlyThisNameInfo.identifier,
+                new StringVerifier,
+                Optional::Yes,
+                OnlyThisNameInfo.description
             }
         }
     };
@@ -308,6 +333,8 @@ RenderableSatellites::RenderableSatellites(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
     , _path(PathInfo)
     , _nSegments(SegmentsInfo, 120, 4, 1024)
+    , _singleEntryIndex(OnlyThisIndexInfo, -1, -1, 10000000)
+    , _singleEntryName(OnlyThisNameInfo)
 {
     documentation::testSpecificationAndThrow(
          Documentation(),
@@ -330,6 +357,12 @@ RenderableSatellites::RenderableSatellites(const ghoul::Dictionary& dictionary)
         _appearance.lineFade = 20;
     }
 
+    if (dictionary.hasKeyAndValue<float>("OnlyThisIndexInfo")) {
+        _singleEntryIndex = static_cast<int>(dictionary.value<int>("OnlyThisIndexInfo"));
+    }
+    else if (dictionary.hasKeyAndValue<std::string>("OnlyThisNameInfo")) {
+        _singleEntryName = static_cast<std::string>(dictionary.value<std::string>("OnlyThisNameInfo"));
+    }
     auto reinitializeTrailBuffers = [this]() {
         initializeGL();
     };
@@ -341,6 +374,8 @@ RenderableSatellites::RenderableSatellites(const ghoul::Dictionary& dictionary)
     addProperty(_path);
     addProperty(_nSegments);
     addProperty(_opacity);
+    addProperty(_singleEntryIndex);
+    addProperty(_singleEntryName);
 
     setRenderBin(Renderable::RenderBin::Overlay);
 }
@@ -364,10 +399,38 @@ void RenderableSatellites::readTLEFile(const std::string& filename) {
     // 3 because a TLE has 3 lines per element/ object.
     std::streamoff numberOfObjects = numberOfLines / 3;
 
+    bool willSelectOneEntryOnly;
+    if (_singleEntryIndex.value >= 0 && _singleEntryIndex.value < numberOfObjects) {
+        willSelectOneEntryOnly = true;
+    }
+    else if (!_singleEntryName.value.empty()) {
+        willSelectOneEntryOnly = true;
+    }
+    else {
+        willSelectOneEntryOnly = false;
+    }
+
+    _TLEData.clear();
     std::string line = "-";
+    bool foundMatch = false;
     for (std::streamoff i = 0; i < numberOfObjects; i++) {
         std::getline(file, line); // get rid of title
-        
+
+        if (willSelectOneEntryOnly) {
+            if (_singleEntryIndex >= 0) {
+                foundMatch = (i == _singleEntryIndex);
+            }
+            else {
+                std::string thisEntrySubstr = line.substr(0, _singleEntryName.value.length());
+                foundMatch = (thisEntrySubstr.compare(_singleEntryName.value) == 0);
+            }
+            if (!foundMatch) {
+                //Throw out the next 2 lines and skip to next entry if no match found
+                std::getline(file, line);
+                std::getline(file, line);
+                continue;
+            }
+        }
         KeplerParameters keplerElements;
 
         std::getline(file, line);
@@ -458,6 +521,10 @@ void RenderableSatellites::readTLEFile(const std::string& filename) {
 
         _TLEData.push_back(keplerElements);
 
+        if (willSelectOneEntryOnly && foundMatch) {
+            //Quit parsing the file if the desired single entry was just found.
+            break;
+        }
     }
     file.close();
 }

@@ -21,11 +21,14 @@ function downloadTLEFile(sceneAsset, url, name)
     })
 end
 
-local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder, shouldAddDuplicates)
-     local filename = group.Url:match("([^/]+)$")
-     local filenameSansExt = filename:gsub(filename:match("(%.%w+)$"), "")
+local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder, onlyThisEntry_string, onlyshouldAddDuplicates)
+    local filename = group.Url:match("([^/]+)$")
+    local filenameSansExt = filename:gsub(filename:match("(%.%w+)$"), "")
+    local path = tleFolder .. "/" .. filename
 
-     local path = tleFolder .. "/" .. filename
+	function isEmpty(s)
+	    return s == nil or s == ''
+	end
 
     function numLinesInFile(filename)
         local ctr = 0
@@ -35,8 +38,6 @@ local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder
 
     -- Check format of a set of 3 TLE file lines and return nonzero if there is a format error
     function isValidTLEFileFormat(lineArr)
-        function isEmpty(s) return s == nil or s == '' end
-
         if isEmpty(lineArr[1]) or isEmpty(lineArr[2]) or isEmpty(lineArr[3]) then
             return false
         end
@@ -49,25 +50,54 @@ local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder
         return true
     end
 
-    function satellites(title, file, color)
-        return {
-           Identifier = title,
-           Parent = transforms.EarthInertial.Identifier,
-           Renderable = {
-                Type = "RenderableSatellites",
+    function satellites(title, file, onlyThisEntry_num, onlyThisEntry_string, color)
+		if onlyThisEntry_num ~= nil then
+			renderableEntry = {
+		        Type = "RenderableSatellites",
+                Path = file,
+                Segments = 120,
+                Color = color,
+                Fade = 0.5,
+				OnlyThisIndex = onlyThisEntry_num
+		    }
+		elseif not isEmpty(onlyThisEntry_string) then
+			renderableEntry = {
+		        Type = "RenderableSatellites",
+                Path = file,
+                Segments = 120,
+                Color = color,
+                Fade = 0.5,
+				OnlyThisName = onlyThisEntry_string
+		    }
+		else
+			renderableEntry = {
+		        Type = "RenderableSatellites",
                 Path = file,
                 Segments = 120,
                 Color = color,
                 Fade = 0.5
-            },
+		    }
+		end
+        return {
+            Identifier = title,
+            Parent = transforms.EarthInertial.Identifier,
+            Renderable = renderableEntry,
             --Tag = { "earth_satellite_" .. group, "earth_satellite_" .. group .. "_trail"},
             GUI = {
                 Path = "/Solar System/Planets/Earth/Satellites"
-           }
+            }
         }
     end
 
-    local SatelliteBatch = satellites(filenameSansExt, path, group.TrailColor)
+	--nLines = numLinesInFile(path)
+	onlyThisEntry_num = nil
+	if not isEmpty(onlyThisEntry_string) then
+	  onlyThisEntry_num = tonumber(onlyThisEntry_string)
+	  if onlyThisEntry_num then
+	    onlyThisEntry_string = nil
+	  end
+	end
+    local SatelliteBatch = satellites(filenameSansExt, path, onlyThisEntry_num, onlyThisEntry_string, group.TrailColor)
     assetHelper.registerSceneGraphNodesAndExport(containingAsset, { SatelliteBatch })
 end
 

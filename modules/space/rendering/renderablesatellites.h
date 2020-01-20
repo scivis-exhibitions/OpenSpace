@@ -112,6 +112,8 @@ private:
     RenderableTrail::Appearance _appearance;
 
     glm::vec3 _position;
+    properties::IntProperty _singleEntryIndex;
+    properties::StringProperty _singleEntryName;
 
     UniformCache(modelView, projection, lineFade, inGameTime, color, opacity,
         numberOfSegments) _uniformCache;

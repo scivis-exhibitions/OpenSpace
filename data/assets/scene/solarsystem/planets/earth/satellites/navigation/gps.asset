@@ -8,4 +8,4 @@ local group = {
 }
 
 local tle = shared.downloadTLEFile(asset, group.Url, group.Title)
-shared.registerSatelliteGroupObjects(asset, group, tle, true)
+shared.registerSatelliteGroupObjects(asset, group, tle, "TEST", true)
