@@ -74,9 +74,9 @@ namespace {
     constexpr openspace::properties::Property::PropertyInfo OnlyThisIndexInfo = {
         "OnlyThisIndex",
         "Only This Index",
-        "Specifies an entry index from the satellite TLE file as the only entry to be "
-        "used in the file. This corresponds to line number (3 * index) in the file, "
-        "since there are 3 lines per satellite entry."
+        "Specifies a zero-based entry index from the satellite TLE file as the only "
+        "entry to be used in the file. This corresponds to line number (3 * index + 1) "
+        "in the file, since there are 3 lines per satellite entry."
     };
     constexpr openspace::properties::Property::PropertyInfo OnlyThisNameInfo = {
         "OnlyThisName",
@@ -357,11 +357,11 @@ RenderableSatellites::RenderableSatellites(const ghoul::Dictionary& dictionary)
         _appearance.lineFade = 20;
     }
 
-    if (dictionary.hasKeyAndValue<float>("OnlyThisIndexInfo")) {
-        _singleEntryIndex = static_cast<int>(dictionary.value<int>("OnlyThisIndexInfo"));
+    if (dictionary.hasKeyAndValue<double>(OnlyThisIndexInfo.identifier)) {
+        _singleEntryIndex = static_cast<int>(dictionary.value<double>(OnlyThisIndexInfo.identifier));
     }
-    else if (dictionary.hasKeyAndValue<std::string>("OnlyThisNameInfo")) {
-        _singleEntryName = static_cast<std::string>(dictionary.value<std::string>("OnlyThisNameInfo"));
+    else if (dictionary.hasKeyAndValue<std::string>(OnlyThisNameInfo.identifier)) {
+        _singleEntryName = static_cast<std::string>(dictionary.value<std::string>(OnlyThisNameInfo.identifier));
     }
     auto reinitializeTrailBuffers = [this]() {
         initializeGL();
@@ -400,10 +400,10 @@ void RenderableSatellites::readTLEFile(const std::string& filename) {
     std::streamoff numberOfObjects = numberOfLines / 3;
 
     bool willSelectOneEntryOnly;
-    if (_singleEntryIndex.value >= 0 && _singleEntryIndex.value < numberOfObjects) {
+    if (_singleEntryIndex >= 0 && _singleEntryIndex < numberOfObjects) {
         willSelectOneEntryOnly = true;
     }
-    else if (!_singleEntryName.value.empty()) {
+    else if (!_singleEntryName.value().empty()) {
         willSelectOneEntryOnly = true;
     }
     else {
@@ -421,8 +421,8 @@ void RenderableSatellites::readTLEFile(const std::string& filename) {
                 foundMatch = (i == _singleEntryIndex);
             }
             else {
-                std::string thisEntrySubstr = line.substr(0, _singleEntryName.value.length());
-                foundMatch = (thisEntrySubstr.compare(_singleEntryName.value) == 0);
+                std::string thisEntrySubstr = line.substr(0, _singleEntryName.value().length());
+                foundMatch = (thisEntrySubstr.compare(_singleEntryName.value()) == 0);
             }
             if (!foundMatch) {
                 //Throw out the next 2 lines and skip to next entry if no match found

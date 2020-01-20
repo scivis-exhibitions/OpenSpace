@@ -21,7 +21,17 @@ function downloadTLEFile(sceneAsset, url, name)
     })
 end
 
-local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder, onlyThisEntry_string, onlyshouldAddDuplicates)
+--registerSatelliteGroupObjects can be called with 3 options for specifying
+--satellites. If the onlyThisEntry_string parameter is empty, then all satellites
+--in the TLE file will be rendered. To render only one satellite from the file,
+--the onlyThisEntry_string parameter is used. To specify the satellite by index
+--in the TLE file, provide the index number (zero-based) of the satellite entry.
+--Since there are 3 lines per satellite entry, this index corresponds to line
+--number (3 * index + 1). To specify the satellite by name, provide the exact
+--substring to search for. This search substring is matched against the identifier
+--(every 3rd line) in the TLE file. It will render the first satellite it finds
+--with the matching identifier substring of same length.
+local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder, onlyshouldAddDuplicates, onlyThisEntry_string)
     local filename = group.Url:match("([^/]+)$")
     local filenameSansExt = filename:gsub(filename:match("(%.%w+)$"), "")
     local path = tleFolder .. "/" .. filename
