@@ -36,9 +36,9 @@ local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder
     local filenameSansExt = filename:gsub(filename:match("(%.%w+)$"), "")
     local path = tleFolder .. "/" .. filename
 
-	function isEmpty(s)
-	    return s == nil or s == ''
-	end
+    function isEmpty(s)
+        return s == nil or s == ''
+    end
 
     function numLinesInFile(filename)
         local ctr = 0
@@ -61,33 +61,33 @@ local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder
     end
 
     function satellites(title, file, onlyThisEntry_num, onlyThisEntry_string, color)
-		if onlyThisEntry_num ~= nil then
-			renderableEntry = {
-		        Type = "RenderableSatellites",
+        if onlyThisEntry_num ~= nil then
+            renderableEntry = {
+                Type = "RenderableSatellites",
                 Path = file,
                 Segments = 120,
                 Color = color,
                 Fade = 0.5,
-				OnlyThisIndex = onlyThisEntry_num
-		    }
-		elseif not isEmpty(onlyThisEntry_string) then
-			renderableEntry = {
-		        Type = "RenderableSatellites",
+                OnlyThisIndex = onlyThisEntry_num
+            }
+        elseif not isEmpty(onlyThisEntry_string) then
+            renderableEntry = {
+                Type = "RenderableSatellites",
                 Path = file,
                 Segments = 120,
                 Color = color,
                 Fade = 0.5,
-				OnlyThisName = onlyThisEntry_string
-		    }
-		else
-			renderableEntry = {
-		        Type = "RenderableSatellites",
+                OnlyThisName = onlyThisEntry_string
+            }
+        else
+            renderableEntry = {
+                Type = "RenderableSatellites",
                 Path = file,
                 Segments = 120,
                 Color = color,
                 Fade = 0.5
-		    }
-		end
+            }
+        end
         return {
             Identifier = title,
             Parent = transforms.EarthInertial.Identifier,
@@ -99,14 +99,14 @@ local registerSatelliteGroupObjects = function(containingAsset, group, tleFolder
         }
     end
 
-	--nLines = numLinesInFile(path)
-	onlyThisEntry_num = nil
-	if not isEmpty(onlyThisEntry_string) then
-	  onlyThisEntry_num = tonumber(onlyThisEntry_string)
-	  if onlyThisEntry_num then
-	    onlyThisEntry_string = nil
-	  end
-	end
+    --nLines = numLinesInFile(path)
+    onlyThisEntry_num = nil
+    if not isEmpty(onlyThisEntry_string) then
+        onlyThisEntry_num = tonumber(onlyThisEntry_string)
+        if onlyThisEntry_num then
+            onlyThisEntry_string = nil
+        end
+    end
     local SatelliteBatch = satellites(filenameSansExt, path, onlyThisEntry_num, onlyThisEntry_string, group.TrailColor)
     assetHelper.registerSceneGraphNodesAndExport(containingAsset, { SatelliteBatch })
 end
