@@ -50,13 +50,13 @@ local Apollo11Position = {
     },
     GUI = {
         Hidden = true,
-        Name = "Apollo 11",
+        Name = "Apollo 11 Position",
         Path = "/Solar System/Missions/Apollo/11"
     }
 }
 
 local Apollo11Model = {
-    Identifier = "Apollo11",
+    Identifier = "Apollo11CSMModel",
     Parent = Apollo11Position.Identifier,
     Transform = {
         Scale = {
@@ -152,7 +152,7 @@ local Apollo11LemTrail = {
         Enabled = false,
     },
     GUI = {
-        Name = "Apollo 11 Lunar Lander Trail",
+        Name = "Eagle Trail",
         Path = "/Solar System/Missions/Apollo/11"
     }
 }
@@ -170,7 +170,7 @@ local Apollo11LemPosition = {
     },
     GUI = {
         Hidden = false,
-        Name = "Apollo 11 Lunar Lander Position",
+        Name = "Eagle Position",
         Path = "/Solar System/Missions/Apollo/11"
     }
 }
@@ -202,7 +202,7 @@ local Apollo11LemDescentModel = {
     },
     GUI = {
         Hidden = false,
-        Name = "Apollo 11 Descent Lem",
+        Name = "Eagle Descent",
         Path = "/Solar System/Missions/Apollo/11"
     }
 }
@@ -232,7 +232,7 @@ local Apollo11LemLandedModel = {
     },
     GUI = {
         Hidden = false,
-        Name = "Apollo 11 Landed Lem",
+        Name = "Eagle Landed",
         Path = "/Solar System/Missions/Apollo/11"
     }
 }
