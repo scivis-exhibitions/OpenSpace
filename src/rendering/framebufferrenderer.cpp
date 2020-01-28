@@ -1280,8 +1280,6 @@ void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFac
         glBindFramebuffer(GL_FRAMEBUFFER, _defaultFBO);
     }
     
-    glViewport(0, 0, _resolution.x, _resolution.y);
-    
     // Apply the selected TMO on the results and resolve the result for the default FBO
     applyTMO(blackoutFactor);
 
@@ -1298,6 +1296,8 @@ void FramebufferRenderer::performRaycasterTasks(const std::vector<RaycasterTask>
 
         glBindFramebuffer(GL_FRAMEBUFFER, _exitFramebuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        GLint viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);
 
         ghoul::opengl::ProgramObject* exitProgram = _exitPrograms[raycaster].get();
         if (exitProgram) {
@@ -1309,7 +1309,7 @@ void FramebufferRenderer::performRaycasterTasks(const std::vector<RaycasterTask>
         if (raycaster->downscaleRender() < 1.f) {
             float scaleDown = raycaster->downscaleRender();
             glBindFramebuffer(GL_FRAMEBUFFER, _downscaleVolumeRendering.framebuffer);
-            glViewport(0, 0, _resolution.x * scaleDown, _resolution.y * scaleDown);
+            glViewport(viewport[0], viewport[1], viewport[2] * scaleDown, viewport[3] * scaleDown);
             if (_downscaleVolumeRendering.currentDownscaleFactor != scaleDown) {
                 _downscaleVolumeRendering.currentDownscaleFactor = scaleDown;
                 updateDownscaleTextures();
@@ -1402,7 +1402,7 @@ void FramebufferRenderer::performRaycasterTasks(const std::vector<RaycasterTask>
         }
 
         if (raycaster->downscaleRender() < 1.f) {
-            glViewport(0, 0, _resolution.x, _resolution.y);
+            glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _gBuffers.framebuffer);
             writeDownscaledVolume();
         }
