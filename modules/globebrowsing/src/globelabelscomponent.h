@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -31,7 +31,7 @@
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/scalar/intproperty.h>
-#include <openspace/properties/vector/vec4property.h>
+#include <openspace/properties/vector/vec3property.h>
 #include <ghoul/font/fontrenderer.h>
 #include <ghoul/glm.h>
 
@@ -72,10 +72,10 @@ private:
     // Labels Structures
     struct LabelEntry {
         char feature[256];
-        float diameter;
-        float latitude;
-        float longitude;
-        glm::vec3 geoPosition;
+        float diameter = 0.f;
+        float latitude = 0.f;
+        float longitude = 0.f;
+        glm::vec3 geoPosition = glm::vec3(0.f);
     };
 
     struct Labels {
@@ -89,7 +89,8 @@ private:
     properties::IntProperty _labelsMinSize;
     properties::FloatProperty _labelsSize;
     properties::FloatProperty _labelsMinHeight;
-    properties::Vec4Property _labelsColor;
+    properties::Vec3Property _labelsColor;
+    properties::FloatProperty _labelsOpacity;
     properties::FloatProperty _labelsFadeInDist;
     properties::FloatProperty _labelsFadeOutDist;
     properties::BoolProperty _labelsFadeInEnabled;

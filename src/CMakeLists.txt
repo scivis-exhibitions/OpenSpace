@@ -2,7 +2,7 @@
 #                                                                                        #
 # OpenSpace                                                                              #
 #                                                                                        #
-# Copyright (c) 2014-2018                                                                #
+# Copyright (c) 2014-2020                                                                #
 #                                                                                        #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this   #
 # software and associated documentation files (the "Software"), to deal in the Software  #
@@ -70,9 +70,6 @@ set(OPENSPACE_SOURCE
   ${OPENSPACE_BASE_DIR}/src/network/parallelpeer.cpp
   ${OPENSPACE_BASE_DIR}/src/network/parallelpeer_lua.inl
   ${OPENSPACE_BASE_DIR}/src/network/parallelserver.cpp
-  ${OPENSPACE_BASE_DIR}/src/performance/performancemeasurement.cpp
-  ${OPENSPACE_BASE_DIR}/src/performance/performancelayout.cpp
-  ${OPENSPACE_BASE_DIR}/src/performance/performancemanager.cpp
   ${OPENSPACE_BASE_DIR}/src/properties/optionproperty.cpp
   ${OPENSPACE_BASE_DIR}/src/properties/property.cpp
   ${OPENSPACE_BASE_DIR}/src/properties/propertyowner.cpp
@@ -152,12 +149,13 @@ set(OPENSPACE_SOURCE
   ${OPENSPACE_BASE_DIR}/src/scene/assetmanager.cpp
   ${OPENSPACE_BASE_DIR}/src/scene/assetmanager_lua.inl
   ${OPENSPACE_BASE_DIR}/src/scene/lightsource.cpp
+  ${OPENSPACE_BASE_DIR}/src/scene/profile.cpp
+  ${OPENSPACE_BASE_DIR}/src/scene/profile_lua.inl
   ${OPENSPACE_BASE_DIR}/src/scene/rotation.cpp
   ${OPENSPACE_BASE_DIR}/src/scene/scale.cpp
   ${OPENSPACE_BASE_DIR}/src/scene/scene.cpp
   ${OPENSPACE_BASE_DIR}/src/scene/scene_lua.inl
   ${OPENSPACE_BASE_DIR}/src/scene/sceneinitializer.cpp
-  ${OPENSPACE_BASE_DIR}/src/scene/scenelicense.cpp
   ${OPENSPACE_BASE_DIR}/src/scene/scenelicensewriter.cpp
   ${OPENSPACE_BASE_DIR}/src/scene/scenegraphnode.cpp
   ${OPENSPACE_BASE_DIR}/src/scene/scenegraphnode_doc.inl
@@ -195,6 +193,7 @@ set(OPENSPACE_SOURCE
   ${OPENSPACE_BASE_DIR}/src/util/timemanager.cpp
   ${OPENSPACE_BASE_DIR}/src/util/time_lua.inl
   ${OPENSPACE_BASE_DIR}/src/util/timerange.cpp
+  ${OPENSPACE_BASE_DIR}/src/util/touch.cpp
   ${OPENSPACE_BASE_DIR}/src/util/transformationmanager.cpp
   ${OPENSPACE_BASE_DIR}/src/util/versionchecker.cpp
 )
@@ -251,9 +250,6 @@ set(OPENSPACE_HEADER
   ${OPENSPACE_BASE_DIR}/include/openspace/network/parallelpeer.h
   ${OPENSPACE_BASE_DIR}/include/openspace/network/parallelserver.h
   ${OPENSPACE_BASE_DIR}/include/openspace/network/messagestructures.h
-  ${OPENSPACE_BASE_DIR}/include/openspace/performance/performancemeasurement.h
-  ${OPENSPACE_BASE_DIR}/include/openspace/performance/performancelayout.h
-  ${OPENSPACE_BASE_DIR}/include/openspace/performance/performancemanager.h
   ${OPENSPACE_BASE_DIR}/include/openspace/properties/numericalproperty.h
   ${OPENSPACE_BASE_DIR}/include/openspace/properties/numericalproperty.inl
   ${OPENSPACE_BASE_DIR}/include/openspace/properties/optionproperty.h
@@ -341,11 +337,11 @@ set(OPENSPACE_HEADER
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/assetloader.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/assetmanager.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/lightsource.h
+  ${OPENSPACE_BASE_DIR}/include/openspace/scene/profile.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/rotation.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/scale.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/scene.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/sceneinitializer.h
-  ${OPENSPACE_BASE_DIR}/include/openspace/scene/scenelicense.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/scenelicensewriter.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/scenegraphnode.h
   ${OPENSPACE_BASE_DIR}/include/openspace/scene/timeframe.h
@@ -368,6 +364,7 @@ set(OPENSPACE_HEADER
   ${OPENSPACE_BASE_DIR}/include/openspace/util/httprequest.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/job.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/keys.h
+  ${OPENSPACE_BASE_DIR}/include/openspace/util/memorymanager.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/mouse.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/openspacemodule.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/progressbar.h
@@ -389,6 +386,7 @@ set(OPENSPACE_HEADER
   ${OPENSPACE_BASE_DIR}/include/openspace/util/timeline.inl
   ${OPENSPACE_BASE_DIR}/include/openspace/util/timemanager.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/timerange.h
+  ${OPENSPACE_BASE_DIR}/include/openspace/util/touch.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/updatestructures.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/versionchecker.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/transformationmanager.h

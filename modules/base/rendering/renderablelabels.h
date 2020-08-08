@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -32,7 +32,7 @@
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/vector/vec2property.h>
-#include <openspace/properties/vector/vec4property.h>
+#include <openspace/properties/vector/vec3property.h>
 
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/uniformcache.h>
@@ -64,7 +64,6 @@ public:
     bool isReady() const override;
 
     void render(const RenderData& data, RendererTasks& rendererTask) override;
-    void update(const UpdateData& data) override;
 
     static documentation::Documentation Documentation();
 
@@ -73,7 +72,14 @@ public:
 protected:
     properties::OptionProperty _blendMode;
 
-private:
+    float unit(int unit) const;
+
+    std::string toString(int unit) const;
+
+    // Data may require some type of transformation prior the spice transformation being
+    // applied.
+    glm::dmat4 _transformationMatrix = glm::dmat4(1.0);
+
     enum Unit {
         Meter = 0,
         Kilometer,
@@ -89,17 +95,16 @@ private:
         GigalightYears
     };
 
+private:
     void renderLabels(const RenderData& data, const glm::dmat4& modelViewProjectionMatrix,
         const glm::dvec3& orthoRight, const glm::dvec3& orthoUp, float fadeInVariable);
 
     float changedPerlinSmoothStepFunc(float x, float startX, float endX) const;
-    
+
     float linearSmoothStepFunc(float x, float startX, float endX, float sUnit,
         float eUnit) const;
 
-    float getUnit(int unit) const;
-
-    properties::Vec4Property _labelColor;
+    properties::Vec3Property _labelColor;
     properties::FloatProperty _labelSize;
     properties::FloatProperty _fontSize;
     properties::FloatProperty _labelMinSize;
@@ -123,10 +128,6 @@ private:
     std::string _labelFile;
     std::string _colorOptionString;
     std::string _datavarSizeOptionString;
-
-    // Data may require some type of transformation prior the spice transformation being
-    // applied.
-    glm::dmat4 _transformationMatrix = glm::dmat4(1.0);
 };
 
 } // namespace openspace

@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -69,7 +69,8 @@ namespace {
         "" // @TODO Missing documentation
     };
 
-    constexpr openspace::properties::Property::PropertyInfo DownscaleVolumeRenderingInfo = {
+    constexpr openspace::properties::Property::PropertyInfo DownscaleVolumeRenderingInfo =
+    {
         "Downscale",
         "Downscale Factor Volume Rendering",
         "This value set the downscaling factor"
@@ -85,8 +86,13 @@ RenderableToyVolume::RenderableToyVolume(const ghoul::Dictionary& dictionary)
     , _scalingExponent(ScalingExponentInfo, 1, -10, 20)
     , _stepSize(StepSizeInfo, 0.02f, 0.01f, 1.f )
     , _translation(TranslationInfo, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(10.f))
-    , _rotation(RotationInfo, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0), glm::vec3(6.28f))
-    , _color(ColorInfo, glm::vec4(1.f, 0.f, 0.f, 0.1f), glm::vec4(0.f), glm::vec4(1.f))
+    , _rotation(
+        RotationInfo,
+        glm::vec3(0.f),
+        glm::vec3(0.f),
+        glm::vec3(glm::two_pi<float>())
+    )
+    , _color(ColorInfo, glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f), glm::vec3(1.f))
     , _downScaleVolumeRendering(DownscaleVolumeRenderingInfo, 1.f, 0.1f, 1.f)
 {
     if (dictionary.hasKeyAndValue<double>(ScalingExponentInfo.identifier)) {
@@ -107,8 +113,8 @@ RenderableToyVolume::RenderableToyVolume(const ghoul::Dictionary& dictionary)
         _rotation = dictionary.value<glm::vec3>(RotationInfo.identifier);
     }
 
-    if (dictionary.hasKeyAndValue<glm::vec4>(ColorInfo.identifier)) {
-        _color = dictionary.value<glm::vec4>(ColorInfo.identifier);
+    if (dictionary.hasKeyAndValue<glm::vec3>(ColorInfo.identifier)) {
+        _color = dictionary.value<glm::vec3>(ColorInfo.identifier);
     }
 
     if (dictionary.hasKeyAndValue<double>(StepSizeInfo.identifier)) {
@@ -135,7 +141,8 @@ RenderableToyVolume::RenderableToyVolume(const ghoul::Dictionary& dictionary)
 RenderableToyVolume::~RenderableToyVolume() {}
 
 void RenderableToyVolume::initializeGL() {
-    _raycaster = std::make_unique<ToyVolumeRaycaster>(_color);
+    glm::vec4 color(glm::vec3(_color), _opacity);
+    _raycaster = std::make_unique<ToyVolumeRaycaster>(color);
     _raycaster->initialize();
 
     global::raycasterManager.attachRaycaster(*_raycaster.get());
@@ -157,6 +164,7 @@ void RenderableToyVolume::initializeGL() {
     addProperty(_translation);
     addProperty(_rotation);
     addProperty(_color);
+    addProperty(_opacity);
     addProperty(_downScaleVolumeRendering);
 }
 
@@ -175,22 +183,24 @@ bool RenderableToyVolume::isReady() const {
 void RenderableToyVolume::update(const UpdateData& data) {
     if (_raycaster) {
         glm::mat4 transform = glm::translate(
-            glm::mat4(1.0),
+            glm::mat4(1.f),
             static_cast<glm::vec3>(_translation) *
-                std::pow(10.0f, static_cast<float>(_scalingExponent))
+                std::pow(10.f, static_cast<float>(_scalingExponent))
         );
         glm::vec3 eulerRotation = static_cast<glm::vec3>(_rotation);
-        transform = glm::rotate(transform, eulerRotation.x, glm::vec3(1, 0, 0));
-        transform = glm::rotate(transform, eulerRotation.y, glm::vec3(0, 1, 0));
-        transform = glm::rotate(transform, eulerRotation.z,  glm::vec3(0, 0, 1));
+        transform = glm::rotate(transform, eulerRotation.x, glm::vec3(1.f, 0.f, 0.f));
+        transform = glm::rotate(transform, eulerRotation.y, glm::vec3(0.f, 1.f, 0.f));
+        transform = glm::rotate(transform, eulerRotation.z,  glm::vec3(0.f, 0.f, 1.f));
 
         transform = glm::scale(
             transform,
             static_cast<glm::vec3>(_size) *
-                std::pow(10.0f, static_cast<float>(_scalingExponent))
+                std::pow(10.f, static_cast<float>(_scalingExponent))
         );
 
-        _raycaster->setColor(_color);
+        glm::vec4 color(glm::vec3(_color), _opacity);
+
+        _raycaster->setColor(color);
         _raycaster->setStepSize(_stepSize);
         _raycaster->setModelTransform(transform);
         _raycaster->setTime(data.time.j2000Seconds());

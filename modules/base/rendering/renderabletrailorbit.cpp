@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -184,8 +184,11 @@ RenderableTrailOrbit::RenderableTrailOrbit(const ghoul::Dictionary& dictionary)
         else if (renderType == "Opaque") {
             setRenderBin(Renderable::RenderBin::Opaque);
         }
-        else if (renderType == "Transparent") {
-            setRenderBin(Renderable::RenderBin::Transparent);
+        else if (renderType == "PreDeferredTransparent") {
+            setRenderBin(Renderable::RenderBin::PreDeferredTransparent);
+        }
+        else if (renderType == "PostDeferredTransparent") {
+            setRenderBin(Renderable::RenderBin::PostDeferredTransparent);
         }
         else if (renderType == "Overlay") {
             setRenderBin(Renderable::RenderBin::Overlay);
@@ -234,8 +237,7 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
     const glm::vec3 p = _translation->position({
         {},
         data.time,
-        Time(0.0),
-        false
+        Time(0.0)
     });
     _vertexArray[_primaryRenderInformation.first] = { p.x, p.y, p.z };
 
@@ -356,6 +358,24 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
     glBindVertexArray(0);
+
+    // Updating bounding sphere
+    glm::vec3 maxVertex(-std::numeric_limits<float>::max());
+    glm::vec3 minVertex(std::numeric_limits<float>::max());
+
+    auto setMax = [&maxVertex, &minVertex](const TrailVBOLayout& vertexData) {
+        maxVertex.x = std::max(maxVertex.x, vertexData.x);
+        maxVertex.y = std::max(maxVertex.y, vertexData.y);
+        maxVertex.z = std::max(maxVertex.z, vertexData.z);
+
+        minVertex.x = std::min(minVertex.x, vertexData.x);
+        minVertex.y = std::min(minVertex.y, vertexData.y);
+        minVertex.z = std::min(minVertex.z, vertexData.z);
+    };
+
+    std::for_each(_vertexArray.begin(), _vertexArray.end(), setMax);
+
+    setBoundingSphere(glm::distance(maxVertex, minVertex) / 2.f);
 }
 
 RenderableTrailOrbit::UpdateReport RenderableTrailOrbit::updateTrails(
@@ -413,8 +433,7 @@ RenderableTrailOrbit::UpdateReport RenderableTrailOrbit::updateTrails(
             const glm::vec3 p = _translation->position({
                 {},
                 Time(_lastPointTime),
-                Time(0.0),
-                false
+                Time(0.0)
             });
             _vertexArray[_primaryRenderInformation.first] = { p.x, p.y, p.z };
 
@@ -453,8 +472,7 @@ RenderableTrailOrbit::UpdateReport RenderableTrailOrbit::updateTrails(
             const glm::vec3 p = _translation->position({
                 {},
                 Time(_firstPointTime),
-                Time(0.0),
-                false
+                Time(0.0)
             });
             _vertexArray[_primaryRenderInformation.first] = { p.x, p.y, p.z };
 
@@ -496,7 +514,7 @@ void RenderableTrailOrbit::fullSweep(double time) {
     const double secondsPerPoint = _period / (_resolution - 1);
     // starting at 1 because the first position is a floating current one
     for (int i = 1; i < _resolution; ++i) {
-        const glm::vec3 p = _translation->position({ {}, Time(time), Time(0.0), false });
+        const glm::vec3 p = _translation->position({ {}, Time(time), Time(0.0) });
         _vertexArray[i] = { p.x, p.y, p.z };
 
         time -= secondsPerPoint;

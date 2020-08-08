@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -44,6 +44,7 @@
 #include <ghoul/io/socket/tcpsocketserver.h>
 #include <ghoul/io/socket/websocketserver.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/profiling.h>
 #include <fmt/format.h>
 
 namespace {
@@ -82,8 +83,14 @@ Connection::Connection(std::unique_ptr<ghoul::io::Socket> s,
 
     _topicFactory.registerClass(
         AuthenticationTopicKey,
-        [password](bool, const ghoul::Dictionary&) {
-            return new AuthorizationTopic(password);
+        [password](bool, const ghoul::Dictionary&, ghoul::MemoryPoolBase* pool) {
+            if (pool) {
+                void* ptr = pool->alloc(sizeof(AuthorizationTopic));
+                return new (ptr) AuthorizationTopic(password);
+            }
+            else {
+                return new AuthorizationTopic(password);
+            }
         }
     );
 
@@ -102,6 +109,8 @@ Connection::Connection(std::unique_ptr<ghoul::io::Socket> s,
 }
 
 void Connection::handleMessage(const std::string& message) {
+    ZoneScoped
+
     try {
         nlohmann::json j = nlohmann::json::parse(message.c_str());
         try {
@@ -122,7 +131,8 @@ void Connection::handleMessage(const std::string& message) {
                 message
             ));
             return;
-        } else {
+        }
+        else {
             std::string sanitizedString = message;
             std::transform(
                 message.begin(),
@@ -138,6 +148,8 @@ void Connection::handleMessage(const std::string& message) {
 }
 
 void Connection::handleJson(const nlohmann::json& json) {
+    ZoneScoped
+
     auto topicJson = json.find(MessageKeyTopic);
     auto payloadJson = json.find(MessageKeyPayload);
 
@@ -172,13 +184,14 @@ void Connection::handleJson(const nlohmann::json& json) {
             return;
         }
 
-        std::unique_ptr<Topic> topic = _topicFactory.create(type);
+        std::unique_ptr<Topic> topic = std::unique_ptr<Topic>(_topicFactory.create(type));
         topic->initialize(this, topicId);
         topic->handleJson(*payloadJson);
         if (!topic->isDone()) {
             _topics.emplace(topicId, std::move(topic));
         }
-    } else {
+    }
+    else {
         if (!isAuthorized()) {
             LERROR("Connection isn't authorized.");
             return;

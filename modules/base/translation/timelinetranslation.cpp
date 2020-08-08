@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -74,7 +74,7 @@ TimelineTranslation::TimelineTranslation(const ghoul::Dictionary& dictionary) {
     for (const std::string& timeString : timeStrings) {
         const double t = Time::convertTime(timeString);
 
-        std::unique_ptr<Translation> translation =
+        ghoul::mm_unique_ptr<Translation> translation =
             Translation::createFromDictionary(
                 keyframes.value<ghoul::Dictionary>(timeString)
             );
@@ -87,7 +87,7 @@ TimelineTranslation::TimelineTranslation(const ghoul::Dictionary& dictionary) {
 
 glm::dvec3 TimelineTranslation::position(const UpdateData& data) const {
     const double now = data.time.j2000Seconds();
-    using KeyframePointer = const Keyframe<std::unique_ptr<Translation>>*;
+    using KeyframePointer = const Keyframe<ghoul::mm_unique_ptr<Translation>>*;
 
     KeyframePointer prev = _timeline.lastKeyframeBefore(now, true);
     KeyframePointer next = _timeline.firstKeyframeAfter(now, true);

@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -31,24 +31,24 @@
 #include <openspace/rendering/renderengine.h>
 #include <openspace/scene/scenegraphnode.h>
 #include <openspace/util/updatestructures.h>
-#include <ghoul/filesystem/filesystem.h>
+#include <ghoul/glm.h>
 #include <ghoul/filesystem/cachemanager.h>
-#include <ghoul/misc/crc32.h>
-#include <ghoul/misc/templatefactory.h>
-#include <ghoul/io/texture/texturereader.h>
-#include <ghoul/logging/logmanager.h>
+#include <ghoul/filesystem/filesystem.h>
 #include <ghoul/font/fontmanager.h>
 #include <ghoul/font/fontrenderer.h>
+#include <ghoul/io/texture/texturereader.h>
+#include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/crc32.h>
 #include <ghoul/misc/defer.h>
+#include <ghoul/misc/templatefactory.h>
 #include <ghoul/opengl/programobject.h>
 #include <ghoul/opengl/texture.h>
 #include <ghoul/opengl/textureunit.h>
-#include <ghoul/glm.h>
 #include <glm/gtx/string_cast.hpp>
 
 namespace {
     constexpr const char* _loggerCat = "base::RenderableLabels";
-    
+
     constexpr const char* MeterUnit = "m";
     constexpr const char* KilometerUnit = "Km";
     constexpr const char* MegameterUnit = "Mm";
@@ -201,9 +201,9 @@ documentation::Documentation RenderableLabels::Documentation() {
             },
             {
                 LabelColorInfo.identifier,
-                new DoubleVector4Verifier,
+                new DoubleVector3Verifier,
                 Optional::Yes,
-                LabelColorInfo.description, 
+                LabelColorInfo.description,
             },
             {
                 LabelColorInfo.identifier,
@@ -214,7 +214,7 @@ documentation::Documentation RenderableLabels::Documentation() {
             {
                 LabelTextInfo.identifier,
                 new StringVerifier,
-                Optional::No,
+                Optional::Yes,
                 LabelTextInfo.description
             },
             {
@@ -304,9 +304,9 @@ RenderableLabels::RenderableLabels(const ghoul::Dictionary& dictionary)
     , _blendMode(BlendModeInfo, properties::OptionProperty::DisplayType::Dropdown)
     , _labelColor(
         LabelColorInfo,
-        glm::vec4(1.f, 1.f, 1.f, 1.f),
-        glm::vec4(0.f),
-        glm::vec4(1.f)
+        glm::vec3(1.f, 1.f, 1.f),
+        glm::vec3(0.f),
+        glm::vec3(1.f)
     )
     , _labelSize(LabelSizeInfo, 8.f, 0.5f, 30.f)
     , _fontSize(FontSizeInfo, 50.f, 1.f, 100.f)
@@ -314,7 +314,7 @@ RenderableLabels::RenderableLabels(const ghoul::Dictionary& dictionary)
     , _labelMaxSize(LabelMaxSizeInfo, 20.f, 0.5f, 100.f)
     , _pixelSizeControl(PixelSizeControlInfo, false)
     , _enableFadingEffect(EnableFadingEffectInfo, false)
-    , _labelText(LabelTextInfo)
+    , _labelText(LabelTextInfo, "")
     , _fadeStartDistance(FadeStartDistInfo, 1.f, 0.f, 100.f)
     , _fadeEndDistance(FadeEndDistInfo, 1.f, 0.f, 100.f)
     , _fadeStartSpeed(FadeStartSpeedInfo, 1.f, 1.f, 100.f)
@@ -338,6 +338,7 @@ RenderableLabels::RenderableLabels(const ghoul::Dictionary& dictionary)
         "RenderableLabels"
     );
 
+    addProperty(_opacity);
     registerUpdateRenderBinFromOpacity();
 
     _blendMode.addOptions({
@@ -350,7 +351,7 @@ RenderableLabels::RenderableLabels(const ghoul::Dictionary& dictionary)
                 setRenderBinFromOpacity();
                 break;
             case BlendModeAdditive:
-                setRenderBin(Renderable::RenderBin::Transparent);
+                setRenderBin(Renderable::RenderBin::PreDeferredTransparent);
                 break;
             default:
                 throw ghoul::MissingCaseException();
@@ -392,7 +393,7 @@ RenderableLabels::RenderableLabels(const ghoul::Dictionary& dictionary)
     addProperty(_labelText);
 
     addProperty(_labelOrientationOption);
-    
+
     _labelColor.setViewOption(properties::Property::ViewOptions::Color);
     if (dictionary.hasKey(LabelColorInfo.identifier)) {
         _labelColor = dictionary.value<glm::vec4>(LabelColorInfo.identifier);
@@ -608,7 +609,7 @@ void RenderableLabels::initialize() {
         throw ghoul::RuntimeError("Error loading objects labels data.");
     }
 
-    setRenderBin(Renderable::RenderBin::Transparent);
+    setRenderBin(Renderable::RenderBin::PreDeferredTransparent);
 }
 
 void RenderableLabels::initializeGL() {
@@ -634,17 +635,15 @@ void RenderableLabels::render(const RenderData& data, RendererTasks&) {
     //}
 
     float fadeInVariable = 1.f;
-    
+
     if (_enableFadingEffect) {
-        float distanceNodeToCamera = glm::distance(
-            data.camera.positionVec3(),
-            data.modelTransform.translation
+        float distanceNodeToCamera = static_cast<float>(
+            glm::distance(data.camera.positionVec3(), data.modelTransform.translation)
         );
-        float sUnit = getUnit(_fadeStartUnitOption);
-        float eUnit = getUnit(_fadeEndUnitOption);
+        float sUnit = unit(_fadeStartUnitOption);
+        float eUnit = unit(_fadeEndUnitOption);
         float startX = _fadeStartDistance * sUnit;
         float endX = _fadeEndDistance * eUnit;
-        //fadeInVariable = changedPerlinSmoothStepFunc(distanceNodeToCamera, startX, endX);
         fadeInVariable = linearSmoothStepFunc(
             distanceNodeToCamera,
             startX,
@@ -676,32 +675,30 @@ void RenderableLabels::render(const RenderData& data, RendererTasks&) {
     glm::dvec3 orthoUp = glm::normalize(glm::cross(cameraViewDirectionWorld, orthoRight));
 
     renderLabels(data, modelViewProjectionMatrix, orthoRight, orthoUp, fadeInVariable);
-    
+
     //if (additiveBlending) {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDepthMask(true);
     //}
 }
 
-void RenderableLabels::update(const UpdateData&) {
-}
 
 void RenderableLabels::setLabelText(const std::string & newText) {
     _labelText = newText;
 }
 
-void RenderableLabels::renderLabels(const RenderData& data, 
+void RenderableLabels::renderLabels(const RenderData& data,
                                     const glm::dmat4& modelViewProjectionMatrix,
                                     const glm::dvec3& orthoRight,
                                     const glm::dvec3& orthoUp, float fadeInVariable)
 {
-    glm::vec4 textColor = _labelColor;
-    
+    glm::vec4 textColor = glm::vec4(glm::vec3(_labelColor), 1.f);
+
     textColor.a *= fadeInVariable;
     textColor.a *= _opacity;
 
     ghoul::fontrendering::FontRenderer::ProjectedLabelsInformation labelInfo;
-    
+
     labelInfo.orthoRight       = orthoRight;
     labelInfo.orthoUp          = orthoUp;
     labelInfo.minSize          = static_cast<int>(_labelMinSize);
@@ -718,22 +715,22 @@ void RenderableLabels::renderLabels(const RenderData& data,
     glm::vec3 transformedPos(
         _transformationMatrix * glm::dvec4(data.modelTransform.translation, 1.0)
     );
-    
+
     ghoul::fontrendering::FontRenderer::defaultProjectionRenderer().render(
         *_font,
         transformedPos,
-        _labelText,
+        _labelText.value(),
         textColor,
         labelInfo
     );
 }
 
 float RenderableLabels::changedPerlinSmoothStepFunc(float x, float startX,
-                                                    float endX) const 
+                                                    float endX) const
 {
-    float f1 = 6.f * powf((x - startX), 5.f) - 15.f * powf((x - startX), 4.f) + 
+    float f1 = 6.f * powf((x - startX), 5.f) - 15.f * powf((x - startX), 4.f) +
                10.f * powf((x - startX), 3.f);
-    float f2 = -6.f * powf((x - endX), 5.f) + 15.f * powf((x - endX), 4.f) - 
+    float f2 = -6.f * powf((x - endX), 5.f) + 15.f * powf((x - endX), 4.f) -
                10.f * powf((x - endX), 3.f) + 1.f;
     float f3 = 1.f;
 
@@ -745,7 +742,8 @@ float RenderableLabels::changedPerlinSmoothStepFunc(float x, float startX,
     }
     else if (x >= endX) {
         return std::clamp(f2, 0.f, 1.f);
-    } 
+    }
+    return x;
 }
 
 float RenderableLabels::linearSmoothStepFunc(float x, float startX, float endX,
@@ -756,7 +754,7 @@ float RenderableLabels::linearSmoothStepFunc(float x, float startX, float endX,
     float f1 = sdiv * (x - startX) + 1.f;
     float f2 = ediv * (x - endX) + 1.f;
     float f3 = 1.f;
-   
+
     if (x <= startX) {
         return std::clamp(f1, 0.f, 1.f);
     }
@@ -766,51 +764,43 @@ float RenderableLabels::linearSmoothStepFunc(float x, float startX, float endX,
     else if (x >= endX) {
         return std::clamp(f2, 0.f, 1.f);
     }
+    return x;
 }
 
-float RenderableLabels::getUnit(int unit) const {
-
-    float scale = 0.f;
+float RenderableLabels::unit(int unit) const {
     switch (static_cast<Unit>(unit)) {
-        case Meter:
-            scale = 1.f;
-            break;
-        case Kilometer:
-            scale = 1e3;
-            break;
-        case Megameter:
-            scale = 1e6;
-            break;
-        case Gigameter:
-            scale = 1e9;
-            break;
-        case AU:
-            scale = 149597870700.f;
-            break;
-        case Terameter:
-            scale = 1e12;
-            break;
-        case Petameter:
-            scale = 1e15;
-            break;
-        case Parsec:
-            scale = static_cast<float>(PARSEC);
-            break;
-        case Kiloparsec:
-            scale = static_cast<float>(1e3 * PARSEC);
-            break;
-        case Megaparsec:
-            scale = static_cast<float>(1e6 * PARSEC);
-            break;
-        case Gigaparsec:
-            scale = static_cast<float>(1e9 * PARSEC);
-            break;
-        case GigalightYears:
-            scale = static_cast<float>(306391534.73091 * PARSEC);
-            break;
+        case Meter: return 1.f;
+        case Kilometer: return 1e3f;
+        case Megameter: return  1e6f;
+        case Gigameter: return 1e9f;
+        case AU: return 149597870700.f;
+        case Terameter: return 1e12f;
+        case Petameter: return 1e15f;
+        case Parsec: return static_cast<float>(PARSEC);
+        case Kiloparsec: return static_cast<float>(1e3 * PARSEC);
+        case Megaparsec: return static_cast<float>(1e6 * PARSEC);
+        case Gigaparsec: return static_cast<float>(1e9 * PARSEC);
+        case GigalightYears: return static_cast<float>(306391534.73091 * PARSEC);
+        default: throw std::logic_error("Missing case label");
     }
+}
 
-    return scale;
+std::string RenderableLabels::toString(int unit) const {
+    switch (static_cast<Unit>(unit)) {
+        case Meter: return MeterUnit;
+        case Kilometer: return KilometerUnit;
+        case Megameter: return  MegameterUnit;
+        case Gigameter: return GigameterUnit;
+        case AU: return AstronomicalUnit;
+        case Terameter: return TerameterUnit;
+        case Petameter: return PetameterUnit;
+        case Parsec: return ParsecUnit;
+        case Kiloparsec: return KiloparsecUnit;
+        case Megaparsec: return MegaparsecUnit;
+        case Gigaparsec: return GigaparsecUnit;
+        case GigalightYears: return GigalightyearUnit;
+        default: throw std::logic_error("Missing case label");
+    }
 }
 
 } // namespace openspace

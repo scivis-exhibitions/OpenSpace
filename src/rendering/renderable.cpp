@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -26,9 +26,12 @@
 
 #include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
+#include <openspace/engine/globals.h>
 #include <openspace/scene/scenegraphnode.h>
 #include <openspace/util/factorymanager.h>
+#include <openspace/util/memorymanager.h>
 #include <openspace/util/updatestructures.h>
+#include <ghoul/misc/profiling.h>
 #include <ghoul/opengl/programobject.h>
 
 namespace {
@@ -43,8 +46,9 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo OpacityInfo = {
         "Opacity",
-        "Transparency",
-        "This value determines the transparency of this object."
+        "Opacity",
+        "This value determines the opacity of this renderable. A value of 0 means "
+        "completely transparent."
     };
 
     constexpr openspace::properties::Property::PropertyInfo RenderableTypeInfo = {
@@ -96,7 +100,7 @@ documentation::Documentation Renderable::Documentation() {
     };
 }
 
-std::unique_ptr<Renderable> Renderable::createFromDictionary(
+ghoul::mm_unique_ptr<Renderable> Renderable::createFromDictionary(
                                                       const ghoul::Dictionary& dictionary)
 {
     documentation::testSpecificationAndThrow(Documentation(), dictionary, "Renderable");
@@ -105,8 +109,12 @@ std::unique_ptr<Renderable> Renderable::createFromDictionary(
 
     auto factory = FactoryManager::ref().factory<Renderable>();
     ghoul_assert(factory, "Renderable factory did not exist");
-    std::unique_ptr<Renderable> result = factory->create(renderableType, dictionary);
-    return result;
+    Renderable* result = factory->create(
+        renderableType,
+        dictionary,
+        &global::memoryManager.PersistentMemory
+    );
+    return ghoul::mm_unique_ptr<Renderable>(result);
 }
 
 
@@ -114,9 +122,11 @@ Renderable::Renderable(const ghoul::Dictionary& dictionary)
     : properties::PropertyOwner({ "Renderable" })
     , _enabled(EnabledInfo, true)
     , _opacity(OpacityInfo, 1.f, 0.f, 1.f)
-    , _renderableType(RenderableTypeInfo, "Renderable")
     , _boundingSphere(BoundingSphereInfo, 0.f, 0.f, 3e10f)
+    , _renderableType(RenderableTypeInfo, "Renderable")
 {
+    ZoneScoped
+
     // I can't come up with a good reason not to do this for all renderables
     registerUpdateRenderBinFromOpacity();
 
@@ -125,7 +135,8 @@ Renderable::Renderable(const ghoul::Dictionary& dictionary)
         if (!tagName.empty()) {
             addTag(std::move(tagName));
         }
-    } else if (dictionary.hasKeyAndValue<ghoul::Dictionary>(KeyTag)) {
+    }
+    else if (dictionary.hasKeyAndValue<ghoul::Dictionary>(KeyTag)) {
         const ghoul::Dictionary& tagNames = dictionary.value<ghoul::Dictionary>(KeyTag);
         const std::vector<std::string>& keys = tagNames.keys();
         for (const std::string& key : keys) {
@@ -141,15 +152,26 @@ Renderable::Renderable(const ghoul::Dictionary& dictionary)
     }
 
     if (dictionary.hasKey(OpacityInfo.identifier)) {
-        _opacity = static_cast<float>(dictionary.value<double>(OpacityInfo.identifier));
+        _opacity = static_cast<float>(dictionary.value<double>(
+            OpacityInfo.identifier)
+       );
     }
 
     addProperty(_enabled);
 
     //set type for UI
     if (dictionary.hasKey(RenderableTypeInfo.identifier)) {
-        _renderableType = dictionary.value<std::string>(RenderableTypeInfo.identifier);
+        _renderableType = dictionary.value<std::string>(
+            RenderableTypeInfo.identifier
+       );
     }
+
+    if (dictionary.hasKey(BoundingSphereInfo.identifier)) {
+        _boundingSphere = static_cast<float>(
+            dictionary.value<double>(BoundingSphereInfo.identifier)
+       );
+    }
+
     addProperty(_renderableType);
     addProperty(_boundingSphere);
 }
@@ -167,12 +189,11 @@ void Renderable::update(const UpdateData&) {}
 void Renderable::render(const RenderData&, RendererTasks&) {}
 
 void Renderable::setBoundingSphere(float boundingSphere) {
-
-    _boundingSphere.setValue(boundingSphere);
+    _boundingSphere = boundingSphere;
 }
 
 float Renderable::boundingSphere() const {
-    return _boundingSphere.value();
+    return _boundingSphere;
 }
 
 SurfacePositionHandle Renderable::calculateSurfacePositionHandle(
@@ -221,21 +242,25 @@ void Renderable::onEnabledChange(std::function<void(bool)> callback) {
 }
 
 void Renderable::setRenderBinFromOpacity() {
-    if (_opacity > 0.f && _opacity < 1.f) {
-        setRenderBin(Renderable::RenderBin::Transparent);
-    }
-    else {
-        setRenderBin(Renderable::RenderBin::Opaque);
+    if (_renderBin != Renderable::RenderBin::PostDeferredTransparent) {
+        if (_opacity >= 0.f && _opacity < 1.f) {
+            setRenderBin(Renderable::RenderBin::PreDeferredTransparent);
+        }
+        else {
+            setRenderBin(Renderable::RenderBin::Opaque);
+        }
     }
 }
 
 void Renderable::registerUpdateRenderBinFromOpacity() {
     _opacity.onChange([this](){
-        if (_opacity > 0.f && _opacity < 1.f) {
-            setRenderBin(Renderable::RenderBin::Transparent);
-        }
-        else {
-            setRenderBin(Renderable::RenderBin::Opaque);
+        if (_renderBin != Renderable::RenderBin::PostDeferredTransparent) {
+            if (_opacity >= 0.f && _opacity < 1.f) {
+                setRenderBin(Renderable::RenderBin::PreDeferredTransparent);
+            }
+            else {
+                setRenderBin(Renderable::RenderBin::Opaque);
+            }
         }
     });
 }

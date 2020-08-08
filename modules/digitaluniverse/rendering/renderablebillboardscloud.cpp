@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -129,6 +129,13 @@ namespace {
         "TextColor",
         "Text Color",
         "The text color for the astronomical object."
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo TextOpacityInfo = {
+        "TextOpacity",
+        "Text Opacity",
+        "Determines the transparency of the text label, where 1 is completely opaque "
+        "and 0 fully transparent."
     };
 
     constexpr openspace::properties::Property::PropertyInfo TextSizeInfo = {
@@ -308,9 +315,15 @@ documentation::Documentation RenderableBillboardsCloud::Documentation() {
             },
             {
                 TextColorInfo.identifier,
-                new DoubleVector4Verifier,
+                new DoubleVector3Verifier,
                 Optional::Yes,
                 TextColorInfo.description
+            },
+            {
+                TextOpacityInfo.identifier,
+                new DoubleVerifier,
+                Optional::Yes,
+                TextOpacityInfo.description
             },
             {
                 TextSizeInfo.identifier,
@@ -411,12 +424,8 @@ RenderableBillboardsCloud::RenderableBillboardsCloud(const ghoul::Dictionary& di
     , _scaleFactor(ScaleFactorInfo, 1.f, 0.f, 600.f)
     , _pointColor(ColorInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(1.f))
     , _spriteTexturePath(SpriteTextureInfo)
-    , _textColor(
-        TextColorInfo,
-        glm::vec4(1.f, 1.f, 1.f, 1.f),
-        glm::vec4(0.f),
-        glm::vec4(1.f)
-    )
+    , _textColor(TextColorInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(1.f))
+    , _textOpacity(TextOpacityInfo, 1.f, 0.f, 1.f)
     , _textSize(TextSizeInfo, 8.f, 0.5f, 24.f)
     , _textMinSize(LabelMinSizeInfo, 8.f, 0.5f, 24.f)
     , _textMaxSize(LabelMaxSizeInfo, 20.f, 0.5f, 100.f)
@@ -424,7 +433,10 @@ RenderableBillboardsCloud::RenderableBillboardsCloud(const ghoul::Dictionary& di
     , _drawLabels(DrawLabelInfo, false)
     , _pixelSizeControl(PixelSizeControlInfo, false)
     , _colorOption(ColorOptionInfo, properties::OptionProperty::DisplayType::Dropdown)
-    , _datavarSizeOption(SizeOptionInfo, properties::OptionProperty::DisplayType::Dropdown)
+    , _datavarSizeOption(
+        SizeOptionInfo,
+        properties::OptionProperty::DisplayType::Dropdown
+    )
     , _fadeInDistance(
         FadeInDistancesInfo,
         glm::vec2(0.f),
@@ -465,7 +477,8 @@ RenderableBillboardsCloud::RenderableBillboardsCloud(const ghoul::Dictionary& di
 
         if (o == "Camera View Direction") {
             _renderOption = RenderOptionViewDirection;
-        } else if (o == "Camera Position Normal") {
+        }
+        else if (o == "Camera Position Normal") {
             _renderOption = RenderOptionPositionNormal;
         }
     }
@@ -547,7 +560,7 @@ RenderableBillboardsCloud::RenderableBillboardsCloud(const ghoul::Dictionary& di
                 );
             }
         }
-        
+
         if (dictionary.hasKey(ExactColorMapInfo.identifier)) {
             _isColorMapExact = dictionary.value<bool>(ExactColorMapInfo.identifier);
         }
@@ -582,12 +595,12 @@ RenderableBillboardsCloud::RenderableBillboardsCloud(const ghoul::Dictionary& di
 
         _datavarSizeOption.onChange([&]() {
             _dataIsDirty = true;
-            _datavarSizeOptionString = _optionConversionSizeMap[_datavarSizeOption.value()];
-            });
+            _datavarSizeOptionString = _optionConversionSizeMap[_datavarSizeOption];
+        });
         addProperty(_datavarSizeOption);
 
         _hasDatavarSize = true;
-    }    
+    }
 
     if (dictionary.hasKey(PolygonSidesInfo.identifier)) {
         _polygonSides = static_cast<int>(
@@ -606,13 +619,17 @@ RenderableBillboardsCloud::RenderableBillboardsCloud(const ghoul::Dictionary& di
         _hasLabel = true;
 
         if (dictionary.hasKey(TextColorInfo.identifier)) {
-            _textColor = dictionary.value<glm::vec4>(TextColorInfo.identifier);
+            _textColor = dictionary.value<glm::vec3>(TextColorInfo.identifier);
             _hasLabel = true;
         }
         _textColor.setViewOption(properties::Property::ViewOptions::Color);
         addProperty(_textColor);
         _textColor.onChange([&]() { _textColorIsDirty = true; });
 
+        if (dictionary.hasKey(TextOpacityInfo.identifier)) {
+            _textOpacity = dictionary.value<float>(TextOpacityInfo.identifier);
+        }
+        addProperty(_textOpacity);
 
         if (dictionary.hasKey(TextSizeInfo.identifier)) {
             _textSize = dictionary.value<float>(TextSizeInfo.identifier);
@@ -672,13 +689,11 @@ RenderableBillboardsCloud::RenderableBillboardsCloud(const ghoul::Dictionary& di
 
         addProperty(_correctionSizeFactor);
     }
-    
 
     if (dictionary.hasKey(PixelSizeControlInfo.identifier)) {
         _pixelSizeControl = dictionary.value<bool>(PixelSizeControlInfo.identifier);
         addProperty(_pixelSizeControl);
     }
-    
 }
 
 bool RenderableBillboardsCloud::isReady() const {
@@ -697,7 +712,7 @@ void RenderableBillboardsCloud::initialize() {
         _colorOption.setValue(static_cast<int>(_colorRangeData.size() - 1));
     }
 
-    setRenderBin(Renderable::RenderBin::Transparent);
+    setRenderBin(Renderable::RenderBin::PreDeferredTransparent);
 }
 
 void RenderableBillboardsCloud::initializeGL() {
@@ -909,9 +924,10 @@ void RenderableBillboardsCloud::renderLabels(const RenderData& data,
             break;
     }
 
-    glm::vec4 textColor = _textColor;
-    textColor.a *= fadeInVariable;
-    textColor.a *= _opacity;
+    glm::vec4 textColor = glm::vec4(
+        glm::vec3(_textColor), 
+        _textOpacity * fadeInVariable
+    );
 
     ghoul::fontrendering::FontRenderer::ProjectedLabelsInformation labelInfo;
     labelInfo.orthoRight = orthoRight;
@@ -1085,7 +1101,7 @@ void RenderableBillboardsCloud::update(const UpdateData&) {
                 sizeof(float) * 9,
                 reinterpret_cast<void*>(sizeof(float) * 8)
             );
-        } 
+        }
         else if (_hasColorMapFile) {
             glEnableVertexAttribArray(positionAttrib);
             glVertexAttribPointer(
@@ -1474,8 +1490,8 @@ bool RenderableBillboardsCloud::readLabelFile() {
 
         std::stringstream str(line);
 
-        glm::vec3 position;
-        for (auto j = 0; j < 3; ++j) {
+        glm::vec3 position = glm::vec3(0.f);
+        for (int j = 0; j < 3; ++j) {
             str >> position[j];
         }
 
@@ -1606,10 +1622,11 @@ void RenderableBillboardsCloud::createDataSlice() {
     }
 
     // what datavar in use for the index color
-    int colorMapInUse = _hasColorMapFile ? _variableDataPositionMap[_colorOptionString] : 0;
-    
+    int colorMapInUse =
+        _hasColorMapFile ? _variableDataPositionMap[_colorOptionString] : 0;
+
     // what datavar in use for the size scaling (if present)
-    int sizeScalingInUse = _hasDatavarSize ? 
+    int sizeScalingInUse = _hasDatavarSize ?
         _variableDataPositionMap[_datavarSizeOptionString] : -1;
 
     auto addDatavarSizeScalling = [&](size_t i, int datavarInUse) {
@@ -1624,7 +1641,7 @@ void RenderableBillboardsCloud::createDataSlice() {
 
     float minColorIdx = std::numeric_limits<float>::max();
     float maxColorIdx = std::numeric_limits<float>::min();
-    
+
     for (size_t i = 0; i < _fullData.size(); i += _nValuesPerAstronomicalObject) {
         float colorIdx = _fullData[i + 3 + colorMapInUse];
         maxColorIdx = colorIdx >= maxColorIdx ? colorIdx : maxColorIdx;
@@ -1670,7 +1687,7 @@ void RenderableBillboardsCloud::createDataSlice() {
             }
             else {
                 float ncmap = static_cast<float>(_colorMapData.size());
-                float normalization = ((cmax != cmin) && (ncmap > 2)) ? 
+                float normalization = ((cmax != cmin) && (ncmap > 2)) ?
                                       (ncmap - 2) / (cmax - cmin) : 0;
                 colorIndex = (variableColor - cmin) * normalization + 1;
                 colorIndex = colorIndex < 0 ? 0 : colorIndex;
@@ -1693,7 +1710,7 @@ void RenderableBillboardsCloud::createDataSlice() {
             addPosition(position);
         }
     }
-    _fadeInDistance.setMaxValue(glm::vec2(10.0f * biggestCoord));
+    _fadeInDistance.setMaxValue(glm::vec2(10.f * biggestCoord));
 }
 
 void RenderableBillboardsCloud::createPolygonTexture() {
@@ -1731,7 +1748,7 @@ void RenderableBillboardsCloud::renderToTexture(GLuint textureToRenderTo,
 
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureToRenderTo, 0);
 
-    glViewport(0, 0, textureWidth, textureHeight);
+    glViewport(viewport[0], viewport[1], textureWidth, textureHeight);
 
     loadPolygonGeometryForRendering();
     renderPolygonGeometry(_polygonVao);

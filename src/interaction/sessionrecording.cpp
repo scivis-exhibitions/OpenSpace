@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -39,11 +39,21 @@
 #include <openspace/util/timemanager.h>
 #include <ghoul/filesystem/file.h>
 #include <ghoul/filesystem/filesystem.h>
+#include <ghoul/font/fontmanager.h>
+#include <ghoul/font/fontrenderer.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/profiling.h>
 #include <iomanip>
 
 namespace {
     constexpr const char* _loggerCat = "SessionRecording";
+
+    constexpr openspace::properties::Property::PropertyInfo RenderPlaybackInfo = {
+        "RenderInfo",
+        "Render Playback Information",
+        "If enabled, information about a currently played back session "
+        "recording is rendering to screen"
+    };
 
     constexpr const bool UsingTimeKeyframes = false;
     const std::string FileHeaderTitle = "OpenSpace_record/playback";
@@ -100,7 +110,10 @@ namespace openspace::interaction {
 
 SessionRecording::SessionRecording()
     : properties::PropertyOwner({ "SessionRecording", "Session Recording" })
-{}
+    , _renderPlaybackInformation(RenderPlaybackInfo, false)
+{
+    addProperty(_renderPlaybackInformation);
+}
 
 SessionRecording::~SessionRecording() {} // NOLINT
 
@@ -524,7 +537,8 @@ void SessionRecording::saveTimeKeyframe() {
         writeToFileBuffer(kf._requiresTimeJump);
 
         saveKeyframeToFileBinary(_keyframeBuffer, _bufferIndex);
-    } else {
+    }
+    else {
         std::stringstream keyframeLine = std::stringstream();
         //Add simulation timestamp, timestamp relative, simulation time to recording start
         keyframeLine << "time ";
@@ -589,6 +603,8 @@ void SessionRecording::saveScriptKeyframe(std::string scriptToSave) {
 }
 
 void SessionRecording::preSynchronization() {
+    ZoneScoped
+
     if (_state == SessionState::Recording) {
         saveCameraKeyframe();
         if (UsingTimeKeyframes) {
@@ -611,6 +627,28 @@ void SessionRecording::preSynchronization() {
         }
     }
     _lastState = _state;
+}
+
+void SessionRecording::render() {
+    ZoneScoped
+
+    if (!(_renderPlaybackInformation && isPlayingBack())) {
+        return;
+    }
+
+
+    constexpr const char* FontName = "Mono";
+    constexpr const float FontSizeFrameinfo = 32.f;
+    std::shared_ptr<ghoul::fontrendering::Font> font =
+        global::fontManager.font(FontName, FontSizeFrameinfo);
+
+    glm::vec2 res = global::renderEngine.fontResolution();
+    glm::vec2 penPosition = glm::vec2(
+        res.x / 2 - 150.f,
+        res.y / 4
+    );
+    std::string text = std::to_string(currentTime());
+    ghoul::fontrendering::RenderFont(*font, penPosition, text, glm::vec4(1.f));
 }
 
 bool SessionRecording::isRecording() const {
@@ -879,7 +917,8 @@ void SessionRecording::playbackTimeChange() {
             ));
             return;
         }
-    } else {
+    }
+    else {
         std::istringstream iss(_playbackLineParsing);
         std::string entryType;
         //double timeRef;
@@ -942,7 +981,8 @@ void SessionRecording::playbackScript() {
             ));
             return;
         }
-    } else {
+    }
+    else {
         std::istringstream iss(_playbackLineParsing);
         std::string entryType;
         std::string tmpReadbackScript;
@@ -957,7 +997,8 @@ void SessionRecording::playbackScript() {
                 "Error parsing script line {} of playback file", _playbackLineNum
             ));
             return;
-        } else if (!iss.eof()) {
+        }
+        else if (!iss.eof()) {
             LERROR(fmt::format(
                 "Did not find an EOL at line {} of playback file", _playbackLineNum
             ));
@@ -1107,7 +1148,8 @@ bool SessionRecording::findNextFutureCameraIndex(double currTime) {
                     _idxTimeline_cameraPtrNext = seekAheadIndex;
                 }
                 break;
-            } else {
+            }
+            else {
                 // Force interpolation between consecutive keyframes
                 _idxTimeline_cameraPtrPrev = seekAheadIndex;
             }
@@ -1435,8 +1477,10 @@ scripting::LuaLibrary SessionRecording::luaLibrary() {
                 "enableTakeScreenShotDuringPlayback",
                 &luascriptfunctions::enableTakeScreenShotDuringPlayback,
                 {},
-                "int",
-                "Enables that rendered frames should be saved during playback."
+                "[int]",
+                "Enables that rendered frames should be saved during playback. The "
+                "parameter determines the number of frames that are exported per second "
+                "if this value is not provided, 60 frames per second will be exported."
             },
             {
                 "disableTakeScreenShotDuringPlayback",

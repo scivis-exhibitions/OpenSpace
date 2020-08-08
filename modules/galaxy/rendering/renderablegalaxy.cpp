@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -149,7 +149,10 @@ namespace {
             return;
         }
 
-        fileStream.write(reinterpret_cast<const char*>(&CurrentCacheVersion), sizeof(int8_t));
+        fileStream.write(
+            reinterpret_cast<const char*>(&CurrentCacheVersion),
+            sizeof(int8_t)
+        );
         fileStream.write(reinterpret_cast<const char*>(&nPoints), sizeof(int64_t));
         fileStream.write(reinterpret_cast<const char*>(&pointsRatio), sizeof(float));
         uint64_t nPositions = static_cast<uint64_t>(positions.size());
@@ -183,7 +186,12 @@ RenderableGalaxy::RenderableGalaxy(const ghoul::Dictionary& dictionary)
     )
     , _enabledPointsRatio(EnabledPointsRatioInfo, 0.5f, 0.01f, 1.0f)
     , _translation(TranslationInfo, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(1.f))
-    , _rotation(RotationInfo, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(6.28f))
+    , _rotation(
+        RotationInfo,
+        glm::vec3(0.f),
+        glm::vec3(0.f),
+        glm::vec3(glm::two_pi<float>())
+    )
     , _downScaleVolumeRendering(DownscaleVolumeRenderingInfo, 1.f, 0.1f, 1.f)
     , _numberOfRayCastingSteps(NumberOfRayCastingStepsInfo, 1000.f, 1.f, 1000.f)
 {
@@ -260,14 +268,14 @@ RenderableGalaxy::RenderableGalaxy(const ghoul::Dictionary& dictionary)
     else {
         LERROR("No volume filename specified.");
     }
-    glm::vec3 volumeDimensions;
+    glm::vec3 volumeDimensions = glm::vec3(0.f);
     if (volumeDictionary.getValue("Dimensions", volumeDimensions)) {
         _volumeDimensions = static_cast<glm::ivec3>(volumeDimensions);
     }
     else {
         LERROR("No volume dimensions specified.");
     }
-    glm::vec3 volumeSize;
+    glm::vec3 volumeSize = glm::vec3(0.f);
     if (volumeDictionary.getValue("Size", volumeSize)) {
         _volumeSize = volumeSize;
     }
@@ -286,7 +294,7 @@ RenderableGalaxy::RenderableGalaxy(const ghoul::Dictionary& dictionary)
 
     _downScaleVolumeRendering.setVisibility(properties::Property::Visibility::Developer);
     if (volumeDictionary.hasKey(DownscaleVolumeRenderingInfo.identifier)) {
-        _downScaleVolumeRendering = 
+        _downScaleVolumeRendering =
             volumeDictionary.value<float>(DownscaleVolumeRenderingInfo.identifier);
     }
 
@@ -326,7 +334,7 @@ void RenderableGalaxy::initializeGL() {
     _aspect = static_cast<glm::vec3>(_volumeDimensions);
     _aspect /= std::max(std::max(_aspect.x, _aspect.y), _aspect.z);
 
-    // The volume 
+    // The volume
     volume::RawVolumeReader<glm::tvec4<GLubyte>> reader(
         _volumeFilename,
         _volumeDimensions
@@ -455,9 +463,9 @@ void RenderableGalaxy::initializeGL() {
         }
         else {
             FileSys.cacheManager()->removeCacheFile(_pointsFilename);
-            Result res = loadPointFile(_pointsFilename);
-            pointPositions = std::move(res.positions);
-            pointColors = std::move(res.color);
+            Result resPoint = loadPointFile(_pointsFilename);
+            pointPositions = std::move(resPoint.positions);
+            pointColors = std::move(resPoint.color);
             saveCachedFile(
                 cachedPointsFile,
                 pointPositions,
@@ -534,18 +542,18 @@ void RenderableGalaxy::update(const UpdateData& data) {
     //glm::mat4 transform = glm::translate(, static_cast<glm::vec3>(_translation));
     const glm::vec3 eulerRotation = static_cast<glm::vec3>(_rotation);
     glm::mat4 transform = glm::rotate(
-        glm::mat4(1.0),
+        glm::mat4(1.f),
         eulerRotation.x,
-        glm::vec3(1, 0, 0)
+        glm::vec3(1.f, 0.f, 0.f)
     );
-    transform = glm::rotate(transform, eulerRotation.y, glm::vec3(0, 1, 0));
-    transform = glm::rotate(transform, eulerRotation.z,  glm::vec3(0, 0, 1));
+    transform = glm::rotate(transform, eulerRotation.y, glm::vec3(0.f, 1.f, 0.f));
+    transform = glm::rotate(transform, eulerRotation.z,  glm::vec3(0.f, 0.f, 1.f));
 
     glm::mat4 volumeTransform = glm::scale(transform, _volumeSize);
     _pointTransform = transform;
     //_pointTransform = glm::scale(transform, _pointScaling);
 
-    const glm::vec4 translation = glm::vec4(_translation.value()*_volumeSize, 0.0);
+    const glm::vec4 translation = glm::vec4(_translation.value()*_volumeSize, 0.f);
 
     // Todo: handle floating point overflow, to actually support translation.
 
@@ -553,7 +561,7 @@ void RenderableGalaxy::update(const UpdateData& data) {
     _pointTransform[3] += translation;
 
     _raycaster->setDownscaleRender(_downScaleVolumeRendering);
-    _raycaster->setMaxSteps(_numberOfRayCastingSteps);
+    _raycaster->setMaxSteps(static_cast<int>(_numberOfRayCastingSteps));
     _raycaster->setStepSize(_stepSize);
     _raycaster->setAspect(_aspect);
     _raycaster->setModelTransform(volumeTransform);
@@ -652,7 +660,7 @@ void RenderableGalaxy::renderPoints(const RenderData& data) {
         glm::dmat4(1.0),
         glm::pi<double>(),
         glm::dvec3(1.0, 0.0, 0.0)) *
-            glm::rotate(glm::dmat4(1.0), 3.1248, glm::dvec3(0.0, 1.0, 0.0)) * 
+            glm::rotate(glm::dmat4(1.0), 3.1248, glm::dvec3(0.0, 1.0, 0.0)) *
             glm::rotate(glm::dmat4(1.0), 4.45741, glm::dvec3(0.0, 0.0, 1.0)
     );
 
@@ -732,7 +740,7 @@ void RenderableGalaxy::renderBillboards(const RenderData& data) {
         glm::dmat4(1.0),
         glm::pi<double>(),
         glm::dvec3(1.0, 0.0, 0.0)) *
-            glm::rotate(glm::dmat4(1.0), 3.1248, glm::dvec3(0.0, 1.0, 0.0)) * 
+            glm::rotate(glm::dmat4(1.0), 3.1248, glm::dvec3(0.0, 1.0, 0.0)) *
             glm::rotate(glm::dmat4(1.0), 4.45741, glm::dvec3(0.0, 0.0, 1.0)
     );
 
@@ -790,7 +798,7 @@ float RenderableGalaxy::safeLength(const glm::vec3& vector) const {
     return glm::length(vector / maxComponent) * maxComponent;
 }
 
-RenderableGalaxy::Result RenderableGalaxy::loadPointFile(const std::string& file) {
+RenderableGalaxy::Result RenderableGalaxy::loadPointFile(const std::string&) {
     std::vector<glm::vec3> pointPositions;
     std::vector<glm::vec3> pointColors;
     int64_t nPoints;

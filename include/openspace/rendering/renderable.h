@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -30,6 +30,7 @@
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/stringproperty.h>
+#include <ghoul/misc/managedmemoryuniqueptr.h>
 
 namespace ghoul { class Dictionary; }
 namespace ghoul::opengl {
@@ -53,11 +54,12 @@ public:
     enum class RenderBin : int {
         Background = 1,
         Opaque = 2,
-        Transparent = 4,
-        Overlay = 8
+        PreDeferredTransparent = 4,
+        PostDeferredTransparent = 8,
+        Overlay = 16
     };
 
-    static std::unique_ptr<Renderable> createFromDictionary(
+    static ghoul::mm_unique_ptr<Renderable> createFromDictionary(
         const ghoul::Dictionary& dictionary);
 
     Renderable(const ghoul::Dictionary& dictionary);

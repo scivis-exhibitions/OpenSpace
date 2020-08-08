@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -179,8 +179,6 @@ private:
     Camera* _camera = nullptr;
     Scene* _scene = nullptr;
 
-    properties::BoolProperty _doPerformanceMeasurements;
-
     std::unique_ptr<Renderer> _renderer;
     RendererImplementation _rendererImplementation = RendererImplementation::Invalid;
     ghoul::Dictionary _rendererData;
@@ -189,6 +187,7 @@ private:
 
     properties::BoolProperty _showOverlayOnSlaves;
     properties::BoolProperty _showLog;
+    properties::FloatProperty _verticalLogOffset;
     properties::BoolProperty _showVersionInfo;
     properties::BoolProperty _showCameraInfo;
 
@@ -211,7 +210,7 @@ private:
     properties::BoolProperty _disableMasterRendering;
 
     properties::FloatProperty _globalBlackOutFactor;
-    
+
     properties::BoolProperty _enableFXAA;
 
     properties::BoolProperty _disableHDRPipeline;
@@ -221,13 +220,13 @@ private:
     properties::FloatProperty _hue;
     properties::FloatProperty _saturation;
     properties::FloatProperty _value;
-    
+
     properties::FloatProperty _horizFieldOfView;
 
     properties::Vec3Property _globalRotation;
     properties::Vec3Property _screenSpaceRotation;
     properties::Vec3Property _masterRotation;
-    
+
     uint64_t _frameNumber = 0;
     unsigned int _latestScreenshotNumber = 0;
 
@@ -239,9 +238,9 @@ private:
     std::shared_ptr<ghoul::fontrendering::Font> _fontLog;
 
     struct {
-        glm::ivec4 rotation;
-        glm::ivec4 zoom;
-        glm::ivec4 roll;
+        glm::ivec4 rotation = glm::ivec4(0);
+        glm::ivec4 zoom = glm::ivec4(0);
+        glm::ivec4 roll = glm::ivec4(0);
     } _cameraButtonLocations;
 };
 

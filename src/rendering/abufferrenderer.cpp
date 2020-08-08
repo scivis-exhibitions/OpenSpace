@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -41,6 +41,7 @@
 #include <openspace/util/timemanager.h>
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/profiling.h>
 #include <ghoul/opengl/programobject.h>
 #include <ghoul/opengl/textureunit.h>
 
@@ -544,6 +545,8 @@ void ABufferRenderer::updateMSAASamplingPattern() {
 }
 
 void ABufferRenderer::render(Scene* scene, Camera* camera, float blackoutFactor) {
+    ZoneScoped
+
     const bool doPerformanceMeasurements = global::performanceManager.isEnabled();
 
     PerfMeasure("ABufferRenderer::render");
@@ -582,7 +585,8 @@ void ABufferRenderer::render(Scene* scene, Camera* camera, float blackoutFactor)
     // Render the scene to the fragment buffer. Collect renderer tasks (active raycasters)
     int renderBinMask = static_cast<int>(Renderable::RenderBin::Background) |
         static_cast<int>(Renderable::RenderBin::Opaque) |
-        static_cast<int>(Renderable::RenderBin::Transparent) |
+        static_cast<int>(Renderable::RenderBin::PreDeferredTransparent) |
+        static_cast<int>(Renderable::RenderBin::PostDeferredTransparent) |
         static_cast<int>(Renderable::RenderBin::Overlay);
 
     Time time = global::timeManager.time();
@@ -972,7 +976,8 @@ void ABufferRenderer::updateRaycastData() {
 
         if (helperPath.empty()) {
             data.namespaceName = "NAMESPACE_" + std::to_string(nextNamespaceIndex++);
-        } else {
+        }
+        else {
             auto iter = namespaceIndices.find(helperPath);
             if (iter == namespaceIndices.end()) {
                 int namespaceIndex = nextNamespaceIndex++;

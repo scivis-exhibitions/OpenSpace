@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2019                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -32,8 +32,6 @@
 #include <openspace/interaction/navigationhandler.h>
 #include <openspace/interaction/orbitalnavigator.h>
 #include <openspace/mission/missionmanager.h>
-#include <openspace/performance/performancemanager.h>
-#include <openspace/performance/performancemeasurement.h>
 #include <openspace/rendering/abufferrenderer.h>
 #include <openspace/rendering/dashboard.h>
 #include <openspace/rendering/deferredcastermanager.h>
@@ -54,6 +52,7 @@
 #include <ghoul/io/texture/texturereader.h>
 #include <ghoul/io/texture/texturereadercmap.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/profiling.h>
 #include <ghoul/misc/stringconversion.h>
 #include <ghoul/opengl/programobject.h>
 #include <ghoul/systemcapabilities/openglcapabilitiescomponent.h>
@@ -108,6 +107,13 @@ namespace {
         "This value determines whether the on-screen log will be shown or hidden. Even "
         "if it is shown, all 'Debug' and 'Trace' level messages are omitted from this "
         "log."
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo VerticalLogOffsetInfo = {
+        "VerticalLogOffset",
+        "Vertical Log Offset",
+        "The vertical offset for the on-screen log in [0,1] coordinates, a factor that "
+        "is scaled with the vertical resolution"
     };
 
     constexpr openspace::properties::Property::PropertyInfo ShowVersionInfo = {
@@ -249,9 +255,9 @@ namespace openspace {
 
 RenderEngine::RenderEngine()
     : properties::PropertyOwner({ "RenderEngine" })
-    , _doPerformanceMeasurements(PerformanceInfo)
     , _showOverlayOnSlaves(ShowOverlaySlavesInfo, false)
     , _showLog(ShowLogInfo, true)
+    , _verticalLogOffset(VerticalLogOffsetInfo, 0.f, 0.f, 1.f)
     , _showVersionInfo(ShowVersionInfo, true)
     , _showCameraInfo(ShowCameraInfo, true)
     , _applyWarping(ApplyWarpingInfo, false)
@@ -288,13 +294,9 @@ RenderEngine::RenderEngine()
         glm::vec3(glm::pi<float>())
     )
 {
-    _doPerformanceMeasurements.onChange([this](){
-        global::performanceManager.setEnabled(_doPerformanceMeasurements);
-    });
-    addProperty(_doPerformanceMeasurements);
-
     addProperty(_showOverlayOnSlaves);
     addProperty(_showLog);
+    addProperty(_verticalLogOffset);
     addProperty(_showVersionInfo);
     addProperty(_showCameraInfo);
 
@@ -318,14 +320,13 @@ RenderEngine::RenderEngine()
     });
     addProperty(_disableHDRPipeline);
 
-    
     _hdrExposure.onChange([this]() {
         if (_renderer) {
             _renderer->setHDRExposure(_hdrExposure);
         }
     });
     addProperty(_hdrExposure);
-    
+
     _gamma.onChange([this]() {
         if (_renderer) {
             _renderer->setGamma(_gamma);
@@ -335,13 +336,13 @@ RenderEngine::RenderEngine()
 
     _hue.onChange([this]() {
         if (_renderer) {
-            const float h = _hue / 360.0;
+            const float h = _hue / 360.f;
             _renderer->setHue(h);
         }
     });
 
     addProperty(_hue);
-    
+
     _saturation.onChange([this]() {
         if (_renderer) {
             _renderer->setSaturation(_saturation);
@@ -349,7 +350,7 @@ RenderEngine::RenderEngine()
     });
 
     addProperty(_saturation);
-    
+
     _value.onChange([this]() {
         if (_renderer) {
             _renderer->setValue(_value);
@@ -408,6 +409,8 @@ void RenderEngine::setRendererFromString(const std::string& renderingMethod) {
 }
 
 void RenderEngine::initialize() {
+    ZoneScoped
+
     // We have to perform these initializations here as the OsEng has not been initialized
     // in our constructor
     _globalRotation = static_cast<glm::vec3>(global::configuration.globalRotation);
@@ -446,6 +449,8 @@ void RenderEngine::initialize() {
 }
 
 void RenderEngine::initializeGL() {
+    ZoneScoped
+
     LTRACE("RenderEngine::initializeGL(begin)");
 
     std::string renderingMethod = global::configuration.renderingMethod;
@@ -495,10 +500,14 @@ void RenderEngine::initializeGL() {
 }
 
 void RenderEngine::deinitializeGL() {
+    ZoneScoped
+
     _renderer = nullptr;
 }
 
 void RenderEngine::updateScene() {
+    ZoneScoped
+
     if (!_scene) {
         return;
     }
@@ -509,16 +518,17 @@ void RenderEngine::updateScene() {
     const Time& integrateFromTime = global::timeManager.integrateFromTime();
 
     _scene->update({
-        { glm::dvec3(0.0), glm::dmat3(1.0), 1.0 },
+        TransformData{ glm::dvec3(0.0), glm::dmat3(1.0), glm::dvec3(1.0) },
         currentTime,
-        integrateFromTime,
-        _doPerformanceMeasurements
+        integrateFromTime
     });
 
     LTRACE("RenderEngine::updateSceneGraph(end)");
 }
 
 void RenderEngine::updateShaderPrograms() {
+    ZoneScoped
+
     for (ghoul::opengl::ProgramObject* program : _programs) {
         try {
             if (program->isDirty()) {
@@ -532,6 +542,8 @@ void RenderEngine::updateShaderPrograms() {
 }
 
 void RenderEngine::updateRenderer() {
+    ZoneScoped
+
     const bool windowResized = global::windowDelegate.windowHasResized();
 
     if (windowResized) {
@@ -549,18 +561,15 @@ void RenderEngine::updateRenderer() {
 }
 
 void RenderEngine::updateScreenSpaceRenderables() {
+    ZoneScoped
+
     for (std::unique_ptr<ScreenSpaceRenderable>& ssr : global::screenSpaceRenderables) {
         ssr->update();
     }
 }
 
 glm::ivec2 RenderEngine::renderingResolution() const {
-    if (global::windowDelegate.isRegularRendering()) {
-        return global::windowDelegate.currentWindowResolution();
-    }
-    else {
-        return global::windowDelegate.currentDrawBufferResolution();
-    }
+    return global::windowDelegate.currentDrawBufferResolution();
 }
 
 glm::ivec2 RenderEngine::fontResolution() const {
@@ -569,7 +578,7 @@ glm::ivec2 RenderEngine::fontResolution() const {
         return global::windowDelegate.currentViewportSize();
     }
     else {
-        return global::windowDelegate.currentWindowSize();
+        return global::windowDelegate.currentSubwindowSize();
     }
 }
 
@@ -613,6 +622,8 @@ uint64_t RenderEngine::frameNumber() const {
 void RenderEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& viewMatrix,
                           const glm::mat4& projectionMatrix)
 {
+    ZoneScoped
+
     LTRACE("RenderEngine::render(begin)");
 
     const WindowDelegate& delegate = global::windowDelegate;
@@ -640,6 +651,8 @@ void RenderEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& viewMat
     }
 
     if (_showFrameInformation) {
+        ZoneScopedN("Show Frame Information")
+
         glm::vec2 penPosition = glm::vec2(
             fontResolution().x / 2 - 50,
             fontResolution().y / 3
@@ -652,6 +665,7 @@ void RenderEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& viewMat
                 case WindowDelegate::Frustum::Mono: return "";
                 case WindowDelegate::Frustum::LeftEye: return "(left)";
                 case WindowDelegate::Frustum::RightEye: return "(right)";
+                default: throw std::logic_error("Unhandled case label");
             }
         }(frustum);
 
@@ -666,6 +680,8 @@ void RenderEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& viewMat
     }
 
     if (masterEnabled && !delegate.isGuiWindow() && _globalBlackOutFactor > 0.f) {
+        ZoneScopedN("Render Screenspace Renderable")
+
         std::vector<ScreenSpaceRenderable*> ssrs;
         ssrs.reserve(global::screenSpaceRenderables.size());
         for (const std::unique_ptr<ScreenSpaceRenderable>& ssr :
@@ -744,6 +760,8 @@ bool RenderEngine::mouseActivationCallback(const glm::dvec2& mousePosition) cons
 }
 
 void RenderEngine::renderOverlays(const ShutdownInformation& shutdownInfo) {
+    ZoneScoped
+
     const bool isMaster = global::windowDelegate.isMaster();
     if (isMaster || _showOverlayOnSlaves) {
         renderScreenLog();
@@ -766,10 +784,15 @@ void RenderEngine::renderEndscreen() {
     glEnable(GL_BLEND);
 
     rendering::helper::renderBox(
-        glm::vec2(0.f, 0.f),
-        glm::vec2(1.f, 1.f),
+        glm::vec2(0.f),
+        glm::vec2(1.f),
         glm::vec4(0.f, 0.f, 0.f, 0.5f)
     );
+
+    const glm::vec2 dpiScaling = global::windowDelegate.dpiScaling();
+    const glm::ivec2 res =
+        glm::vec2(global::windowDelegate.currentSubwindowSize()) / dpiScaling;
+    glViewport(0, 0, res.x, res.y);
 
     using FR = ghoul::fontrendering::FontRenderer;
     using BBox = FR::BoundingBoxInformation;
@@ -785,6 +808,8 @@ void RenderEngine::renderEndscreen() {
 }
 
 void RenderEngine::renderShutdownInformation(float timer, float fullTime) {
+    ZoneScoped
+
     timer = std::max(timer, 0.f);
 
     using BBox = ghoul::fontrendering::FontRenderer::BoundingBoxInformation;
@@ -816,12 +841,7 @@ void RenderEngine::renderShutdownInformation(float timer, float fullTime) {
 }
 
 void RenderEngine::renderDashboard() {
-    std::unique_ptr<performance::PerformanceMeasurement> perf;
-    if (global::performanceManager.isEnabled()) {
-        perf = std::make_unique<performance::PerformanceMeasurement>(
-            "Main Dashboard::render"
-        );
-    }
+    ZoneScoped
 
     glm::vec2 dashboardStart = global::dashboard.getStartPositionOffset();
     glm::vec2 penPosition = glm::vec2(
@@ -848,13 +868,9 @@ void RenderEngine::renderDashboard() {
 }
 
 void RenderEngine::postDraw() {
-    ++_frameNumber;
+    ZoneScoped
 
-    if (global::performanceManager.isEnabled()) {
-        global::performanceManager.storeScenePerformanceMeasurements(
-            scene()->allSceneGraphNodes()
-        );
-    }
+    ++_frameNumber;
 
 #ifdef OPENSPACE_WITH_INSTRUMENTATION
     if (_saveFrameInformation) {
@@ -1221,6 +1237,8 @@ RenderEngine::RendererImplementation RenderEngine::rendererFromString(
 }
 
 void RenderEngine::renderCameraInformation() {
+    ZoneScoped
+
     if (!_showCameraInfo) {
         return;
     }
@@ -1295,6 +1313,8 @@ void RenderEngine::renderCameraInformation() {
 }
 
 void RenderEngine::renderVersionInformation() {
+    ZoneScoped
+
     if (!_showVersionInfo) {
         return;
     }
@@ -1358,6 +1378,8 @@ void RenderEngine::renderVersionInformation() {
 }
 
 void RenderEngine::renderScreenLog() {
+    ZoneScoped
+
     if (!_showLog) {
         return;
     }
@@ -1374,6 +1396,8 @@ void RenderEngine::renderScreenLog() {
         entries.size() > MaxNumberMessages ?
         std::make_pair(entries.rbegin(), entries.rbegin() + MaxNumberMessages) :
         std::make_pair(entries.rbegin(), entries.rend());
+
+    const glm::ivec2 fontRes = fontResolution();
 
     size_t nr = 1;
     const auto now = std::chrono::steady_clock::now();
@@ -1395,54 +1419,61 @@ void RenderEngine::renderScreenLog() {
         if (alpha <= 0.f) {
             break;
         }
-
-        const std::string lvl = "(" + ghoul::to_string(e->level) + ")";
-        const std::string& message = e->message.substr(0, MessageLength);
+        const std::string_view lvl = ghoul::to_string(e->level);
+        const std::string_view message =
+            std::string_view(e->message).substr(0, MessageLength);
         nr += std::count(message.begin(), message.end(), '\n');
 
         const glm::vec4 white(0.9f, 0.9f, 0.9f, alpha);
 
+        std::string str = fmt::format(
+            "{:<15} {}{}",
+            e->timeString,
+            e->category.substr(0, CategoryLength),
+            e->category.length() > CategoryLength ? "..." : ""
+        );
+
         RenderFont(
             *_fontLog,
-            glm::vec2(10.f, _fontLog->pointSize() * nr * 2),
-            fmt::format(
-                "{:<15} {}{}",
-                e->timeString,
-                e->category.substr(0, CategoryLength),
-                e->category.length() > CategoryLength ? "..." : ""
+            glm::vec2(
+                10.f,
+                _fontLog->pointSize() * nr * 2 + fontRes.y * _verticalLogOffset
             ),
+            str,
             white
         );
 
-        glm::vec4 color(glm::uninitialize);
-        switch (e->level) {
-            case ghoul::logging::LogLevel::Debug:
-                color = glm::vec4(0.f, 1.f, 0.f, alpha);
-                break;
-            case ghoul::logging::LogLevel::Warning:
-                color = glm::vec4(1.f, 1.f, 0.f, alpha);
-                break;
-            case ghoul::logging::LogLevel::Error:
-                color = glm::vec4(1.f, 0.f, 0.f, alpha);
-                break;
-            case ghoul::logging::LogLevel::Fatal:
-                color = glm::vec4(0.3f, 0.3f, 0.85f, alpha);
-                break;
-            default:
-                color = white;
-                break;
-        }
+        const glm::vec4 color = [alpha, white](ScreenLog::LogLevel level) {
+            switch (level) {
+                case ghoul::logging::LogLevel::Debug:
+                    return glm::vec4(0.f, 1.f, 0.f, alpha);
+                case ghoul::logging::LogLevel::Warning:
+                    return glm::vec4(1.f, 1.f, 0.f, alpha);
+                case ghoul::logging::LogLevel::Error:
+                    return glm::vec4(1.f, 0.f, 0.f, alpha);
+                case ghoul::logging::LogLevel::Fatal:
+                    return glm::vec4(0.3f, 0.3f, 0.85f, alpha);
+                default:
+                    return white;
+            }
+        }(e->level);
 
         RenderFont(
             *_fontLog,
-            glm::vec2(10 + 30 * _fontLog->pointSize(), _fontLog->pointSize() * nr * 2),
-            lvl,
+            glm::vec2(
+                10 + 30 * _fontLog->pointSize(),
+                _fontLog->pointSize() * nr * 2 + fontRes.y * _verticalLogOffset
+            ),
+            fmt::format("({})", lvl),
             color
         );
 
         RenderFont(
             *_fontLog,
-            glm::vec2(10 + 41 * _fontLog->pointSize(), _fontLog->pointSize() * nr * 2),
+            glm::vec2(
+                10 + 41 * _fontLog->pointSize(),
+                _fontLog->pointSize() * nr * 2 + fontRes.y * _verticalLogOffset
+            ),
             message,
             white
         );
