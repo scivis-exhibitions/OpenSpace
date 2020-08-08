@@ -65,6 +65,7 @@ private:
 
     properties::StringProperty _texturePath;
     properties::OptionProperty _orientation;
+    properties::OptionProperty _projection;
 
     properties::FloatProperty _size;
     properties::IntProperty _segments;
@@ -83,7 +84,7 @@ private:
     std::unique_ptr<Sphere> _sphere;
 
     UniformCache(opacity, modelViewProjection, modelViewRotation, colorTexture,
-        _mirrorTexture) _uniformCache;
+        _mirrorTexture, _projection) _uniformCache;
 
     bool _sphereIsDirty = false;
 };

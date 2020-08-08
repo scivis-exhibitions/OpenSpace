@@ -42,15 +42,20 @@
 namespace {
     constexpr const char* ProgramName = "Sphere";
 
-    constexpr const std::array<const char*, 5> UniformNames = {
+    constexpr const std::array<const char*, 6> UniformNames = {
         "opacity", "modelViewProjection", "modelViewRotation", "colorTexture",
-        "mirrorTexture"
+        "mirrorTexture", "projection"
     };
 
     enum class Orientation : int {
         Outside = 0,
         Inside,
         Both
+    };
+
+    enum class Projection : int {
+        Equirectangular = 0,
+        Mollweide
     };
 
     constexpr openspace::properties::Property::PropertyInfo TextureInfo = {
@@ -72,6 +77,12 @@ namespace {
         "Orientation",
         "Specifies whether the texture is applied to the inside of the sphere, the "
         "outside of the sphere, or both."
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo ProjectionInfo = {
+        "Projection",
+        "Projection",
+        "Specifies the map projection of the texture, equirectangular or mollweide."
     };
 
     constexpr openspace::properties::Property::PropertyInfo UseAdditiveBlendingInfo = {
@@ -152,6 +163,12 @@ documentation::Documentation RenderableSphere::Documentation() {
                 OrientationInfo.description
             },
             {
+                ProjectionInfo.identifier,
+                new StringInListVerifier({ "Equirectangular", "Mollweide"}),
+                Optional::Yes,
+                ProjectionInfo.description
+            },
+            {
                 UseAdditiveBlendingInfo.identifier,
                 new BoolVerifier,
                 Optional::Yes,
@@ -196,6 +213,7 @@ RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
     , _texturePath(TextureInfo)
     , _orientation(OrientationInfo, properties::OptionProperty::DisplayType::Dropdown)
+    , _projection(ProjectionInfo, properties::OptionProperty::DisplayType::Dropdown)
     , _size(SizeInfo, 1.f, 0.f, 1e35f)
     , _segments(SegmentsInfo, 8, 4, 1000)
     , _mirrorTexture(MirrorTextureInfo, false)
@@ -224,6 +242,11 @@ RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
         { static_cast<int>(Orientation::Both), "Both" }
     });
 
+    _projection.addOptions({
+        { static_cast<int>(Projection::Equirectangular), "Equirectangular" },
+        { static_cast<int>(Projection::Mollweide), "Mollweide" }
+    });
+
     if (dictionary.hasKey(OrientationInfo.identifier)) {
         const std::string& v = dictionary.value<std::string>(OrientationInfo.identifier);
         if (v == "Inside") {
@@ -244,6 +267,24 @@ RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
     }
     addProperty(_orientation);
 
+
+    if (dictionary.hasKey(ProjectionInfo.identifier)) {
+        const std::string& v = dictionary.value<std::string>(ProjectionInfo.identifier);
+        if (v == "Equirectangular") {
+            _projection = static_cast<int>(Projection::Equirectangular);
+        }
+        else if (v == "Mollweide") {
+            _projection = static_cast<int>(Projection::Mollweide);
+        }
+        else {
+            throw ghoul::MissingCaseException();
+        }
+    }
+    else {
+        _projection = static_cast<int>(Projection::Equirectangular);
+    }
+    addProperty(_projection);
+
     addProperty(_size);
     _size.onChange([this]() { _sphereIsDirty = true; });
 
@@ -252,6 +293,7 @@ RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
 
     addProperty(_texturePath);
     _texturePath.onChange([this]() { loadTexture(); });
+    _projection.onChange([this]() { _sphereIsDirty = true; });
 
     addProperty(_mirrorTexture);
     addProperty(_useAdditiveBlending);
@@ -350,6 +392,9 @@ void RenderableSphere::render(const RenderData& data, RendererTasks&) {
     using IgnoreError = ghoul::opengl::ProgramObject::IgnoreError;
     _shader->activate();
     _shader->setIgnoreUniformLocationError(IgnoreError::Yes);
+
+    _shader->setUniform(_uniformCache._projection, _projection);
+    
 
     glm::mat4 modelViewProjection = data.camera.projectionMatrix() *
                              glm::mat4(data.camera.combinedViewMatrix() * modelTransform);
@@ -478,8 +523,47 @@ void RenderableSphere::update(const UpdateData&) {
 
 void RenderableSphere::loadTexture() {
     if (!_texturePath.value().empty()) {
+
+        if (_projection == 1) {
+            
+            //std::unique_ptr<ghoul::opengl::Texture> originaltexture =
+            //    ghoul::io::TextureReader::ref().loadTexture(_texturePath);
+
+            //const int nPixels = glm::compMul(originaltexture->dimensions());
+            //const int nChannels = originaltexture->numberOfChannels();
+            //const int bytesPerChannel = originaltexture->bytesPerPixel() / nChannels;
+
+
+            //const char* oldData = reinterpret_cast<const char*>(originaltexture->pixelData());
+            //char* newData = new char[bytesPerChannel * bytesPerChannel * nPixels];
+            //std::memset(newData, 0, bytesPerChannel * bytesPerChannel * nPixels);
+
+            //// Conversion
+            //for (int i = 0; i < nPixels; ++i) {
+            //    const char* oldPtr = oldData + i * bytesPerChannel * nChannels;
+            //    char* newPtr = newData + i * bytesPerChannel * nChannels;
+            //    
+            //}
+
+            //texture.setFormat(originaltexture->format());
+            //texture.setInternalFormat(static_cast<GLenum>(originaltexture->format()));
+
+            //texture.setPixelData(newData);
+
+
+
+
+
+
+
+
+
+            //_texturePath = newEquiPath;
+        }
+
         std::unique_ptr<ghoul::opengl::Texture> texture =
             ghoul::io::TextureReader::ref().loadTexture(_texturePath);
+
 
         if (texture) {
             LDEBUGC(
