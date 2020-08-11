@@ -18,7 +18,7 @@ scene/solarsystem/missions/gaia/dashboard
 setPropertyValueSingle	Scene.Stars.Renderable.Enabled	false
 
 #Camera
-setNavigationState	"Earth"			1000000000000.0, 1000000000000.0, 1000000000000.0			
+setNavigationState	"Sun"		"Root"	7.463551E16, 2.872654E15, 1.544717E17	-0.540034E0, 0.804903E0, 0.245958E0	-0.284051E-3	0.944247E-2
 
 #MarkNodes
 Gaia

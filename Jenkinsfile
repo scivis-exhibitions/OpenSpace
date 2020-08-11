@@ -101,15 +101,15 @@ windows: {
         //commit new test images
         //copy test results to static dir
       }
-      def sha = gitHelper.getCommitSha();
-      stage('windows/pre-package') {
-        packageHelper.createOpenSpaceTree(sha);
-        packageHelper.addModuleFolders(sha)
-      }
-      stage('windows/package-archive') {
-        packageHelper.createOpenSpaceArchives(sha);
-        //copy archives to static dir
-      }
+      // def sha = gitHelper.getCommitSha();
+      // stage('windows/pre-package') {
+      //   packageHelper.createOpenSpaceTree(sha);
+      //   packageHelper.addModuleFolders(sha)
+      // }
+      // stage('windows/package-archive') {
+      //   packageHelper.createOpenSpaceArchives(sha);
+      //   //copy archives to static dir
+      // }
     } // node('windows')
   }
 }
