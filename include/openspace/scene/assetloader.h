@@ -75,16 +75,6 @@ public:
     void remove(const std::string& identifier);
 
     /**
-     * Enable the asset to be reused when the same path is required/requested again
-     */
-    void trackAsset(std::shared_ptr<Asset> asset);
-
-    /**
-     * Disable the asset from being reused when the same path is required/requested again
-     */
-    void untrackAsset(Asset* asset);
-
-    /**
      * Return the asset identified by the identifier,
      * if the asset is tracked. Otherwise return nullptr.
      */
@@ -164,13 +154,25 @@ public:
     void assetUnrequested(Asset* parent, std::shared_ptr<Asset> child);
 
 private:
+    /**
+     * Enable the asset to be reused when the same path is required/requested again
+     */
+    //void trackAsset(std::shared_ptr<Asset> asset);
+
+    /**
+     * Disable the asset from being reused when the same path is required/requested again
+     */
+    //void untrackAsset(Asset* asset);
+
+
+
     std::shared_ptr<Asset> request(const std::string& identifier);
     void unrequest(const std::string& identifier);
 
     void setUpAssetLuaTable(Asset* asset);
     void tearDownAssetLuaTable(Asset* asset);
 
-    std::shared_ptr<Asset> getAsset(const std::string& name);
+    std::shared_ptr<Asset> getAsset(const std::string& name, bool contentEnabled);
     ghoul::filesystem::Directory currentDirectory() const;
 
     void setCurrentAsset(Asset* asset);

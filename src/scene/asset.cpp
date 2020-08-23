@@ -81,6 +81,14 @@ Asset::Asset(AssetLoader* loader, SynchronizationWatcher* watcher, std::string a
     , _assetPath(std::move(assetPath))
 {}
 
+void Asset::setContentEnabled(bool enabled) {
+    _hasContentEnabled = enabled;
+}
+
+bool Asset::contentEnabled() const {
+    return _hasContentEnabled;
+}
+
 void Asset::setMetaInformation(MetaInformation metaInformation) {
     _metaInformation = std::move(metaInformation);
 }

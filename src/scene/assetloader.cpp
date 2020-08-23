@@ -55,6 +55,8 @@ namespace {
     constexpr const char* DirectoryConstantName = "directory";
     constexpr const char* FilePathConstantName = "filePath";
 
+    constexpr const char* ContentEnabledName = "contentEnabled";
+
     constexpr const char* MetaInformationKey = "meta";
     constexpr const char* MetaInformationName = "Name";
     constexpr const char* MetaInformationVersion = "Version";
@@ -118,18 +120,18 @@ AssetLoader::~AssetLoader() {
     luaL_unref(*_luaState, LUA_REGISTRYINDEX, _assetsTableRef);
 }
 
-void AssetLoader::trackAsset(std::shared_ptr<Asset> asset) {
-    _trackedAssets.emplace(asset->id(), asset);
-    setUpAssetLuaTable(asset.get());
-}
-
-void AssetLoader::untrackAsset(Asset* asset) {
-    tearDownAssetLuaTable(asset);
-    const auto it = _trackedAssets.find(asset->id());
-    if (it != _trackedAssets.end()) {
-        _trackedAssets.erase(it);
-    }
-}
+//void AssetLoader::trackAsset(std::shared_ptr<Asset> asset) {
+//    _trackedAssets.emplace(asset->id(), asset);
+//    setUpAssetLuaTable(asset.get());
+//}
+//
+//void AssetLoader::untrackAsset(Asset* asset) {
+//    tearDownAssetLuaTable(asset);
+//    const auto it = _trackedAssets.find(asset->id());
+//    if (it != _trackedAssets.end()) {
+//        _trackedAssets.erase(it);
+//    }
+//}
 
 void AssetLoader::setUpAssetLuaTable(Asset* asset) {
     // Set up lua table:
@@ -229,6 +231,9 @@ void AssetLoader::setUpAssetLuaTable(Asset* asset) {
     // string filePath
     lua_pushstring(*_luaState, asset->assetFilePath().c_str());
     lua_setfield(*_luaState, assetTableIndex, FilePathConstantName);
+
+    lua_pushboolean(*_luaState, asset->contentEnabled());
+    lua_setfield(*_luaState, assetTableIndex, ContentEnabledName);
 
     // Attach Asset table to AssetInfo table
     lua_setfield(*_luaState, assetInfoTableIndex, AssetTableName);
@@ -348,7 +353,12 @@ void AssetLoader::unloadAsset(Asset* asset) {
     _onDependencyDeinitializationFunctionRefs.erase(asset);
 
     asset->clearSynchronizations();
-    untrackAsset(asset);
+
+    tearDownAssetLuaTable(asset);
+    const auto it = _trackedAssets.find(asset->id());
+    if (it != _trackedAssets.end()) {
+        _trackedAssets.erase(it);
+    }
 }
 
 std::string AssetLoader::generateAssetPath(const std::string& baseDirectory,
@@ -409,11 +419,14 @@ std::string AssetLoader::generateAssetPath(const std::string& baseDirectory,
     return FileSys.absPath(fullAssetPath);
 }
 
-std::shared_ptr<Asset> AssetLoader::getAsset(const std::string& name) {
+std::shared_ptr<Asset> AssetLoader::getAsset(const std::string& name, bool contentEnabled)
+{
     ghoul::filesystem::Directory directory = currentDirectory();
     const std::string path = generateAssetPath(directory, name);
 
-    // Check if asset is already loaded.
+    // Check if asset is already loaded
+    // @TODO (abock, 2020-08-23);  This should probably check if we have loaded an asset
+    // with a different 'contentEnabled' parameter
     const auto it = _trackedAssets.find(path);
 
     if (it != _trackedAssets.end()) {
@@ -427,8 +440,10 @@ std::shared_ptr<Asset> AssetLoader::getAsset(const std::string& name) {
        _synchronizationWatcher,
         path
     );
+    asset->setContentEnabled(contentEnabled);
 
-    trackAsset(asset);
+    _trackedAssets.emplace(asset->id(), asset);
+    setUpAssetLuaTable(asset.get());
     return asset;
 }
 
@@ -473,7 +488,10 @@ int AssetLoader::onDeinitializeDependencyLua(Asset* dependant, Asset* dependency
 }
 
 std::shared_ptr<Asset> AssetLoader::request(const std::string& identifier) {
-    std::shared_ptr<Asset> asset = getAsset(identifier);
+    // @TODO (abock, 2020-08-23);  This 'false' parameter is a hack and should be removed
+    // but then, this function won't really exist for much longer anyway
+
+    std::shared_ptr<Asset> asset = getAsset(identifier, false);
     Asset* parent = _currentAsset;
     parent->request(asset);
     assetRequested(parent, asset);
@@ -654,12 +672,18 @@ void AssetLoader::setCurrentAsset(Asset* asset) {
 }
 
 int AssetLoader::requireLua(Asset* dependant) {
-    ghoul::lua::checkArgumentsAndThrow(*_luaState, 1, "lua::require");
+    const int n = ghoul::lua::checkArgumentsAndThrow(*_luaState, { 1, 2 }, "lua::require");
 
     std::string assetName = luaL_checkstring(*_luaState, 1);
+
+    bool contentEnabled = false;
+    if (n == 2) {
+        contentEnabled = lua_toboolean(*_luaState, 2);
+    }
     lua_settop(*_luaState, 0);
 
-    std::shared_ptr<Asset> dependency = getAsset(assetName);
+    std::shared_ptr<Asset> dependency = getAsset(assetName, contentEnabled);
+    //dependency->setContentEnabled(contentEnabled);
     _currentAsset->require(dependency);
 
     if (!dependency) {

@@ -128,6 +128,9 @@ public:
     std::vector<const Asset*> subTreeAssets() const;
     std::vector<Asset*> childAssets() const;
 
+    void setContentEnabled(bool enabled);
+    bool contentEnabled() const;
+
     void setMetaInformation(MetaInformation metaInformation);
     std::optional<MetaInformation> metaInformation() const;
 
@@ -159,6 +162,7 @@ private:
     // Absolute path to asset file
     std::string _assetPath;
 
+    bool _hasContentEnabled = false;
     std::optional<MetaInformation> _metaInformation;
 
     // Required assets
