@@ -355,7 +355,7 @@ void AssetLoader::unloadAsset(Asset* asset) {
     asset->clearSynchronizations();
 
     tearDownAssetLuaTable(asset);
-    const auto it = _trackedAssets.find(asset->id());
+    const auto it = _trackedAssets.find({ asset->id(), asset->contentEnabled() });
     if (it != _trackedAssets.end()) {
         _trackedAssets.erase(it);
     }
@@ -425,9 +425,37 @@ std::shared_ptr<Asset> AssetLoader::getAsset(const std::string& name, bool conte
     const std::string path = generateAssetPath(directory, name);
 
     // Check if asset is already loaded
-    // @TODO (abock, 2020-08-23);  This should probably check if we have loaded an asset
-    // with a different 'contentEnabled' parameter
-    const auto it = _trackedAssets.find(path);
+    const auto trueIt = _trackedAssets.find({ path, true });
+    const bool hasTrueIt = trueIt != _trackedAssets.end();
+    const auto falseIt = _trackedAssets.find({ path, false });
+    const bool hasFalseIt = falseIt != _trackedAssets.end();
+
+    // @TODO (abock, 2020-08-23); This should be replaced with a much better solution,
+    // maybe a two-phase approach of asset creation, maybe?
+    if (hasTrueIt && hasFalseIt) {
+        LWARNING(fmt::format(
+            "Asset '{}' has been loaded with content Enabled true and false before"
+        ));
+    }
+    if ((contentEnabled && hasFalseIt) || (!contentEnabled && hasTrueIt)) {
+        LWARNING(fmt::format(
+            "Tried to load asset '{}' with contentEnabled: {}, but was loaded with "
+            "'{}' before", name, contentEnabled, !contentEnabled
+        ));
+
+        if (hasFalseIt) {
+            if (std::shared_ptr<Asset> a = falseIt->second.lock(); a != nullptr) {
+                return a;
+            }
+        }
+        if (hasTrueIt) {
+            if (std::shared_ptr<Asset> a = trueIt->second.lock(); a != nullptr) {
+                return a;
+            }
+        }
+    }
+
+    const auto it = _trackedAssets.find({ path, contentEnabled });
 
     if (it != _trackedAssets.end()) {
         if (std::shared_ptr<Asset> a = it->second.lock(); a != nullptr) {
@@ -442,7 +470,7 @@ std::shared_ptr<Asset> AssetLoader::getAsset(const std::string& name, bool conte
     );
     asset->setContentEnabled(contentEnabled);
 
-    _trackedAssets.emplace(asset->id(), asset);
+    _trackedAssets[{ asset->id(), contentEnabled }] = std::move(asset);
     setUpAssetLuaTable(asset.get());
     return asset;
 }
@@ -528,11 +556,19 @@ std::shared_ptr<Asset> AssetLoader::has(const std::string& identifier) const {
     ghoul::filesystem::Directory directory = currentDirectory();
     std::string path = generateAssetPath(directory, identifier);
 
-    const auto it = _trackedAssets.find(path);
-    if (it == _trackedAssets.end()) {
-        return nullptr;
+
+    // @TODO (abock, 2020-08-23); This solution is really ugly, is there some better way
+    // we can make sure to *really* find the correct asset at all times?
+    const auto trueIt = _trackedAssets.find({ path, true });
+    if (trueIt != _trackedAssets.end()) {
+        return trueIt->second.lock();
     }
-    return it->second.lock();
+    const auto falseIt = _trackedAssets.find({ path, false });
+    if (falseIt != _trackedAssets.end()) {
+        return falseIt->second.lock();
+    }
+
+    return nullptr;
 }
 
 const Asset& AssetLoader::rootAsset() const {

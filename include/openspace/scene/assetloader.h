@@ -205,7 +205,17 @@ private:
     // Member variables
     std::shared_ptr<Asset> _rootAsset;
     Asset* _currentAsset = nullptr;
-    std::unordered_map<std::string, std::weak_ptr<Asset>> _trackedAssets;
+
+    // @TODO (abock, 2020-08-23); This struct should be temporary and we want to remove
+// this once a proper solution is in place. This should probably also not be public,
+// but whatevs
+    //struct TrackedKey {
+    //    std::string name;
+    //    bool contentEnabled;
+    //};
+
+
+    std::map<std::pair<std::string, bool>, std::weak_ptr<Asset>> _trackedAssets;
     SynchronizationWatcher* _synchronizationWatcher;
     std::string _assetRootDirectory;
     ghoul::lua::LuaState* _luaState;
