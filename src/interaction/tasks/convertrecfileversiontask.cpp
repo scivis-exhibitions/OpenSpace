@@ -29,8 +29,9 @@
 #include <openspace/engine/globals.h>
 #include <ghoul/filesystem/file.h>
 #include <ghoul/filesystem/filesystem.h>
-#include <iomanip>
 #include <ghoul/logging/logmanager.h>
+#include <filesystem>
+#include <iomanip>
 
 namespace {
     constexpr const char* _loggerCat = "ConvertRecFileVersionTask";
@@ -82,14 +83,10 @@ void ConvertRecFileVersionTask::perform(const Task::ProgressCallback& progressCa
 }
 
 void ConvertRecFileVersionTask::convert() {
-    bool hasBinaryFileExtension = sessRec->hasFileExtension(
-        _inFilename,
-        SessionRecording::FileExtensionBinary
-    );
-    bool hasAsciiFileExtension = sessRec->hasFileExtension(
-        _inFilename,
-        SessionRecording::FileExtensionAscii
-    );
+    std::filesystem::path p = _inFilename;
+    bool hasBinaryFileExtension = p.extension() == SessionRecording::FileExtensionBinary;
+    bool hasAsciiFileExtension = p.extension() == SessionRecording::FileExtensionAscii;
+
     if (!hasBinaryFileExtension && !hasAsciiFileExtension) {
         LERROR(fmt::format(
             "Input filename does not have expected {} or {} extension.",
