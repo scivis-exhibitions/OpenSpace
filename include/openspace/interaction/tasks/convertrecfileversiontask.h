@@ -32,19 +32,15 @@
 
 #include <string>
 
-
-
 namespace openspace::interaction {
 
 class ConvertRecFileVersionTask : public Task {
 public:
     ConvertRecFileVersionTask(const ghoul::Dictionary& dictionary);
-    ~ConvertRecFileVersionTask();
     std::string description() override;
     void perform(const Task::ProgressCallback& progressCallback) override;
     static documentation::Documentation documentation();
     void convert();
-    SessionRecording* sessRec;
 
 private:
     std::string _inFilename;

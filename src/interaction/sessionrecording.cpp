@@ -634,25 +634,10 @@ bool SessionRecording::startPlayback(std::string& filename,
         LERROR("Playback filename must not contain path (/) elements");
         return false;
     }
-    std::string absFilename;
-    // Run through conversion in case file is older. Does nothing if the file format
-    // is up-to-date
-    //filename = convertFile(filename);
-    //if (filename == "Legacy currently unsupported") {
-    //    LERROR("Playback of legacy format versions is currently not supported.");
-    //    return false;
-    //}
-    if (FileSys.fileExists(filename)) {
-        absFilename = filename;
-    }
-    else {
+    std::string absFilename = filename;
+    if (!FileSys.fileExists(filename)) {
         absFilename = absPath("${RECORDINGS}/" + filename);
     }
-
-    //sessionrecording::version1::SessionRecordingData d = sessionrecording::version1::readSessionRecording(
-    //    absFilename, sessionrecording::DataMode::Binary
-    //);
-
 
     if (_state == SessionState::Recording) {
         LERROR("Unable to start playback while in session recording mode");
@@ -678,18 +663,6 @@ bool SessionRecording::startPlayback(std::string& filename,
 
     sessionrecording::Header header = sessionrecording::readHeader(_playbackFile);
 
-    //// Read header
-    //std::string readBackHeaderString = readHeaderElement(
-    //    _playbackFile,
-    //    sessionrecording::Header::Title.size()
-    //);
-    //if (readBackHeaderString != sessionrecording::Header::Title) {
-    //    LERROR("Specified playback file does not contain expected header.");
-    //    cleanUpPlayback();
-    //    return false;
-    //}
-    //readHeaderElement(_playbackFile, FileHeaderVersionLength);
-    //std::string readDataMode = readHeaderElement(_playbackFile, 1);
     if (header.dataMode == DataFormatAsciiTag) {
         _recordingDataMode = sessionrecording::DataMode::Ascii;
     }
@@ -700,10 +673,9 @@ bool SessionRecording::startPlayback(std::string& filename,
         LERROR("Unknown data type in header (should be Ascii or Binary)");
         cleanUpPlayback();
     }
-    //std::string throwawayNewlineChar = readHeaderElement(_playbackFile, 1);
 
     if (_recordingDataMode == sessionrecording::DataMode::Binary) {
-        //Close & re-open the file, starting from the beginning, and do dummy read
+        // Close & re-open the file, starting from the beginning, and do dummy read
         // past the header, version, and data type
         _playbackFile.close();
         _playbackFile.open(_playbackFilename, std::ifstream::in | std::ios::binary);

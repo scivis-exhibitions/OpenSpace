@@ -26,42 +26,24 @@
 #define __OPENSPACE_CORE___CONVERTRECFORMATTASK___H__
 
 #include <openspace/util/task.h>
-#include <openspace/interaction/sessionrecording.h>
 
+#include <openspace/interaction/sessionrecording_data.h>
 #include <ghoul/glm.h>
-
 #include <string>
-
-
 
 namespace openspace::interaction {
 
 class ConvertRecFormatTask : public Task {
 public:
-    enum class ConversionDirection {
-        ToAscii = 0,
-        ToBinary
-    };
     ConvertRecFormatTask(const ghoul::Dictionary& dictionary);
-    ~ConvertRecFormatTask();
     std::string description() override;
     void perform(const Task::ProgressCallback& progressCallback) override;
     static documentation::Documentation documentation();
-    void convert();
 
 private:
-    void convertToAscii();
-    void convertToBinary();
-    void determineFormatType();
-    std::string addFileSuffix(const std::string& filePath, const std::string& suffix);
     std::string _inFilePath;
     std::string  _outFilePath;
-    std::ifstream _iFile;
-    std::ofstream _oFile;
     sessionrecording::DataMode _fileFormatType;
-    std::string _version;
-
-    std::string _valueFunctionLua;
 };
 
 } // namespace openspace::interaction

@@ -24,6 +24,7 @@
 
 #include <openspace/interaction/tasks/convertrecfileversiontask.h>
 #include <openspace/interaction/sessionrecording.h>
+#include <openspace/interaction/sessionrecording_data.h>
 #include <openspace/documentation/verifier.h>
 
 #include <openspace/engine/globals.h>
@@ -53,22 +54,13 @@ ConvertRecFileVersionTask::ConvertRecFileVersionTask(const ghoul::Dictionary& di
     _inFilePath = absPath(_inFilename);
 
     std::string::size_type idx = _inFilename.find_last_of('/');
-    if( idx != std::string::npos ) {
+    if (idx != std::string::npos) {
         _inFilename = _inFilename.substr(idx + 1);
     }
 
     ghoul_assert(FileSys.fileExists(_inFilePath), "The filename must exist");
     if (!FileSys.fileExists(_inFilePath)) {
         LERROR(fmt::format("Failed to load session recording file: {}", _inFilePath));
-    }
-    else {
-        sessRec = new SessionRecording(false);
-    }
-}
-
-ConvertRecFileVersionTask::~ConvertRecFileVersionTask() {
-    if (sessRec != nullptr) {
-        delete sessRec;
     }
 }
 
@@ -78,7 +70,7 @@ std::string ConvertRecFileVersionTask::description() {
     return description;
 }
 
-void ConvertRecFileVersionTask::perform(const Task::ProgressCallback& progressCallback) {
+void ConvertRecFileVersionTask::perform(const Task::ProgressCallback&) {
     convert();
 }
 
@@ -95,7 +87,7 @@ void ConvertRecFileVersionTask::convert() {
         ));
         return;
     }
-    sessRec->convertFile(_inFilename);
+    sessionrecording::convertSessionRecordingFile(_inFilename);
 }
 
 documentation::Documentation ConvertRecFileVersionTask::documentation() {

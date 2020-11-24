@@ -85,7 +85,7 @@ namespace version1 {
 
     DataMode characterToDataMode(unsigned char c);
     // There is no version method since this is the first version
-    SessionRecordingData readSessionRecording(const std::string& filename, DataMode mode);
+    SessionRecordingData readSessionRecording(const std::string& filename);
     void writeSessionRecording(const SessionRecordingData& data,
         const std::string& filename, DataMode mode) = delete;
 } // namespace version1
@@ -105,7 +105,7 @@ inline namespace version2 {
     using SessionRecordingData = version1::SessionRecordingData;
 
     SessionRecordingData updateVersion(version1::SessionRecordingData sessionRecording);
-    SessionRecordingData readSessionRecording(const std::string& filename, DataMode mode);
+    SessionRecordingData readSessionRecording(const std::string& filename);
     void writeSessionRecording(const SessionRecordingData& data,
         const std::string& filename, DataMode mode);
 
