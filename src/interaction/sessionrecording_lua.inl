@@ -40,7 +40,7 @@ int startRecording(lua_State* L) {
         return luaL_error(L, "filepath string is empty");
     }
     global::sessionRecording->setRecordDataFormat(
-        interaction::SessionRecording::DataMode::Binary
+        interaction::sessionrecording::DataMode::Binary
     );
     global::sessionRecording->startRecording(recordFilePath);
 
@@ -63,7 +63,7 @@ int startRecordingAscii(lua_State* L) {
         return luaL_error(L, "filepath string is empty");
     }
     global::sessionRecording->setRecordDataFormat(
-        interaction::SessionRecording::DataMode::Ascii
+        interaction::sessionrecording::DataMode::Ascii
     );
     global::sessionRecording->startRecording(recordFilePath);
 

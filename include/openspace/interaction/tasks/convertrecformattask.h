@@ -58,7 +58,7 @@ private:
     std::string  _outFilePath;
     std::ifstream _iFile;
     std::ofstream _oFile;
-    SessionRecording::DataMode _fileFormatType;
+    sessionrecording::DataMode _fileFormatType;
     std::string _version;
 
     std::string _valueFunctionLua;
