@@ -83,8 +83,9 @@ std::string ConvertRecFormatTask::description() {
 
 void ConvertRecFormatTask::perform(const Task::ProgressCallback&) {
     using namespace sessionrecording;
-    SessionRecordingData data = readSessionRecording(_inFilePath);
-    sessionrecording::writeSessionRecording(data, _outFilePath, _fileFormatType);
+    SessionRecordingData data;
+    data.read(_inFilePath);
+    data.write(_outFilePath, _fileFormatType);
 }
 
 documentation::Documentation ConvertRecFormatTask::documentation() {

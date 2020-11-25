@@ -662,19 +662,16 @@ bool SessionRecording::startPlayback(std::string& filename, KeyframeTimeRef time
     // Open in ASCII first
     _playbackFile.open(_playbackFilename);
 
-    sessionrecording::Header header = sessionrecording::readHeader(_playbackFile);
-
-    if (header.dataMode == DataFormatAsciiTag) {
-        _recordingDataMode = sessionrecording::DataMode::Ascii;
+    sessionrecording::Header header;
+    try {
+        header.read(_playbackFile);
+        _recordingDataMode = header.dataMode;
     }
-    else if (header.dataMode == DataFormatBinaryTag) {
-        _recordingDataMode = sessionrecording::DataMode::Binary;
-    }
-    else {
+    catch (const sessionrecording::ConversionError& error) {
         LERROR("Unknown data type in header (should be Ascii or Binary)");
         cleanUpPlayback();
     }
-
+    
     if (_recordingDataMode == sessionrecording::DataMode::Binary) {
         // Close & re-open the file, starting from the beginning, and do dummy read
         // past the header, version, and data type
