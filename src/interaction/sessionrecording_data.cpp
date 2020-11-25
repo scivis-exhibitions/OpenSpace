@@ -24,8 +24,12 @@
 
 #include <openspace/interaction/sessionrecording_data.h>
 
+#include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/assert.h>
+#include <array>
+#include <fstream>
 #include <optional>
+#include <sstream>
 
 namespace {
     // Helper structs for the visitor pattern of the std::variant on projections
@@ -47,16 +51,16 @@ namespace version1 {
 
 // Common function pointer definitions
 
-using ReadTimeStamp = Timestamps(*)(std::istream& stream, DataMode mode);
-using WriteTimeStamp = void(*)(const Timestamps& data, std::ostream& stream,
+using ReadTimeStamp = Timestamp(*)(std::istream& stream, DataMode mode);
+using WriteTimeStamp = void(*)(const Timestamp& data, std::ostream& stream,
     DataMode mode);
 
-using ReadCameraKeyframe = CameraKeyframe(*)(std::istream& stream, DataMode mode);
-using WriteCameraKeyframe = void(*)(const CameraKeyframe& data, std::ostream& stream,
+using ReadCameraMessage = CameraMessage(*)(std::istream& stream, DataMode mode);
+using WriteCameraMessage = void(*)(const CameraMessage& data, std::ostream& stream,
     DataMode mode);
 
-using ReadTimeKeyframe = TimeKeyframe(*)(std::istream& stream, DataMode mode);
-using WriteTimeKeyframe = void(*)(const TimeKeyframe& data, std::ostream& stream,
+using ReadTimeMessage = TimeMessage(*)(std::istream& stream, DataMode mode);
+using WriteTimeMessage = void(*)(const TimeMessage& data, std::ostream& stream,
     DataMode mode);
 
 using ReadScriptMessage = ScriptMessage(*)(std::istream& stream, DataMode mode);
@@ -75,11 +79,11 @@ DataMode characterToDataMode(unsigned char c) {
     }
 }
 
-Timestamps readTimeStamps(std::istream& stream, DataMode mode) {
+Timestamp readTimeStamp(std::istream& stream, DataMode mode) {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
     ghoul_assert(stream.good(), "Bad stream");
 
-    Timestamps timestamps;
+    Timestamp timestamps;
     if (mode == DataMode::Ascii) {
         stream >> timestamps.timeOs;
         stream >> timestamps.timeRec;
@@ -94,7 +98,7 @@ Timestamps readTimeStamps(std::istream& stream, DataMode mode) {
     return timestamps;
 }
 
-void writeTimeStamps(const Timestamps& data, std::ostream& stream, DataMode mode) {
+void writeTimeStamps(const Timestamp& data, std::ostream& stream, DataMode mode) {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
     ghoul_assert(stream.good(), "Bad stream");
 
@@ -110,121 +114,121 @@ void writeTimeStamps(const Timestamps& data, std::ostream& stream, DataMode mode
     }
 }
 
-CameraKeyframe readCameraKeyframe(std::istream& stream, DataMode mode) {
+CameraMessage readCameraKeyframe(std::istream& stream, DataMode mode) {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
     ghoul_assert(stream.good(), "Bad stream");
 
-    CameraKeyframe frame;
+    CameraMessage frame;
     if (mode == DataMode::Ascii) {
-        stream >> frame._position.x;
-        stream >> frame._position.y;
-        stream >> frame._position.z;
-        stream >> frame._rotation.x;
-        stream >> frame._rotation.y;
-        stream >> frame._rotation.z;
-        stream >> frame._rotation.w;
-        stream >> frame._scale;
+        stream >> frame.position.x;
+        stream >> frame.position.y;
+        stream >> frame.position.z;
+        stream >> frame.rotation.x;
+        stream >> frame.rotation.y;
+        stream >> frame.rotation.z;
+        stream >> frame.rotation.w;
+        stream >> frame.scale;
         std::string rotationFollowing;
         stream >> rotationFollowing;
-        frame._followNodeRotation = (rotationFollowing == "F");
-        stream >> frame._focusNode;
+        frame.followNodeRotation = (rotationFollowing == "F");
+        stream >> frame.focusNode;
     }
     else {
-        static_assert(sizeof(frame._position) == sizeof(glm::dvec3));
-        stream.read(reinterpret_cast<char*>(&frame._position), sizeof(glm::dvec3));
-        static_assert(sizeof(frame._rotation) == sizeof(glm::dquat));
-        stream.read(reinterpret_cast<char*>(&frame._rotation), sizeof(glm::dquat));
+        static_assert(sizeof(frame.position) == sizeof(glm::dvec3));
+        stream.read(reinterpret_cast<char*>(&frame.position), sizeof(glm::dvec3));
+        static_assert(sizeof(frame.rotation) == sizeof(glm::dquat));
+        stream.read(reinterpret_cast<char*>(&frame.rotation), sizeof(glm::dquat));
         
         unsigned char b;
         stream.read(reinterpret_cast<char*>(&b), sizeof(unsigned char));
-        frame._followNodeRotation = (b == 1);
+        frame.followNodeRotation = (b == 1);
 
         int32_t nodeNameLength = 0;
         stream.read(reinterpret_cast<char*>(&nodeNameLength), sizeof(int32_t));
         std::vector<char> nodeNameBuffer(nodeNameLength + 1);
         stream.read(nodeNameBuffer.data(), nodeNameLength);
-        frame._focusNode = std::string(nodeNameBuffer.begin(), nodeNameBuffer.end());
+        frame.focusNode = std::string(nodeNameBuffer.begin(), nodeNameBuffer.end());
 
-        static_assert(sizeof(frame._scale) == sizeof(float));
-        stream.read(reinterpret_cast<char*>(&frame._scale), sizeof(float));
+        static_assert(sizeof(frame.scale) == sizeof(float));
+        stream.read(reinterpret_cast<char*>(&frame.scale), sizeof(float));
 
-        static_assert(sizeof(frame._timestamp) == sizeof(double));
-        stream.read(reinterpret_cast<char*>(&frame._timestamp), sizeof(double));
+        static_assert(sizeof(frame.timestamp) == sizeof(double));
+        stream.read(reinterpret_cast<char*>(&frame.timestamp), sizeof(double));
     }
     return frame;
 }
 
-void writeCameraKeyframe(const CameraKeyframe& data, std::ostream& stream, DataMode mode)
+void writeCameraKeyframe(const CameraMessage& data, std::ostream& stream, DataMode mode)
 {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
     ghoul_assert(stream.good(), "Bad stream");
 
     if (mode == DataMode::Ascii) {
-        stream << data._position.x << ' ';
-        stream << data._position.y << ' ';
-        stream << data._position.z << ' ';
-        stream << data._rotation.x << ' ';
-        stream << data._rotation.y << ' ';
-        stream << data._rotation.z << ' ';
-        stream << data._rotation.w << ' ';
-        stream << data._scale << ' ';
-        stream << (data._followNodeRotation ? 'F' : '-') << ' ';
-        stream << data._focusNode;
+        stream << data.position.x << ' ';
+        stream << data.position.y << ' ';
+        stream << data.position.z << ' ';
+        stream << data.rotation.x << ' ';
+        stream << data.rotation.y << ' ';
+        stream << data.rotation.z << ' ';
+        stream << data.rotation.w << ' ';
+        stream << data.scale << ' ';
+        stream << (data.followNodeRotation ? 'F' : '-') << ' ';
+        stream << data.focusNode;
     }
     else {
-        stream.write(reinterpret_cast<const char*>(&data._position), sizeof(glm::dvec3));
-        stream.write(reinterpret_cast<const char*>(&data._rotation), sizeof(glm::dquat));
-        const unsigned char b = data._followNodeRotation ? 1 : 0;
+        stream.write(reinterpret_cast<const char*>(&data.position), sizeof(glm::dvec3));
+        stream.write(reinterpret_cast<const char*>(&data.rotation), sizeof(glm::dquat));
+        const unsigned char b = data.followNodeRotation ? 1 : 0;
         stream.write(reinterpret_cast<const char*>(&b), sizeof(unsigned char));
-        const int32_t nodeNameLength = static_cast<int32_t>(data._focusNode.size());
+        const int32_t nodeNameLength = static_cast<int32_t>(data.focusNode.size());
         stream.write(reinterpret_cast<const char*>(&nodeNameLength), sizeof(int32_t));
-        stream.write(data._focusNode.data(), nodeNameLength);
-        stream.write(reinterpret_cast<const char*>(&data._scale), sizeof(float));
-        stream.write(reinterpret_cast<const char*>(&data._timestamp), sizeof(double));
+        stream.write(data.focusNode.data(), nodeNameLength);
+        stream.write(reinterpret_cast<const char*>(&data.scale), sizeof(float));
+        stream.write(reinterpret_cast<const char*>(&data.timestamp), sizeof(double));
     }
 }
 
-TimeKeyframe readTimeKeyframe(std::istream& stream, DataMode mode) {
+TimeMessage readTimeKeyframe(std::istream& stream, DataMode mode) {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
     ghoul_assert(stream.good(), "Bad stream");
 
-    TimeKeyframe frame;
+    TimeMessage frame;
     if (mode == DataMode::Ascii) {
         // abock (2020-11-23)   One of those weirdnesses of reusing the struct from the
         // parallel connection is that we ignore the time stamp in the time frame since
         // we have our own in this file format
-        stream >> frame._dt;
+        stream >> frame.dt;
 
         std::string paused;
         stream >> paused;
-        frame._paused = (paused == "P");
+        frame.paused = (paused == "P");
 
         std::string jump;
         stream >> jump;
-        frame._requiresTimeJump = (jump == "J");
+        frame.requiresTimeJump = (jump == "J");
     }
     else {
         // @VOLATILE (abock, 2020-11-23)  Yikes!!!  This should be replaced with actually
         // serializing the members bit by bit.  There are two bools that are packed in the
         // middle which are god-only-knows packed when serializing
-        stream.read(reinterpret_cast<char*>(&frame), sizeof(TimeKeyframe));
+        stream.read(reinterpret_cast<char*>(&frame), sizeof(TimeMessage));
     }
 
     return frame;
 }
 
-void writeTimeKeyframe(const TimeKeyframe& data, std::ostream& stream, DataMode mode) {
+void writeTimeKeyframe(const TimeMessage& data, std::ostream& stream, DataMode mode) {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
     ghoul_assert(stream.good(), "Bad stream");
 
     if (mode == DataMode::Ascii) {
-        stream << data._dt << ' ';
-        stream << (data._paused ? 'P' : '-') << ' ';
-        stream << (data._paused ? 'J' : '-');
+        stream << data.dt << ' ';
+        stream << (data.paused ? 'P' : '-') << ' ';
+        stream << (data.paused ? 'J' : '-');
     }
     else {
         // @VOLATILE (abock, 2020-11-23) Yikes!!! See above
-        stream.write(reinterpret_cast<const char*>(&data), sizeof(TimeKeyframe));
+        stream.write(reinterpret_cast<const char*>(&data), sizeof(TimeMessage));
     }
 }
 
@@ -242,9 +246,9 @@ ScriptMessage readScriptKeyFrame(std::istream& stream, DataMode mode) {
             std::getline(stream, buffer);
             const size_t start = buffer.find_first_not_of(" ");
             buffer = buffer.substr(start);
-            frame._script.append(buffer);
+            frame.script.append(buffer);
             if (i < (numScriptLines - 1)) {
-                frame._script.append("\n");
+                frame.script.append("\n");
             }
         }
         return frame;
@@ -255,7 +259,7 @@ ScriptMessage readScriptKeyFrame(std::istream& stream, DataMode mode) {
         stream.read(reinterpret_cast<char*>(&strLen), sizeof(size_t));
         std::vector<char> buffer(strLen);
         stream.read(buffer.data(), strLen);
-        frame._script = std::string(buffer.begin(), buffer.end());
+        frame.script = std::string(buffer.begin(), buffer.end());
         return frame;
     }
 }
@@ -266,21 +270,21 @@ void writeScriptKeyFrame(const ScriptMessage& data, std::ostream& stream, DataMo
 
     if (mode == DataMode::Ascii) {
         const int nLines = static_cast<int>(
-            std::count(data._script.begin(), data._script.end(), '\n') + 1
+            std::count(data.script.begin(), data.script.end(), '\n') + 1
         );
         stream << nLines << ' ';
-        stream << data._script;
+        stream << data.script;
     }
     else {
-        const size_t length = static_cast<size_t>(data._script.size());
+        const size_t length = static_cast<size_t>(data.script.size());
         stream.write(reinterpret_cast<const char*>(&length), sizeof(size_t));
-        stream.write(data._script.data(), length);
+        stream.write(data.script.data(), length);
     }
 }
 
 template <
-    ReadTimeStamp readTimeStampFunc, ReadCameraKeyframe readCameraFunc,
-    ReadTimeKeyframe readTimeFunc, ReadScriptMessage readScriptFunc
+    ReadTimeStamp readTimeStampFunc, ReadCameraMessage readCameraFunc,
+    ReadTimeMessage readTimeFunc, ReadScriptMessage readScriptFunc
 >
 std::optional<Frame> readFrame(std::istream& stream, DataMode mode) {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
@@ -302,9 +306,9 @@ std::optional<Frame> readFrame(std::istream& stream, DataMode mode) {
         if (entryType == CameraFrame) {
             Frame frame;
             frame.time = readTimeStampFunc(stream, mode);
-            CameraKeyframe kf = readCameraFunc(stream, mode);
+            CameraMessage kf = readCameraFunc(stream, mode);
             // ASCII format does not contain trailing timestamp so add it here
-            kf._timestamp = frame.time.timeOs;
+            kf.timestamp = frame.time.timeOs;
             frame.message = kf;
             return frame;
         }
@@ -355,9 +359,9 @@ std::optional<Frame> readFrame(std::istream& stream, DataMode mode) {
         if (entryType == CameraFrame) {
             Frame frame;
             frame.time = readTimeStampFunc(stream, mode);
-            CameraKeyframe kf = readCameraFunc(stream, mode);
+            CameraMessage kf = readCameraFunc(stream, mode);
             frame.message = kf;
-            frame.time.timeOs = kf._timestamp;
+            frame.time.timeOs = kf.timestamp;
             return frame;
         }
         else if (entryType == TimeFrame) {
@@ -379,8 +383,8 @@ std::optional<Frame> readFrame(std::istream& stream, DataMode mode) {
 }
 
 template <
-    WriteTimeStamp writeTimeStampFunc, WriteCameraKeyframe writeCameraFunc,
-    WriteTimeKeyframe writeTimeFunc, WriteScriptMessage writeScriptFunc
+    WriteTimeStamp writeTimeStampFunc, WriteCameraMessage writeCameraFunc,
+    WriteTimeMessage writeTimeFunc, WriteScriptMessage writeScriptFunc
 >
 void writeFrame(const Frame& data, std::ostream& stream, DataMode mode) {
     ghoul_assert(mode != DataMode::Unknown, "Unknown data mode");
@@ -388,14 +392,14 @@ void writeFrame(const Frame& data, std::ostream& stream, DataMode mode) {
 
     if (mode == DataMode::Ascii) {
         std::visit(overloaded {
-            [&](const CameraKeyframe& d) {
+            [&](const CameraMessage& d) {
                 constexpr const std::string_view CameraFrame = "camera";
                 stream << CameraFrame << ' ';
                 writeTimeStampFunc(data.time, stream, mode);
                 writeCameraFunc(d, stream, mode);
                 stream << '\n';
             },
-            [&](const TimeKeyframe& d) {
+            [&](const TimeMessage& d) {
                 constexpr const std::string_view TimeFrame = "time";
                 stream << TimeFrame << ' ';
                 writeTimeStampFunc(data.time, stream, mode);
@@ -416,13 +420,13 @@ void writeFrame(const Frame& data, std::ostream& stream, DataMode mode) {
     }
     else {
         std::visit(overloaded {
-            [&](const CameraKeyframe& d) {
+            [&](const CameraMessage& d) {
                 constexpr const char CameraFrame = 'c';
                 stream.write(&CameraFrame, sizeof(char));
                 writeTimeStampFunc(data.time, stream, mode);
                 writeCameraFunc(d, stream, mode);
             },
-            [&](const TimeKeyframe& d) {
+            [&](const TimeMessage& d) {
                 constexpr const char TimeFrame = 't';
                 stream.write(&TimeFrame, sizeof(char));
                 writeTimeStampFunc(data.time, stream, mode);
@@ -442,8 +446,8 @@ void writeFrame(const Frame& data, std::ostream& stream, DataMode mode) {
 }
 
 template <
-    ReadTimeStamp readTimeStampFunc, ReadCameraKeyframe readCameraFunc,
-    ReadTimeKeyframe readTimeFunc, ReadScriptMessage readScriptFunc
+    ReadTimeStamp readTimeStampFunc, ReadCameraMessage readCameraFunc,
+    ReadTimeMessage readTimeFunc, ReadScriptMessage readScriptFunc
 >
 SessionRecordingData readSessionRecordingInternal(const std::string& filename) {
     std::ifstream stream;
@@ -505,8 +509,8 @@ SessionRecordingData readSessionRecordingInternal(const std::string& filename) {
 }
 
 template <
-    WriteTimeStamp writeTimeStampFunc, WriteCameraKeyframe writeCameraFunc,
-    WriteTimeKeyframe writeTimeFunc, WriteScriptMessage writeScriptFunc
+    WriteTimeStamp writeTimeStampFunc, WriteCameraMessage writeCameraFunc,
+    WriteTimeMessage writeTimeFunc, WriteScriptMessage writeScriptFunc
 >
 void writeSessionRecordingInternal(const SessionRecordingData& data,
                                    const std::string& filename,
@@ -546,7 +550,7 @@ void writeSessionRecordingInternal(const SessionRecordingData& data,
 
 SessionRecordingData readSessionRecording(const std::string& filename) {
     return readSessionRecordingInternal<
-        &readTimeStamps,
+        &readTimeStamp,
         &readCameraKeyframe,
         &readTimeKeyframe,
         &readScriptKeyFrame
@@ -581,7 +585,7 @@ ScriptMessage readScriptKeyFrame(std::istream& stream, DataMode mode) {
         stream.read(Buffer.data(), length);
 
         ScriptMessage msg;
-        msg._script = std::string(Buffer.begin(), Buffer.end());
+        msg.script = std::string(Buffer.begin(), Buffer.end());
         return msg;
     }
 }
@@ -595,9 +599,9 @@ void writeScriptKeyFrame(const ScriptMessage& data, std::ostream& stream, DataMo
         version1::writeScriptKeyFrame(data, stream, mode);
     }
     else {
-        const uint32_t length = static_cast<uint32_t>(data._script.size());
+        const uint32_t length = static_cast<uint32_t>(data.script.size());
         stream.write(reinterpret_cast<const char*>(&length), sizeof(uint32_t));
-        stream.write(data._script.data(), length);
+        stream.write(data.script.data(), length);
     }
 }
 
@@ -609,7 +613,7 @@ SessionRecordingData updateVersion(version1::SessionRecordingData sessionRecordi
 
 SessionRecordingData readSessionRecording(const std::string& filename) {
     return version1::readSessionRecordingInternal<
-        &version1::readTimeStamps,
+        &version1::readTimeStamp,
         &version1::readCameraKeyframe,
         &version1::readTimeKeyframe,
         &version2::readScriptKeyFrame
@@ -630,6 +634,7 @@ void writeSessionRecording(const SessionRecordingData& data, const std::string& 
 }
 
 } // namespace version2
+
 
 //////////////////////////////////////////////////////////////////////////////////////////
 ///   Common functions

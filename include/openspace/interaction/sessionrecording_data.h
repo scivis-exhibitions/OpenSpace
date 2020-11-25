@@ -25,7 +25,9 @@
 #ifndef __OPENSPACE_CORE___SESSIONRECORDING_DATA___H__
 #define __OPENSPACE_CORE___SESSIONRECORDING_DATA___H__
 
-#include <openspace/network/messagestructures.h>
+#include <ghoul/misc/exception.h>
+#include <ghoul/fmt.h>
+#include <ghoul/glm.h>
 #include <filesystem>
 #include <string_view>
 #include <utility>
@@ -60,31 +62,45 @@ namespace version1 {
         Unknown
     };
 
-    struct Timestamps {
+    struct Timestamp {
         double timeOs;
         double timeRec;
         double timeSim;
     };
 
-    // @VOLATILE (abock, 2020-11-12):  This should be changed by moving copies of those
-    // data structures into this version.  There is no real need to have these structures
-    // be reused between the parallel sessions and the session recording.  Would be nice
-    // to be able to convert between the two, but there is no need to binary compatibility
-    using CameraKeyframe = datamessagestructures::CameraKeyframe;
-    using TimeKeyframe = datamessagestructures::TimeKeyframe;
-    using ScriptMessage = datamessagestructures::ScriptMessage;
+    struct CameraMessage {
+        glm::dvec3 position;
+        glm::dquat rotation;
+        bool followNodeRotation;
+        std::string focusNode;
+        float scale;
+        double timestamp;
+    };
+    
+    struct TimeMessage {
+        double time;
+        double dt;
+        bool paused;
+        bool requiresTimeJump;
+        double timestamp;
+    };
+    
+    struct ScriptMessage {
+        std::string script;
+        double timestamp;
+    };
+
     struct CommentMessage {
         std::string comment;
     };
 
     struct Frame {
-        Timestamps time;
-        std::variant<CameraKeyframe, TimeKeyframe, ScriptMessage, CommentMessage> message;
+        Timestamp time;
+        std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
     };
     using SessionRecordingData = std::vector<Frame>;
 
     DataMode characterToDataMode(unsigned char c);
-    // There is no version method since this is the first version
     SessionRecordingData readSessionRecording(const std::string& filename);
     void writeSessionRecording(const SessionRecordingData& data,
         const std::string& filename, DataMode mode) = delete;
@@ -97,9 +113,9 @@ inline namespace version2 {
     // This version only had changes in the way the session recording was loaded, so we
     // retain all of the data structures from the previous version
     using DataMode = version1::DataMode;
-    using Timestamps = version1::Timestamps;
-    using CameraKeyframe = version1::CameraKeyframe;
-    using TimeKeyframe = version1::TimeKeyframe;
+    using Timestamp = version1::Timestamp;
+    using CameraMessage = version1::CameraMessage;
+    using TimeMessage = version1::TimeMessage;
     using ScriptMessage = version1::ScriptMessage;
     using Frame = version1::Frame;
     using SessionRecordingData = version1::SessionRecordingData;
