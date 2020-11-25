@@ -66,11 +66,35 @@ namespace {
 
     constexpr const bool UsingTimeKeyframes = false;
 
-
     bool isPath(const std::string& filename) {
         const size_t unix = filename.find("/");
         const size_t windows = filename.find("\\");
         return (unix != std::string::npos || windows != std::string::npos);
+    }
+
+    // vvvvvvvvv   to be moved to the sessionrecording_data   vvvvvvvvv
+
+    constexpr const std::string_view HeaderCameraAscii = "camera";
+    constexpr const std::string_view HeaderTimeAscii = "time";
+    constexpr const std::string_view HeaderScriptAscii = "script";
+    constexpr const unsigned char HeaderCommentAscii = '#';
+    inline static const char HeaderCameraBinary = 'c';
+    inline static const char HeaderTimeBinary = 't';
+    inline static const char HeaderScriptBinary = 's';
+
+    static const size_t FileHeaderVersionLength = 5;
+    char FileHeaderVersion[FileHeaderVersionLength + 1] = "01.00";
+    static const char DataFormatAsciiTag = 'A';
+    static const char DataFormatBinaryTag = 'B';
+
+
+    void saveHeaderAscii(sessionrecording::Timestamps& times, std::string_view type,
+                         std::stringstream& line)
+    {
+        line << type << ' ';
+        line << times.timeOs << ' ';
+        line << times.timeRec << ' ';
+        line << std::fixed << std::setprecision(3) << times.timeSim << ' ';
     }
 
     void writeToFileBuffer(unsigned char* buf, size_t& idx, double src) {
@@ -95,6 +119,10 @@ namespace {
     void writeToFileBuffer(unsigned char* buf, size_t& idx, bool b) {
         buf[idx] = b ? 1 : 0;
         idx += sizeof(char);
+    }
+
+    void saveKeyframeToFile(std::string entry, std::ofstream& file) {
+        file << std::move(entry) << std::endl;
     }
 
     void saveKeyframeToFileBinary(unsigned char* buffer, size_t size, std::ofstream& file)
@@ -147,7 +175,7 @@ namespace {
                                std::ofstream& file)
     {
         std::stringstream keyframeLine = std::stringstream();
-        saveHeaderAscii(times, SessionRecording::HeaderTimeAscii, keyframeLine);
+        saveHeaderAscii(times, HeaderTimeAscii, keyframeLine);
         kf.write(keyframeLine);
         saveKeyframeToFile(keyframeLine.str(), file);
     }
@@ -164,7 +192,7 @@ namespace {
                                  std::ofstream& file)
     {
         std::stringstream keyframeLine = std::stringstream();
-        saveHeaderAscii(times, SessionRecording::HeaderCameraAscii, keyframeLine);
+        saveHeaderAscii(times, HeaderCameraAscii, keyframeLine);
         kf.write(keyframeLine);
         saveKeyframeToFile(keyframeLine.str(), file);
     }
@@ -182,9 +210,62 @@ namespace {
     {
 
         std::stringstream keyframeLine = std::stringstream();
-        saveHeaderAscii(times, SessionRecording::HeaderScriptAscii, keyframeLine);
+        saveHeaderAscii(times, HeaderScriptAscii, keyframeLine);
         sm.write(keyframeLine);
         saveKeyframeToFile(keyframeLine.str(), file);
+    }
+    
+    bool readScriptKeyframeBinary(sessionrecording::Timestamps& times,
+                                  datamessagestructures::ScriptMessage& kf,
+                                  std::ifstream& file, int lineN)
+    {
+        times.timeOs = readFromPlayback<double>(file);
+        times.timeRec = readFromPlayback<double>(file);
+        times.timeSim = readFromPlayback<double>(file);
+
+        try {
+            kf.read(&file);
+        }
+        catch (const std::bad_alloc&) {
+            LERROR(fmt::format(
+                "Allocation error with script playback from keyframe entry {}", lineN - 1
+            ));
+            return false;
+        }
+        catch (const std::length_error&) {
+            LERROR(fmt::format(
+                "length_error with script playback from keyframe entry {}", lineN - 1
+            ));
+            return false;
+        }
+
+        if (!file) {
+            LERROR(fmt::format(
+                "Error reading script playback from keyframe entry {}", lineN - 1
+            ));
+            return false;
+        }
+        return true;
+    }
+
+    bool readScriptKeyframeAscii(sessionrecording::Timestamps& times,
+                                 datamessagestructures::ScriptMessage& kf,
+                                 std::string currentParsingLine, int lineN)
+    {
+        std::string entryType;
+        std::istringstream iss(currentParsingLine);
+        iss >> entryType;
+        iss >> times.timeOs >> times.timeRec >> times.timeSim;
+        kf.read(iss);
+        if (iss.fail()) {
+            LERROR(fmt::format("Error parsing script line {} of playback file", lineN));
+            return false;
+        }
+        else if (!iss.eof()) {
+            LERROR(fmt::format("Did not find an EOL at line {} of playback file", lineN));
+            return false;
+        }
+        return true;
     }
 
     bool readSingleKeyframeScript(datamessagestructures::ScriptMessage& kf,
@@ -200,6 +281,19 @@ namespace {
         }
     }
 
+    void saveScriptKeyframeBinary(sessionrecording::Timestamps& times,
+                                  datamessagestructures::ScriptMessage& sm,
+                                  unsigned char* smBuffer, std::ofstream& file)
+    {
+        size_t idx = 0;
+        saveHeaderBinary(times, HeaderScriptBinary, smBuffer, idx);
+        // Writing to internal buffer, and then to file, for performance reasons
+        std::vector<char> writeBuffer;
+        sm.serialize(writeBuffer);
+        writeToFileBuffer(smBuffer, idx, writeBuffer);
+        saveKeyframeToFileBinary(smBuffer, idx, file);
+    }
+
     void saveSingleKeyframeScript(datamessagestructures::ScriptMessage& kf,
                                   sessionrecording::Timestamps& times,
                                   sessionrecording::DataMode mode,
@@ -212,6 +306,79 @@ namespace {
             saveScriptKeyframeAscii(times, kf, file);
         }
     }
+
+    bool readCameraKeyframeBinary(sessionrecording::Timestamps& times,
+                                  datamessagestructures::CameraKeyframe& kf,
+                                  std::ifstream& file, int lineN)
+    {
+        times.timeOs = readFromPlayback<double>(file);
+        times.timeRec = readFromPlayback<double>(file);
+        times.timeSim = readFromPlayback<double>(file);
+
+        try {
+            kf.read(&file);
+        }
+        catch (const std::bad_alloc&) {
+            LERROR(fmt::format(
+                "Allocation error with camera playback from keyframe entry {}",
+                lineN - 1
+            ));
+            return false;
+        }
+        catch (const std::length_error&) {
+            LERROR(fmt::format(
+                "length_error with camera playback from keyframe entry {}",
+                lineN - 1
+            ));
+            return false;
+        }
+        times.timeOs = kf._timestamp;
+
+        if (!file) {
+            LINFO(fmt::format(
+                "Error reading camera playback from keyframe entry {}",
+                lineN - 1
+            ));
+            return false;
+        }
+        return true;
+    }
+
+    bool readCameraKeyframeAscii(sessionrecording::Timestamps& times,
+                                 datamessagestructures::CameraKeyframe& kf,
+                                 std::string currentParsingLine, int lineN)
+    {
+        std::string rotationFollowing;
+        std::string entryType;
+
+        std::istringstream iss(currentParsingLine);
+        iss >> entryType;
+        iss >> times.timeOs >> times.timeRec >> times.timeSim;
+        kf.read(iss);
+        // ASCII format does not contain trailing timestamp so add it here
+        kf._timestamp = times.timeOs;
+
+        if (iss.fail() || !iss.eof()) {
+            LERROR(fmt::format("Error parsing camera line {} of playback file", lineN));
+            return false;
+        }
+        return true;
+    }
+
+    void saveCameraKeyframeBinary(sessionrecording::Timestamps& times,
+                                  datamessagestructures::CameraKeyframe& kf,
+                                  unsigned char* kfBuffer, std::ofstream& file)
+    {
+        // Writing to a binary session recording file
+        size_t idx = 0;
+        saveHeaderBinary(times, HeaderCameraBinary, kfBuffer, idx);
+        // Writing to internal buffer, and then to file, for performance reasons
+        std::vector<char> writeBuffer;
+        kf.serialize(writeBuffer);
+        writeToFileBuffer(kfBuffer, idx, writeBuffer);
+        saveKeyframeToFileBinary(kfBuffer, idx, file);
+    }
+
 
     bool readSingleKeyframeCamera(datamessagestructures::CameraKeyframe& kf,
                                   sessionrecording::Timestamps& times,
@@ -239,6 +406,57 @@ namespace {
         }
     }
 
+    bool readTimeKeyframeBinary(sessionrecording::Timestamps& times,
+                                datamessagestructures::TimeKeyframe& kf,
+                                std::ifstream& file, int lineN)
+    {
+        times.timeOs = readFromPlayback<double>(file);
+        times.timeRec = readFromPlayback<double>(file);
+        times.timeSim = readFromPlayback<double>(file);
+
+        try {
+            kf.read(&file);
+        }
+        catch (const std::bad_alloc&) {
+            LERROR(fmt::format(
+                "Allocation error with time playback from keyframe entry {}", lineN - 1
+            ));
+            return false;
+        }
+        catch (const std::length_error&) {
+            LERROR(fmt::format(
+                "length_error with time playback from keyframe entry {}", lineN - 1
+            ));
+            return false;
+        }
+
+        if (!file) {
+            LERROR(fmt::format(
+                "Error reading time playback from keyframe entry {}", lineN - 1
+            ));
+            return false;
+        }
+        return true;
+    }
+
+    bool readTimeKeyframeAscii(sessionrecording::Timestamps& times,
+                               datamessagestructures::TimeKeyframe& kf,
+                               std::string currentParsingLine, int lineN)
+    {
+        std::string entryType;
+
+        std::istringstream iss(currentParsingLine);
+        iss >> entryType;
+        iss >> times.timeOs >> times.timeRec >> times.timeSim;
+        kf.read(iss);
+
+        if (iss.fail() || !iss.eof()) {
+            LERROR(fmt::format("Error parsing time line {} of playback file", lineN));
+            return false;
+        }
+        return true;
+    }
+
     bool readSingleKeyframeTime(datamessagestructures::TimeKeyframe& kf,
                                 sessionrecording::Timestamps& times,
                                 sessionrecording::DataMode mode, std::ifstream& file,
@@ -250,6 +468,18 @@ namespace {
         else {
             return readTimeKeyframeAscii(times, kf, inLine, lineNum);
         }
+    }
+
+    void saveTimeKeyframeBinary(sessionrecording::Timestamps& times,
+                                datamessagestructures::TimeKeyframe& kf,
+                                unsigned char* kfBuffer, std::ofstream& file)
+    {
+        size_t idx = 0;
+        saveHeaderBinary(times, HeaderTimeBinary, kfBuffer, idx);
+        std::vector<char> writeBuffer;
+        kf.serialize(writeBuffer);
+        writeToFileBuffer(kfBuffer, idx, writeBuffer);
+        saveKeyframeToFileBinary(kfBuffer, idx, file);
     }
 
     void saveSingleKeyframeTime(datamessagestructures::TimeKeyframe& kf,
@@ -265,231 +495,15 @@ namespace {
         }
     }
 
+    std::string readHeaderElement(std::ifstream& stream, size_t readLen_chars) {
+        std::vector<char> readTemp(readLen_chars);
+        stream.read(readTemp.data(), readLen_chars);
+        return std::string(readTemp.begin(), readTemp.end());
+    }
+
 } // namespace
 
-
-std::string readHeaderElement(std::ifstream& stream, size_t readLen_chars) {
-    std::vector<char> readTemp(readLen_chars);
-    stream.read(readTemp.data(), readLen_chars);
-    return std::string(readTemp.begin(), readTemp.end());
-}
-
-bool readCameraKeyframeBinary(sessionrecording::Timestamps& times,
-                              datamessagestructures::CameraKeyframe& kf,
-                              std::ifstream& file, int lineN)
-{
-    times.timeOs = readFromPlayback<double>(file);
-    times.timeRec = readFromPlayback<double>(file);
-    times.timeSim = readFromPlayback<double>(file);
-
-    try {
-        kf.read(&file);
-    }
-    catch (const std::bad_alloc&) {
-        LERROR(fmt::format(
-            "Allocation error with camera playback from keyframe entry {}",
-            lineN - 1
-        ));
-        return false;
-    }
-    catch (const std::length_error&) {
-        LERROR(fmt::format(
-            "length_error with camera playback from keyframe entry {}",
-            lineN - 1
-        ));
-        return false;
-    }
-    times.timeOs = kf._timestamp;
-
-    if (!file) {
-        LINFO(fmt::format(
-            "Error reading camera playback from keyframe entry {}",
-            lineN - 1
-        ));
-        return false;
-    }
-    return true;
-}
-
-
-void saveHeaderAscii(sessionrecording::Timestamps& times, const std::string& type,
-                     std::stringstream& line)
-{
-    line << type << ' ';
-    line << times.timeOs << ' ';
-    line << times.timeRec << ' ';
-    line << std::fixed << std::setprecision(3) << times.timeSim << ' ';
-}
-
-bool readTimeKeyframeBinary(sessionrecording::Timestamps& times,
-                            datamessagestructures::TimeKeyframe& kf,
-                            std::ifstream& file, int lineN)
-{
-    times.timeOs = readFromPlayback<double>(file);
-    times.timeRec = readFromPlayback<double>(file);
-    times.timeSim = readFromPlayback<double>(file);
-
-    try {
-        kf.read(&file);
-    }
-    catch (const std::bad_alloc&) {
-        LERROR(fmt::format(
-            "Allocation error with time playback from keyframe entry {}", lineN - 1
-        ));
-        return false;
-    }
-    catch (const std::length_error&) {
-        LERROR(fmt::format(
-            "length_error with time playback from keyframe entry {}", lineN - 1
-        ));
-        return false;
-    }
-
-    if (!file) {
-        LERROR(fmt::format(
-            "Error reading time playback from keyframe entry {}", lineN - 1
-        ));
-        return false;
-    }
-    return true;
-}
-
-bool readScriptKeyframeBinary(sessionrecording::Timestamps& times,
-                              datamessagestructures::ScriptMessage& kf,
-                              std::ifstream& file, int lineN)
-{
-    times.timeOs = readFromPlayback<double>(file);
-    times.timeRec = readFromPlayback<double>(file);
-    times.timeSim = readFromPlayback<double>(file);
-
-    try {
-        kf.read(&file);
-    }
-    catch (const std::bad_alloc&) {
-        LERROR(fmt::format(
-            "Allocation error with script playback from keyframe entry {}", lineN - 1
-        ));
-        return false;
-    }
-    catch (const std::length_error&) {
-        LERROR(fmt::format(
-            "length_error with script playback from keyframe entry {}", lineN - 1
-        ));
-        return false;
-    }
-
-    if (!file) {
-        LERROR(fmt::format(
-            "Error reading script playback from keyframe entry {}", lineN - 1
-        ));
-        return false;
-    }
-    return true;
-}
-
-void saveKeyframeToFile(std::string entry, std::ofstream& file) {
-    file << std::move(entry) << std::endl;
-}
-
-bool readCameraKeyframeAscii(sessionrecording::Timestamps& times,
-                             datamessagestructures::CameraKeyframe& kf,
-                             std::string currentParsingLine, int lineN)
-{
-    std::string rotationFollowing;
-    std::string entryType;
-
-    std::istringstream iss(currentParsingLine);
-    iss >> entryType;
-    iss >> times.timeOs >> times.timeRec >> times.timeSim;
-    kf.read(iss);
-    // ASCII format does not contain trailing timestamp so add it here
-    kf._timestamp = times.timeOs;
-
-    if (iss.fail() || !iss.eof()) {
-        LERROR(fmt::format("Error parsing camera line {} of playback file", lineN));
-        return false;
-    }
-    return true;
-}
-
-void saveCameraKeyframeBinary(sessionrecording::Timestamps& times,
-                              datamessagestructures::CameraKeyframe& kf,
-                              unsigned char* kfBuffer, std::ofstream& file)
-{
-    // Writing to a binary session recording file
-    size_t idx = 0;
-    saveHeaderBinary(times, SessionRecording::HeaderCameraBinary, kfBuffer, idx);
-    // Writing to internal buffer, and then to file, for performance reasons
-    std::vector<char> writeBuffer;
-    kf.serialize(writeBuffer);
-    writeToFileBuffer(kfBuffer, idx, writeBuffer);
-    saveKeyframeToFileBinary(kfBuffer, idx, file);
-}
-
-
-bool readTimeKeyframeAscii(sessionrecording::Timestamps& times,
-                           datamessagestructures::TimeKeyframe& kf,
-                           std::string currentParsingLine, int lineN)
-{
-    std::string entryType;
-
-    std::istringstream iss(currentParsingLine);
-    iss >> entryType;
-    iss >> times.timeOs >> times.timeRec >> times.timeSim;
-    kf.read(iss);
-
-    if (iss.fail() || !iss.eof()) {
-        LERROR(fmt::format("Error parsing time line {} of playback file", lineN));
-        return false;
-    }
-    return true;
-}
-
-void saveTimeKeyframeBinary(sessionrecording::Timestamps& times,
-                            datamessagestructures::TimeKeyframe& kf,
-                            unsigned char* kfBuffer, std::ofstream& file)
-{
-    size_t idx = 0;
-    saveHeaderBinary(times, SessionRecording::HeaderTimeBinary, kfBuffer, idx);
-    std::vector<char> writeBuffer;
-    kf.serialize(writeBuffer);
-    writeToFileBuffer(kfBuffer, idx, writeBuffer);
-    saveKeyframeToFileBinary(kfBuffer, idx, file);
-}
-
-bool readScriptKeyframeAscii(sessionrecording::Timestamps& times,
-                             datamessagestructures::ScriptMessage& kf,
-                             std::string currentParsingLine, int lineN)
-{
-    std::string entryType;
-    std::istringstream iss(currentParsingLine);
-    iss >> entryType;
-    iss >> times.timeOs >> times.timeRec >> times.timeSim;
-    kf.read(iss);
-    if (iss.fail()) {
-        LERROR(fmt::format("Error parsing script line {} of playback file", lineN));
-        return false;
-    }
-    else if (!iss.eof()) {
-        LERROR(fmt::format("Did not find an EOL at line {} of playback file", lineN));
-        return false;
-    }
-    return true;
-}
-
-
-void saveScriptKeyframeBinary(sessionrecording::Timestamps& times,
-                              datamessagestructures::ScriptMessage& sm,
-                              unsigned char* smBuffer, std::ofstream& file)
-{
-    size_t idx = 0;
-    saveHeaderBinary(times, SessionRecording::HeaderScriptBinary, smBuffer, idx);
-    // Writing to internal buffer, and then to file, for performance reasons
-    std::vector<char> writeBuffer;
-    sm.serialize(writeBuffer);
-    writeToFileBuffer(smBuffer, idx, writeBuffer);
-    saveKeyframeToFileBinary(smBuffer, idx, file);
-}
+// ^^^^^^^^^   to be moved to the session_data   ^^^^^^^^^
 
 SessionRecording::SessionRecording()
     : properties::PropertyOwner({ "SessionRecording", "Session Recording" })
@@ -901,7 +915,6 @@ void SessionRecording::saveScriptKeyframe(std::string scriptToSave)
     );
 }
 
-
 void SessionRecording::preSynchronization() {
     ZoneScoped
 
@@ -1028,7 +1041,7 @@ bool SessionRecording::playbackAddEntriesToTimeline() {
             else if (entryType == HeaderScriptAscii) {
                 parsingStatusOk = playbackScript();
             }
-            else if (entryType.substr(0, 1) == HeaderCommentAscii) {
+            else if (entryType[0] == HeaderCommentAscii) {
                 continue;
             }
             else {

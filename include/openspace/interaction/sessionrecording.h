@@ -36,13 +36,6 @@ namespace openspace::interaction {
 
 class SessionRecording : public properties::PropertyOwner {
 public:
-    inline static const std::string HeaderCameraAscii = "camera";
-    inline static const std::string HeaderTimeAscii = "time";
-    inline static const std::string HeaderScriptAscii = "script";
-    inline static const std::string HeaderCommentAscii = "#";
-    inline static const char HeaderCameraBinary = 'c';
-    inline static const char HeaderTimeBinary = 't';
-    inline static const char HeaderScriptBinary = 's';
     inline static const std::string FileExtensionBinary = ".osrec";
     inline static const std::string FileExtensionAscii = ".osrectxt";
 
@@ -52,10 +45,6 @@ public:
         Playback
     };
 
-    static const size_t FileHeaderVersionLength = 5;
-    char FileHeaderVersion[FileHeaderVersionLength+1] = "01.00";
-    static const char DataFormatAsciiTag = 'A';
-    static const char DataFormatBinaryTag = 'B';
     static const size_t keyframeHeaderSize_bytes = 33;
     static const size_t saveBufferCameraSize_min = 82;
     static const size_t saveBufferStringSize_max = 2000;
@@ -330,171 +319,7 @@ protected:
     double _cameraFirstInTimeline_timestamp = 0;
 
     int _nextCallbackHandle = 0;
-
-    sessionrecording::DataMode _conversionDataMode = sessionrecording::DataMode::Binary;
-    int _conversionLineNum = 1;
-    const int _maximumRecursionDepth = 50;
 };
-
-
-// We'll place them here for the time being until we find a better place for those free
-// functions
-
-/**
- * Reads header information from a session recording file
- *
- * \param stream reference to ifstream that contains the session recording file data
- * \param readLen_chars number of characters to be read, which may be the expected
- *        length of the header line, or an arbitrary number of characters within it
- */
-std::string readHeaderElement(std::ifstream& stream, size_t readLen_chars);
-
-/**
- * Reads a camera keyframe from a binary format playback file, and populates input
- * references with the parameters of the keyframe.
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a camera keyframe which contains camera details
- * \param file an ifstream reference to the playback file being read
- * \param lineN keyframe number in playback file where this keyframe resides
- *
- * \return true if data read has no errors
- */
-bool readCameraKeyframeBinary(sessionrecording::Timestamps& times,
-    datamessagestructures::CameraKeyframe& kf,
-    std::ifstream& file, int lineN);
-
-/**
- * Writes a header to an ascii recording file buffer
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param type string signifying the keyframe type
- * \param line the stringstream buffer being written to
- */
-void saveHeaderAscii(sessionrecording::Timestamps& times, const std::string& type,
-    std::stringstream& line);
-
-/**
- * Reads a time keyframe from a binary format playback file, and populates input
- * references with the parameters of the keyframe.
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a time keyframe which contains time details
- * \param file an ifstream reference to the playback file being read
- * \param lineN keyframe number in playback file where this keyframe resides
- *
- * \return true if data read has no errors
- */
-bool readTimeKeyframeBinary(sessionrecording::Timestamps& times,
-    datamessagestructures::TimeKeyframe& kf,
-    std::ifstream& file, int lineN);
-
-
-/**
- * Reads a script keyframe from a binary format playback file, and populates input
- * references with the parameters of the keyframe.
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a script keyframe which contains the size of the script
- *        (in chars) and the text itself
- * \param file an ifstream reference to the playback file being read
- * \param lineN keyframe number in playback file where this keyframe resides
- *
- * \return true if data read has no errors
- */
-bool readScriptKeyframeBinary(sessionrecording::Timestamps& times,
-    datamessagestructures::ScriptMessage& kf,
-    std::ifstream& file, int lineN);
-
-/**
- * Saves a keyframe to an ascii recording file
- *
- * \param entry the ascii string version of the keyframe (any type)
- * \param file ofstream object to write to
- */
-void saveKeyframeToFile(std::string entry, std::ofstream& file);
-
-/**
- * Reads a camera keyframe from an ascii format playback file, and populates input
- * references with the parameters of the keyframe.
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a camera keyframe which contains camera details
- * \param currentParsingLine string containing the most current line that was read
- * \param lineN line number in playback file where this keyframe resides
- *
- * \return true if data read has no errors
- */
-bool readCameraKeyframeAscii(sessionrecording::Timestamps& times,
-    datamessagestructures::CameraKeyframe& kf,
-    std::string currentParsingLine, int lineN);
-
-/**
- * Writes a camera keyframe to a binary format recording file using a CameraKeyframe
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a camera keyframe which contains the camera details
- * \param kfBuffer a buffer temporarily used for preparing data to be written
- * \param file an ofstream reference to the recording file being written-to
- */
-void saveCameraKeyframeBinary(sessionrecording::Timestamps& times,
-    datamessagestructures::CameraKeyframe& kf,
-    unsigned char* kfBuffer, std::ofstream& file);
-
-/**
- * Reads a time keyframe from an ascii format playback file, and populates input
- * references with the parameters of the keyframe.
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a time keyframe which contains time details
- * \param currentParsingLine string containing the most current line that was read
- * \param lineN line number in playback file where this keyframe resides
- *
- * \return true if data read has no errors
- */
-bool readTimeKeyframeAscii(sessionrecording::Timestamps& times,
-    datamessagestructures::TimeKeyframe& kf,
-    std::string currentParsingLine, int lineN);
-
-/**
- * Writes a time keyframe to a binary format recording file using a TimeKeyframe
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a time keyframe which contains the time details
- * \param kfBuffer a buffer temporarily used for preparing data to be written
- * \param file an ofstream reference to the recording file being written-to
- */
-void saveTimeKeyframeBinary(sessionrecording::Timestamps& times,
-    datamessagestructures::TimeKeyframe& kf,
-    unsigned char* kfBuffer, std::ofstream& file);
-
-/**
- * Reads a script keyframe from an ascii format playback file, and populates input
- * references with the parameters of the keyframe.
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param kf reference to a script keyframe which contains the size of the script
- *        (in chars) and the text itself
- * \param currentParsingLine string containing the most current line that was read
- * \param lineN line number in playback file where this keyframe resides
- *
- * \return true if data read has no errors
- */
-bool readScriptKeyframeAscii(sessionrecording::Timestamps& times,
-    datamessagestructures::ScriptMessage& kf,
-    std::string currentParsingLine, int lineN);
-
-/**
- * Writes a script keyframe to a binary format recording file using a ScriptMessage
- *
- * \param times reference to a timestamps structure which contains recorded times
- * \param sm reference to a ScriptMessage object which contains the script details
- * \param smBuffer a buffer temporarily used for preparing data to be written
- * \param file an ofstream reference to the recording file being written-to
- */
-void saveScriptKeyframeBinary(sessionrecording::Timestamps& times,
-    datamessagestructures::ScriptMessage& sm,
-    unsigned char* smBuffer, std::ofstream& file);
 
 } // namespace openspace::interaction
 
