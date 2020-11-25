@@ -494,13 +494,6 @@ namespace {
             saveTimeKeyframeAscii(times, kf, file);
         }
     }
-
-    std::string readHeaderElement(std::ifstream& stream, size_t readLen_chars) {
-        std::vector<char> readTemp(readLen_chars);
-        stream.read(readTemp.data(), readLen_chars);
-        return std::string(readTemp.begin(), readTemp.end());
-    }
-
 } // namespace
 
 // ^^^^^^^^^   to be moved to the session_data   ^^^^^^^^^
@@ -633,8 +626,7 @@ void SessionRecording::stopRecording() {
     _recordFile.close();
 }
 
-bool SessionRecording::startPlayback(std::string& filename,
-                                     KeyframeTimeRef timeMode,
+bool SessionRecording::startPlayback(std::string& filename, KeyframeTimeRef timeMode,
                                      bool forceSimTimeAtStart)
 {
     if (isPath(filename)) {
@@ -668,7 +660,7 @@ bool SessionRecording::startPlayback(std::string& filename,
     _playbackFilename = absFilename;
 
     // Open in ASCII first
-    _playbackFile.open(_playbackFilename, std::ifstream::in);
+    _playbackFile.open(_playbackFilename);
 
     sessionrecording::Header header = sessionrecording::readHeader(_playbackFile);
 
@@ -687,9 +679,9 @@ bool SessionRecording::startPlayback(std::string& filename,
         // Close & re-open the file, starting from the beginning, and do dummy read
         // past the header, version, and data type
         _playbackFile.close();
-        _playbackFile.open(_playbackFilename, std::ifstream::in | std::ios::binary);
-        size_t headerSize = sessionrecording::Header::Title.size() + FileHeaderVersionLength
-            + sizeof(DataFormatBinaryTag) + sizeof('\n');
+        _playbackFile.open(_playbackFilename, std::ios::binary);
+        size_t headerSize = sessionrecording::Header::Title.size() +
+            FileHeaderVersionLength + sizeof(DataFormatBinaryTag) + sizeof('\n');
         std::vector<char> hBuffer;
         hBuffer.resize(headerSize);
         _playbackFile.read(hBuffer.data(), headerSize);
@@ -1211,48 +1203,29 @@ bool SessionRecording::addKeyframe(double timestamp,
                                    interaction::KeyframeNavigator::CameraPose keyframe,
                                    int lineNum)
 {
-    size_t indexIntoCameraKeyframesFromMainTimeline = _keyframesCamera.size();
+    size_t idxCamera = _keyframesCamera.size();
     _keyframesCamera.push_back(std::move(keyframe));
-    return addKeyframeToTimeline(
-        RecordedType::Camera,
-        indexIntoCameraKeyframesFromMainTimeline,
-        timestamp,
-        lineNum
-    );
+    return addKeyframeToTimeline(RecordedType::Camera, idxCamera, timestamp, lineNum);
 }
 
 bool SessionRecording::addKeyframe(double timestamp,
                                    datamessagestructures::TimeKeyframe keyframe,
                                    int lineNum)
 {
-    size_t indexIntoTimeKeyframesFromMainTimeline = _keyframesTime.size();
+    size_t idxTime = _keyframesTime.size();
     _keyframesTime.push_back(std::move(keyframe));
-    return addKeyframeToTimeline(
-        RecordedType::Time,
-        indexIntoTimeKeyframesFromMainTimeline,
-        timestamp,
-        lineNum
-    );
+    return addKeyframeToTimeline(RecordedType::Time, idxTime, timestamp, lineNum);
 }
 
-bool SessionRecording::addKeyframe(double timestamp,
-                                   std::string scriptToQueue,
-                                   int lineNum)
-{
-    size_t indexIntoScriptKeyframesFromMainTimeline = _keyframesScript.size();
-    _keyframesScript.push_back(std::move(scriptToQueue));
-    return addKeyframeToTimeline(
-        RecordedType::Script,
-        indexIntoScriptKeyframesFromMainTimeline,
-        timestamp,
-        lineNum
-    );
+bool SessionRecording::addKeyframe(double timestamp, std::string script, int lineNum) {
+    size_t idxScript = _keyframesScript.size();
+    _keyframesScript.push_back(std::move(script));
+    return addKeyframeToTimeline(RecordedType::Script, idxScript, timestamp, lineNum);
 }
 
 bool SessionRecording::addKeyframeToTimeline(RecordedType type,
                                              size_t indexIntoTypeKeyframes,
-                                             double timestamp,
-                                             int lineNum)
+                                             double timestamp, int lineNum)
 {
     try {
         _timeline.push_back({
@@ -1261,7 +1234,7 @@ bool SessionRecording::addKeyframeToTimeline(RecordedType type,
             timestamp
         });
     }
-    catch(...) {
+    catch (...) {
         LERROR(fmt::format(
             "Timeline memory allocation error trying to add keyframe {}. "
             "The playback file may be too large for system memory.",
@@ -1591,48 +1564,6 @@ std::vector<std::string> SessionRecording::playbackList() const {
         fileList.push_back(f.substr(path.length() + 1, f.length() - path.length() - 1));
     }
     return fileList;
-}
-
-void SessionRecording::readPlaybackFileHeader(const std::string& filename,
-                                              std::ifstream& conversionInFile,
-                                              std::string& version,
-                                              sessionrecording::DataMode& mode)
-{
-    if (isPath(filename)) {
-        throw sessionrecording::ConversionError("Playback filename must not contain path (/) elements");
-    }
-    std::string conversionInFilename = absPath("${RECORDINGS}/" + filename);
-    if (!FileSys.fileExists(conversionInFilename)) {
-        throw sessionrecording::ConversionError(fmt::format(
-            "Cannot find the specified playback file '{}' to convert.",
-            conversionInFilename
-        ));
-    }
-
-    // Open in ASCII first
-    conversionInFile.open(conversionInFilename, std::ifstream::in);
-    // Read header
-    std::string readBackHeaderString = readHeaderElement(
-        conversionInFile,
-        sessionrecording::Header::Title.size()
-    );
-
-    if (readBackHeaderString != sessionrecording::Header::Title) {
-        throw sessionrecording::ConversionError("File to convert does not contain expected header.");
-    }
-    version = readHeaderElement(conversionInFile, FileHeaderVersionLength);
-    std::string readDataMode = readHeaderElement(conversionInFile, 1);
-    if (readDataMode[0] == DataFormatAsciiTag) {
-        mode = sessionrecording::DataMode::Ascii;
-    }
-    else if (readDataMode[0] == DataFormatBinaryTag) {
-        mode = sessionrecording::DataMode::Binary;
-    }
-    else {
-        throw sessionrecording::ConversionError("Unknown data type in header (needs Ascii or Binary)");
-    }
-    // Read to throw out newline at end of header
-    readHeaderElement(conversionInFile, 1);
 }
 
 scripting::LuaLibrary SessionRecording::luaLibrary() {

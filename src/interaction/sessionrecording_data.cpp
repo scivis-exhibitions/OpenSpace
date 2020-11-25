@@ -454,15 +454,6 @@ SessionRecordingData readSessionRecordingInternal(const std::string& filename) {
     }
 
     Header header = readHeader(stream);
-    //// Skip over the header
-    //{
-    //    constexpr const size_t HeaderSize = sessionrecording::Header::Title.size() +
-    //        sessionrecording::Header::VersionLength +
-    //        + sizeof(char) + sizeof(char); // data mode tag + new line
-    //    std::array<char, HeaderSize> Buffer;
-    //    stream.read(Buffer.data(), HeaderSize);
-    //    Buffer = Buffer;
-    //}
     DataMode mode = characterToDataMode(header.dataMode);
 
     SessionRecordingData data;

@@ -275,9 +275,6 @@ protected:
     double getNextTimestamp();
     double getPrevTimestamp();
     void cleanUpPlayback();
-    void readPlaybackFileHeader(const std::string& filename,
-        std::ifstream& conversionInFile,
-        std::string& version, sessionrecording::DataMode& mode);
 
     sessionrecording::DataMode _recordingDataMode = sessionrecording::DataMode::Binary;
     SessionState _state = SessionState::Idle;
