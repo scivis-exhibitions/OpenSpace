@@ -54,7 +54,6 @@ public:
 
     static const size_t FileHeaderVersionLength = 5;
     char FileHeaderVersion[FileHeaderVersionLength+1] = "01.00";
-    char TargetConvertVersion[FileHeaderVersionLength+1] = "01.00";
     static const char DataFormatAsciiTag = 'A';
     static const char DataFormatBinaryTag = 'B';
     static const size_t keyframeHeaderSize_bytes = 33;
@@ -67,7 +66,6 @@ public:
     using StateChangeCallback = std::function<void()>;
 
     SessionRecording();
-    SessionRecording(bool isGlobal);
 
     ~SessionRecording();
 
@@ -233,58 +231,6 @@ public:
      */
     std::vector<std::string> playbackList() const;
 
-    /**
-     * Converts file format of a session recording file to the current format version
-     * (will determine the file format conversion to convert from based on the file's
-     * header version number).
-     *
-     * \param filename name of the fconvertCameraile to convert
-     * \param depth iteration number to prevent runaway recursion (init call with zero)
-     *
-     * \return string containing the filename of the previous conversion step. This is
-     *         used if there are multiple conversion steps where each step has to use
-     *         the output of the previous.
-     */
-    std::string convertFile(std::string filename, int depth = 0);
-
-    /**
-     * Goes to legacy session recording inherited class, and calls its convertFile()
-     * method, and then returns the resulting conversion filename.
-     *
-     * \param filename name of the file to convert
-     * \param depth iteration number to prevent runaway recursion (init call with zero)
-     *
-     * \return string containing the filename of the conversion
-     */
-    virtual std::string getLegacyConversionResult(std::string filename, int depth);
-
-    /*
-     * Version string for file format version currently supported by this class
-     *
-     * \return string of the file format version this class supports
-     */
-    virtual std::string fileFormatVersion();
-
-    /*
-     * Version string for file format version that a conversion operation will convert
-     * to (e.g. upgrades to this version). This is only relevant for inherited classes
-     * that support conversion from legacy versions (if called in the base class, it
-     * will return its own current version).
-     *
-     * \return string of the file format version this class supports
-     */
-    virtual std::string targetFileFormatVersion();
-
-    /*
-     * Determines a filename for the conversion result based on the original filename
-     * and the file format version number.
-     *
-     * \param filename source filename to be converted
-     *
-     * \return pathname of the converted version of the file
-     */
-    std::string determineConversionOutFilename(const std::string filename);
-
 protected:
     properties::BoolProperty _renderPlaybackInformation;
 
@@ -340,14 +286,6 @@ protected:
     double getNextTimestamp();
     double getPrevTimestamp();
     void cleanUpPlayback();
-    bool convertEntries(std::string& inFilename, std::ifstream& inFile,
-        sessionrecording::DataMode mode, int lineNum, std::ofstream& outFile);
-    virtual bool convertCamera(std::ifstream& inFile, sessionrecording::DataMode mode, int lineNum,
-        std::string& inputLine, std::ofstream& outFile, unsigned char* buff);
-    virtual bool convertTimeChange(std::ifstream& inFile, sessionrecording::DataMode mode, int lineNum,
-        std::string& inputLine, std::ofstream& outFile, unsigned char* buff);
-    virtual bool convertScript(std::ifstream& inFile, sessionrecording::DataMode mode, int lineNum,
-        std::string& inputLine, std::ofstream& outFile, unsigned char* buff);
     void readPlaybackFileHeader(const std::string& filename,
         std::ifstream& conversionInFile,
         std::string& version, sessionrecording::DataMode& mode);
@@ -396,42 +334,6 @@ protected:
     sessionrecording::DataMode _conversionDataMode = sessionrecording::DataMode::Binary;
     int _conversionLineNum = 1;
     const int _maximumRecursionDepth = 50;
-};
-
-class SessionRecording_legacy_0085 : public SessionRecording {
-public:
-    SessionRecording_legacy_0085() = default;
-    char FileHeaderVersion[FileHeaderVersionLength+1] = "00.85";
-    char TargetConvertVersion[FileHeaderVersionLength+1] = "01.00";
-    std::string fileFormatVersion() {
-        return std::string(FileHeaderVersion);
-    }
-    std::string targetFileFormatVersion() {
-        return std::string(TargetConvertVersion);
-    }
-    std::string getLegacyConversionResult(std::string filename, int depth);
-
-    struct ScriptMessage_legacy_0085 : public datamessagestructures::ScriptMessage {
-        void read(std::istream* in) {
-            size_t strLen;
-            // Read string length from file
-            in->read(reinterpret_cast<char*>(&strLen), sizeof(strLen));
-            if (strLen > saveBufferStringSize_max) {
-                throw sessionrecording::ConversionError("Invalid script size for conversion read");
-            }
-            // Read back full string
-            std::vector<char> temp(strLen + 1);
-            in->read(temp.data(), strLen);
-            temp[strLen] = '\0';
-
-            _script.erase();
-            _script = temp.data();
-        };
-    };
-
-protected:
-    virtual bool convertScript(std::ifstream& inFile, sessionrecording::DataMode mode, int lineNum,
-        std::string& inputLine, std::ofstream& outFile, unsigned char* buffer);
 };
 
 

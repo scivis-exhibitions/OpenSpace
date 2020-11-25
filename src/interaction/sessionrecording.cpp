@@ -494,19 +494,12 @@ void saveScriptKeyframeBinary(sessionrecording::Timestamps& times,
 SessionRecording::SessionRecording()
     : properties::PropertyOwner({ "SessionRecording", "Session Recording" })
     , _renderPlaybackInformation(RenderPlaybackInfo, false)
-{}
-
-SessionRecording::SessionRecording(bool isGlobal)
-    : properties::PropertyOwner({ "SessionRecording", "Session Recording" })
-    , _renderPlaybackInformation(RenderPlaybackInfo, false)
 {
-    if (isGlobal) {
-        auto fTask = FactoryManager::ref().factory<Task>();
-        ghoul_assert(fTask, "No task factory existed");
-        fTask->registerClass<ConvertRecFormatTask>("ConvertRecFormatTask");
-        fTask->registerClass<ConvertRecFileVersionTask>("ConvertRecFileVersionTask");
-        addProperty(_renderPlaybackInformation);
-    }
+    auto fTask = FactoryManager::ref().factory<Task>();
+    ghoul_assert(fTask, "No task factory existed");
+    fTask->registerClass<ConvertRecFormatTask>("ConvertRecFormatTask");
+    fTask->registerClass<ConvertRecFileVersionTask>("ConvertRecFileVersionTask");
+    addProperty(_renderPlaybackInformation);
 }
 
 SessionRecording::~SessionRecording() {}
@@ -653,6 +646,8 @@ bool SessionRecording::startPlayback(std::string& filename,
         cleanUpPlayback();
         return false;
     }
+    // Conver the session recording if not in the newest file format and return the new
+    // file name
     absFilename = sessionrecording::convertSessionRecordingFile(absFilename).string();
 
     _playbackLineNum = 1;
@@ -687,14 +682,12 @@ bool SessionRecording::startPlayback(std::string& filename,
     }
 
     if (!_playbackFile.is_open() || !_playbackFile.good()) {
-        LERROR(fmt::format(
-            "Unable to open file {} for keyframe playback", absFilename.c_str()
-        ));
+        LERROR(fmt::format("Unable to open file {} for keyframe playback", absFilename));
         stopPlayback();
         cleanUpPlayback();
         return false;
     }
-    //Set time reference mode
+    // Set time reference mode
     double now = global::windowDelegate->applicationTime();
     _timestampPlaybackStarted_application = now;
     _timestampPlaybackStarted_simulation = global::timeManager->time().j2000Seconds();
@@ -1158,33 +1151,6 @@ bool SessionRecording::playbackCamera() {
     return success;
 }
 
-bool SessionRecording::convertCamera(std::ifstream& inFile, sessionrecording::DataMode mode, int lineNum,
-                                     std::string& inputLine, std::ofstream& outFile,
-                                     unsigned char* buffer)
-{
-    sessionrecording::Timestamps times;
-    datamessagestructures::CameraKeyframe kf;
-
-    bool success = readSingleKeyframeCamera(
-        kf,
-        times,
-        mode,
-        inFile,
-        inputLine,
-        lineNum
-    );
-    if (success) {
-        saveSingleKeyframeCamera(
-            kf,
-            times,
-            mode,
-            outFile,
-            buffer
-        );
-    }
-    return success;
-}
-
 bool SessionRecording::playbackTimeChange() {
     sessionrecording::Timestamps times;
     datamessagestructures::TimeKeyframe kf;
@@ -1208,34 +1174,6 @@ bool SessionRecording::playbackTimeChange() {
     return success;
 }
 
-bool SessionRecording::convertTimeChange(std::ifstream& inFile, sessionrecording::DataMode mode, int lineNum,
-                                         std::string& inputLine, std::ofstream& outFile,
-                                         unsigned char* buffer)
-{
-    sessionrecording::Timestamps times;
-    datamessagestructures::TimeKeyframe kf;
-
-    bool success = readSingleKeyframeTime(
-        kf,
-        times,
-        mode,
-        inFile,
-        inputLine,
-        lineNum
-    );
-    if (success) {
-        saveSingleKeyframeTime(
-            kf,
-            times,
-            mode,
-            outFile,
-            buffer
-        );
-    }
-    return success;
-}
-
-
 bool SessionRecording::playbackScript() {
     sessionrecording::Timestamps times;
     datamessagestructures::ScriptMessage kf;
@@ -1252,33 +1190,6 @@ bool SessionRecording::playbackScript() {
     double timeRef = appropriateTimestamp(times.timeOs, times.timeRec, times.timeSim);
     if (success) {
         success = addKeyframe(timeRef, kf._script, _playbackLineNum);
-    }
-    return success;
-}
-
-bool SessionRecording::convertScript(std::ifstream& inFile, sessionrecording::DataMode mode, int lineNum,
-                                     std::string& inputLine, std::ofstream& outFile,
-                                     unsigned char* buffer)
-{
-    sessionrecording::Timestamps times;
-    datamessagestructures::ScriptMessage kf;
-
-    bool success = readSingleKeyframeScript(
-        kf,
-        times,
-        mode,
-        inFile,
-        inputLine,
-        lineNum
-    );
-    if (success) {
-        saveSingleKeyframeScript(
-            kf,
-            times,
-            mode,
-            outFile,
-            buffer
-        );
     }
     return success;
 }
@@ -1711,306 +1622,6 @@ void SessionRecording::readPlaybackFileHeader(const std::string& filename,
     readHeaderElement(conversionInFile, 1);
 }
 
-std::string SessionRecording::convertFile(std::string filename, int depth) {
-    std::string conversionOutFilename = filename;
-    if (depth >= _maximumRecursionDepth) {
-        throw ghoul::RuntimeError(
-            "SessionRecording",
-            "Runaway recursion in session recording conversion of file version"
-        );
-    }
-
-    std::string newFilename = filename;
-    try {
-        std::ifstream conversionInFile;
-        sessionrecording::DataMode mode;
-        std::string fileVersion;
-        readPlaybackFileHeader(filename, conversionInFile, fileVersion, mode);
-        int conversionLineNum = 1;
-
-        // If this instance of the SessionRecording class isn't the instance with the
-        // correct version of the file to be converted, then call getLegacy() to recurse
-        // to the next level down in the legacy subclasses until we get the right
-        // version, then proceed with conversion from there.
-        const std::string formatVersion = fileFormatVersion();
-        if (fileVersion != formatVersion) {
-            //Temporary placeholder for rejecting legacy versions:
-            //return "Legacy currently unsupported";
-            conversionInFile.close();
-            newFilename = getLegacyConversionResult(filename, depth + 1);
-            newFilename = std::filesystem::canonical(newFilename).string();
-            if (isPath(newFilename)) {
-                newFilename = std::filesystem::path(newFilename).filename().string();
-            }
-            if (filename == newFilename) {
-                return filename;
-            }
-            readPlaybackFileHeader(newFilename, conversionInFile, fileVersion, mode);
-        }
-        if (depth != 0) {
-            if (!conversionInFile.is_open() || !conversionInFile.good()) {
-                throw sessionrecording::ConversionError(fmt::format(
-                    "Unable to open file {} for conversion", newFilename.c_str()
-                ));
-            }
-            conversionOutFilename = determineConversionOutFilename(filename);
-            LINFO(fmt::format(
-                "Starting conversion on rec file {}, version {} in {} mode. "
-                "Writing result to {}.",
-                newFilename, fileVersion, (mode == sessionrecording::DataMode::Ascii) ? "ascii" : "binary",
-                conversionOutFilename
-            ));
-            std::ofstream conversionOutFile;
-            if (mode == sessionrecording::DataMode::Binary) {
-                conversionOutFile.open(conversionOutFilename, std::ios::binary);
-            }
-            else {
-                conversionOutFile.open(conversionOutFilename);
-            }
-            if (!conversionOutFile.is_open() || !conversionOutFile.good()) {
-                LERROR(fmt::format(
-                    "Unable to open file {} for conversion result", conversionOutFilename
-                ));
-                return "";
-            }
-            conversionOutFile << sessionrecording::Header::Title;
-            conversionOutFile.write(
-                targetFileFormatVersion().c_str(),
-                FileHeaderVersionLength
-            );
-            if (mode == sessionrecording::DataMode::Binary) {
-                conversionOutFile << DataFormatBinaryTag;
-            }
-            else {
-                conversionOutFile << DataFormatAsciiTag;
-            }
-            conversionOutFile << '\n';
-            convertEntries(
-                newFilename,
-                conversionInFile,
-                mode,
-                conversionLineNum,
-                conversionOutFile
-            );
-        }
-    }
-    catch (const sessionrecording::ConversionError& c) {
-        LERROR(c.message);
-    }
-
-    if (depth == 0) {
-        return newFilename;
-    }
-    else {
-        return conversionOutFilename;
-    }
-}
-
-bool SessionRecording::convertEntries(std::string& inFilename, std::ifstream& inFile,
-                                      sessionrecording::DataMode mode, int lineNum, std::ofstream& outFile)
-{
-
-    bool conversionStatusOk = true;
-    std::string lineParsing;
-
-    if (mode == sessionrecording::DataMode::Binary) {
-        unsigned char frameType;
-        bool fileReadOk = true;
-
-        while (conversionStatusOk && fileReadOk) {
-            frameType = readFromPlayback<unsigned char>(inFile);
-            // Check if have reached EOF
-            if (!inFile) {
-                LINFO(fmt::format(
-                    "Finished converting {} entries from playback file {}",
-                    lineNum - 1, inFilename
-                ));
-                fileReadOk = false;
-                break;
-            }
-            if (frameType == HeaderCameraBinary) {
-                conversionStatusOk = convertCamera(
-                    inFile,
-                    mode,
-                    lineNum,
-                    lineParsing,
-                    outFile,
-                    _keyframeBuffer
-                );
-            }
-            else if (frameType == HeaderTimeBinary) {
-                conversionStatusOk = convertTimeChange(
-                    inFile,
-                    mode,
-                    lineNum,
-                    lineParsing,
-                    outFile,
-                    _keyframeBuffer
-                );
-            }
-            else if (frameType == HeaderScriptBinary) {
-                try {
-                    conversionStatusOk = convertScript(
-                        inFile,
-                        mode,
-                        lineNum,
-                        lineParsing,
-                        outFile,
-                        _keyframeBuffer
-                    );
-                }
-                catch (const sessionrecording::ConversionError& c) {
-                    LERROR(c.message);
-                    conversionStatusOk = false;
-                }
-            }
-            else {
-                LERROR(fmt::format(
-                    "Unknown frame type {} @ index {} of conversion file {}",
-                    frameType, lineNum - 1, inFilename
-                ));
-                conversionStatusOk = false;
-            }
-            lineNum++;
-        }
-    }
-    else {
-        while (conversionStatusOk && std::getline(inFile, lineParsing)) {
-            lineNum++;
-
-            std::istringstream iss(lineParsing);
-            std::string entryType;
-            if (!(iss >> entryType)) {
-                LERROR(fmt::format(
-                    "Error reading entry type @ line {} of conversion file {}",
-                    lineNum, inFilename
-                ));
-                break;
-            }
-
-            if (entryType == HeaderCameraAscii) {
-                conversionStatusOk = convertCamera(
-                    inFile,
-                    mode,
-                    lineNum,
-                    lineParsing,
-                    outFile,
-                    _keyframeBuffer
-                );
-            }
-            else if (entryType == HeaderTimeAscii) {
-                conversionStatusOk = convertTimeChange(
-                    inFile,
-                    mode,
-                    lineNum,
-                    lineParsing,
-                    outFile,
-                    _keyframeBuffer
-                );
-            }
-            else if (entryType == HeaderScriptAscii) {
-                try {
-                    conversionStatusOk = convertScript(
-                        inFile,
-                        mode,
-                        lineNum,
-                        lineParsing,
-                        outFile,
-                        _keyframeBuffer
-                    );
-                }
-                catch (const sessionrecording::ConversionError& c) {
-                    LERROR(c.message);
-                    conversionStatusOk = false;
-                }
-            }
-            else if (entryType.substr(0, 1) == HeaderCommentAscii) {
-                continue;
-            }
-            else {
-                LERROR(fmt::format(
-                    "Unknown frame type {} @ line {} of conversion file {}",
-                    entryType, lineNum, inFilename
-                ));
-                conversionStatusOk = false;
-            }
-        }
-        LINFO(fmt::format(
-            "Finished parsing {} entries from conversion file {}",
-            lineNum, inFilename
-        ));
-    }
-    return conversionStatusOk;
-}
-
-std::string SessionRecording::getLegacyConversionResult(std::string filename, int depth) {
-    SessionRecording_legacy_0085 legacy;
-    return legacy.convertFile(filename, depth);
-}
-
-std::string SessionRecording_legacy_0085::getLegacyConversionResult(std::string filename,
-                                                                    int depth)
-{
-    // This method is overriden in each legacy subclass, but does nothing in this instance
-    // as the oldest supported legacy version.
-    LERROR(fmt::format(
-        "Version 00.85 is the oldest supported legacy file format; no conversion "
-        "can be made. It is possible that file {} has a corrupted header or an invalid "
-        "file format version number.",
-        filename
-    ));
-    return filename;
-}
-
-std::string SessionRecording::fileFormatVersion() {
-    return std::string(FileHeaderVersion);
-}
-
-std::string SessionRecording::targetFileFormatVersion() {
-    return std::string(FileHeaderVersion);
-}
-
-std::string SessionRecording::determineConversionOutFilename(const std::string filename) {
-    const std::string legacyRecordingSaveDirectory = "${RECORDINGS}/convert";
-    std::string fn = std::filesystem::path(filename).filename().string();
-    std::string conversionOutFilename = fmt::format(
-        "{}_{}-{}", fn, fileFormatVersion(), targetFileFormatVersion()
-    );
-    std::string ext = std::filesystem::path(filename).extension().string();
-    if (ext == FileExtensionBinary) {
-        conversionOutFilename += FileExtensionBinary;
-    }
-    else if (ext == FileExtensionAscii) {
-        conversionOutFilename += FileExtensionAscii;
-    }
-    else {
-        conversionOutFilename = filename + "_";
-    }
-    //if (!FileSys.directoryExists(absPath(legacyRecordingSaveDirectory))) {
-    //    FileSys.createDirectory(
-    //        absPath(legacyRecordingSaveDirectory),
-    //        ghoul::filesystem::FileSystem::Recursive::Yes
-    //    );
-    //}
-    //return absPath(legacyRecordingSaveDirectory + "/" + conversionOutFilename);
-    return absPath("${RECORDINGS}/" + conversionOutFilename);
-}
-
-bool SessionRecording_legacy_0085::convertScript(std::ifstream& inFile, sessionrecording::DataMode mode,
-                                                 int lineNum, std::string& inputLine,
-                                                 std::ofstream& outFile,
-                                                 unsigned char* buffer)
-{
-    sessionrecording::Timestamps times;
-    ScriptMessage_legacy_0085 kf;
-
-    bool success = readSingleKeyframeScript(kf, times, mode, inFile, inputLine, lineNum);
-    if (success) {
-        saveSingleKeyframeScript(kf, times, mode, outFile, buffer);
-    }
-    return success;
-}
-
 scripting::LuaLibrary SessionRecording::luaLibrary() {
     return {
         "sessionRecording",
@@ -2101,15 +1712,7 @@ scripting::LuaLibrary SessionRecording::luaLibrary() {
                 {},
                 "void",
                 "Used to disable that renderings are saved during playback"
-            },
-            {
-                "fileFormatConversion",
-                &luascriptfunctions::fileFormatConversion,
-                {},
-                "string",
-                "Performs a conversion of the specified file to the most most recent "
-                "file format, creating a copy of the recording file."
-            },
+            }
         }
     };
 }

@@ -324,6 +324,14 @@ std::optional<Frame> readFrame(std::istream& stream, DataMode mode) {
             Frame frame;
             CommentMessage msg;
             std::getline(stream, msg.comment);
+            msg.comment.erase(
+                std::remove(msg.comment.begin(), msg.comment.end(), '\r'),
+                msg.comment.end()
+            );
+            msg.comment.erase(
+                std::remove(msg.comment.begin(), msg.comment.end(), '\n'),
+                msg.comment.end()
+            );
             msg.comment = "#" + msg.comment;
             frame.message = msg;
             return frame;
@@ -527,15 +535,14 @@ void writeSessionRecordingInternal(const SessionRecordingData& data,
         throw ghoul::RuntimeError(fmt::format("Error opening file '{}'", filename));
     }
 
-    const unsigned char modeChar = [](DataMode mode) {
-        switch (mode) {
-            case DataMode::Ascii:  return 'A';
-            case DataMode::Binary: return 'B';
-            default:               throw ghoul::MissingCaseException();
-        }
-    }(mode);
-    std::string title = fmt::format("{}{}{}\n", Header::Title, version, modeChar);
-    stream.write(title.data(), title.size());
+    if (mode == DataMode::Ascii) {
+        std::string title = fmt::format("{}{}A\n", Header::Title, version);
+        stream << title;
+    }
+    else {
+        std::string title = fmt::format("{}{}B\n", Header::Title, version);
+        stream.write(title.data(), title.size());
+    }
 
     for (const Frame& frame : data) {
         writeFrame<writeTimeStampFunc, writeCameraFunc, writeTimeFunc, writeScriptFunc>(
@@ -656,14 +663,14 @@ Header readHeader(std::istream& stream) {
     // Jump over the newline character
     unsigned char newline;
     stream.read(reinterpret_cast<char*>(&newline), sizeof(unsigned char));
-    //if (newline == '\r') {
-    //    // Apparently Microsoft still things we need a carriage return character
-    //    stream.read(reinterpret_cast<char*>(&newline), sizeof(unsigned char));
-    //    ghoul_assert(newline == '\n', "Expected newline character not found");
-    //}
-    //else {
+    if (newline == '\r') {
+        // Apparently Microsoft still things we need a carriage return character
+        stream.read(reinterpret_cast<char*>(&newline), sizeof(unsigned char));
         ghoul_assert(newline == '\n', "Expected newline character not found");
-    //}
+    }
+    else {
+        ghoul_assert(newline == '\n', "Expected newline character not found");
+    }
 
     return header;
 }
