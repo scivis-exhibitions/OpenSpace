@@ -67,6 +67,9 @@ namespace version1 {
     };
 
     struct CameraMessage {
+        static constexpr const std::string_view AsciiKey = "camera";
+        static constexpr const char BinaryKey = 'c';
+
         //virtual ~CameraMessage() = default;
         /*virtual*/ void readAscii(std::istream& stream);
         /*virtual*/ void readBinary(std::istream& stream);
@@ -83,6 +86,9 @@ namespace version1 {
     };
 
     struct TimeMessage {
+        static constexpr const std::string_view AsciiKey = "time";
+        static constexpr const char BinaryKey = 't';
+
         //virtual ~TimeMessage() = default;
         /*virtual*/ void readAscii(std::istream& stream);
         /*virtual*/ void readBinary(std::istream& stream);
@@ -98,6 +104,9 @@ namespace version1 {
     };
 
     struct ScriptMessage {
+        static constexpr const std::string_view AsciiKey = "script";
+        static constexpr const char BinaryKey = 's';
+
         //virtual ~ScriptMessage() = default;
         /*virtual*/ void readAscii(std::istream& stream);
         /*virtual*/ void readBinary(std::istream& stream);
@@ -110,6 +119,9 @@ namespace version1 {
     };
 
     struct CommentMessage {
+        static constexpr const std::string_view AsciiKey = "#";
+        static constexpr const char BinaryKey = '#';
+
         //virtual ~CommentMessage() = default;
         /*virtual*/ void readAscii(std::istream& stream);
         /*virtual*/ void readBinary(std::istream& stream);
@@ -119,6 +131,7 @@ namespace version1 {
         std::string comment;
     };
 
+    //template <typename... MessageTypes>
     struct Frame {
         //virtual ~Frame() = default;
         /*virtual*/ bool readAscii(std::istream& stream);
@@ -127,6 +140,7 @@ namespace version1 {
         /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
+        //std::variant<MessageTypes> message;
     };
 
     struct SessionRecordingData {
@@ -161,8 +175,8 @@ inline namespace version2 {
         //virtual ~Frame() = default;
         /*virtual*/ bool readAscii(std::istream& stream);
         /*virtual*/ bool readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream, DataMode mode) const;
-        /*virtual*/ void writeBinary(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void writeAscii(std::ostream& stream) const;
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
     };
@@ -184,3 +198,5 @@ inline namespace version2 {
 } // namespace version2
 
 } // namespace openspace::interaction::sessionrecording
+
+#endif // __OPENSPACE_CORE___SESSIONRECORDING_DATA___H__

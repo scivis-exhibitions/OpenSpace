@@ -326,11 +326,6 @@ void CommentMessage::writeBinary(std::ostream& stream) const {
 bool Frame::readAscii(std::istream& stream) {
     ghoul_assert(stream.good(), "Bad stream");
 
-    constexpr const std::string_view CameraFrame = "camera";
-    constexpr const std::string_view TimeFrame = "time";
-    constexpr const std::string_view ScriptFrame = "script";
-    constexpr const std::string_view CommentFrame = "#";
-
     std::string entryType;
     stream >> entryType;
 
@@ -339,22 +334,22 @@ bool Frame::readAscii(std::istream& stream) {
         return true;
     }
 
-    if (entryType == CameraFrame) {
+    if (entryType == CameraMessage::AsciiKey) {
         CameraMessage msg;
         msg.readAscii(stream);
         message = msg;
     }
-    else if (entryType == TimeFrame) {
+    else if (entryType == TimeMessage::AsciiKey) {
         TimeMessage msg;
         msg.readAscii(stream);
         message = msg;
     }
-    else if (entryType == ScriptFrame) {
+    else if (entryType == ScriptMessage::AsciiKey) {
         ScriptMessage msg;
         msg.readAscii(stream);
         message = msg;
     }
-    else if (entryType == CommentFrame) {
+    else if (entryType == CommentMessage::AsciiKey) {
         CommentMessage msg;
         msg.readAscii(stream);
         message = msg;
@@ -369,11 +364,6 @@ bool Frame::readAscii(std::istream& stream) {
 bool Frame::readBinary(std::istream& stream) {
     ghoul_assert(stream.good(), "Bad stream");
 
-    constexpr const unsigned char CameraFrame = 'c';
-    constexpr const unsigned char TimeFrame = 't';
-    constexpr const unsigned char ScriptFrame = 's';
-    constexpr const unsigned char CommentFrame = '#';
-
     unsigned char entryType;
     stream.read(reinterpret_cast<char*>(&entryType), sizeof(unsigned char));
 
@@ -381,22 +371,22 @@ bool Frame::readBinary(std::istream& stream) {
     if (stream.eof()) {
         return true;
     }
-    if (entryType == CameraFrame) {
+    if (entryType == CameraMessage::BinaryKey) {
         CameraMessage msg;
         msg.readBinary(stream);
         message = msg;
     }
-    else if (entryType == TimeFrame) {
+    else if (entryType == TimeMessage::BinaryKey) {
         TimeMessage msg;
         msg.readBinary(stream);
         message = msg;
     }
-    else if (entryType == ScriptFrame) {
+    else if (entryType == ScriptMessage::BinaryKey) {
         ScriptMessage msg;
         msg.readBinary(stream);
         message = msg;
     }
-    else if (entryType == CommentFrame) {
+    else if (entryType == CommentMessage::BinaryKey) {
         CommentMessage msg;
         msg.readBinary(stream);
         message = msg;
@@ -411,57 +401,20 @@ bool Frame::readBinary(std::istream& stream) {
 void Frame::writeAscii(std::ostream& stream) const {
     ghoul_assert(stream.good(), "Bad stream");
 
-    std::visit(overloaded{
-        [&](const CameraMessage& d) {
-            constexpr const std::string_view CameraFrame = "camera";
-            stream << CameraFrame << ' ';
-            d.writeAscii(stream);
-            stream << '\n';
-        },
-        [&](const TimeMessage& d) {
-            constexpr const std::string_view TimeFrame = "time";
-            stream << TimeFrame << ' ';
-            d.writeAscii(stream);
-            stream << '\n';
-        },
-        [&](const ScriptMessage& d) {
-            constexpr const std::string_view ScriptFrame = "script";
-            stream << ScriptFrame << ' ';
-            d.writeAscii(stream);
-            stream << '\n';
-        },
-        [&](const CommentMessage& d) {
-            d.writeAscii(stream);
-            stream << '\n';
-        }
+    std::visit([&](auto message) {
+        stream << message.AsciiKey << ' ';
+        message.writeAscii(stream);
+        stream << '\n';
     }, message);
 }
 
 void Frame::writeBinary(std::ostream& stream) const {
     ghoul_assert(stream.good(), "Bad stream");
 
-    std::visit(overloaded{
-        [&](const CameraMessage& d) {
-            constexpr const char CameraFrame = 'c';
-            stream.write(&CameraFrame, sizeof(char));
-            d.writeBinary(stream);
-        },
-        [&](const TimeMessage& d) {
-            constexpr const char TimeFrame = 't';
-            stream.write(&TimeFrame, sizeof(char));
-            d.writeBinary(stream);
-        },
-        [&](const ScriptMessage& d) {
-            constexpr const char ScriptFrame = 's';
-            stream.write(&ScriptFrame, sizeof(char));
-            d.writeBinary(stream);
-        },
-        [&](const CommentMessage& d) {
-            constexpr const char CommentFrame = '#';
-            stream.write(&CommentFrame, sizeof(char));
-            d.writeBinary(stream);
-        }
-        }, message);
+    std::visit([&](auto message) {
+        stream.write(&message.BinaryKey, sizeof(char));
+        message.writeBinary(stream);
+    }, message);
 }
 
 void SessionRecordingData::read(const std::string& filename) {
@@ -666,7 +619,7 @@ bool Frame::readBinary(std::istream& stream) {
     return false;
 }
 
-void Frame::writeAscii(std::ostream& stream, DataMode mode) const {
+void Frame::writeAscii(std::ostream& stream) const {
     ghoul_assert(stream.good(), "Bad stream");
 
     std::visit(overloaded{
@@ -695,7 +648,7 @@ void Frame::writeAscii(std::ostream& stream, DataMode mode) const {
     }, message);
 }
 
-void Frame::writeBinary(std::ostream& stream, DataMode mode) const {
+void Frame::writeBinary(std::ostream& stream) const {
     ghoul_assert(stream.good(), "Bad stream");
 
     std::visit(overloaded{
@@ -808,10 +761,10 @@ void SessionRecordingData::write(const std::string& filename, DataMode mode) con
 
     for (const Frame& frame : frames) {
         if (mode == DataMode::Ascii) {
-            frame.writeAscii(stream, mode);
+            frame.writeAscii(stream);
         }
         else {
-            frame.writeBinary(stream, mode);
+            frame.writeBinary(stream);
         }
     }
 }
