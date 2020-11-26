@@ -233,6 +233,7 @@ void TimeMessage::write(std::ostream& stream, DataMode mode) const {
 void ScriptMessage::read(std::istream& stream, DataMode mode) {
     ghoul_assert(stream.good(), "Bad stream");
 
+    time.read(stream, mode);
     if (mode == DataMode::Ascii) {
         int32_t numScriptLines;
         stream >> numScriptLines;
@@ -242,6 +243,7 @@ void ScriptMessage::read(std::istream& stream, DataMode mode) {
             std::getline(stream, buffer);
             const size_t start = buffer.find_first_not_of(" ");
             buffer = buffer.substr(start);
+            buffer.erase(std::remove(buffer.begin(), buffer.end(), '\r'), buffer.end());
             script.append(buffer);
             if (i < (numScriptLines - 1)) {
                 script.append("\n");
@@ -319,7 +321,7 @@ bool Frame::read(std::istream& stream, DataMode mode) {
 
         // Check if we reached the end of the file
         if (stream.eof()) {
-            return false;
+            return true;
         }
 
         if (entryType == CameraFrame) {
@@ -357,7 +359,7 @@ bool Frame::read(std::istream& stream, DataMode mode) {
 
         // Check if we reached the end of the file
         if (stream.eof()) {
-            return false;
+            return true;
         }
         if (entryType == CameraFrame) {
             CameraMessage msg;
@@ -383,7 +385,7 @@ bool Frame::read(std::istream& stream, DataMode mode) {
         }
     }
 
-    return true;
+    return false;
 }
 
 void Frame::write(std::ostream& stream, DataMode mode) const {
@@ -525,6 +527,10 @@ void SessionRecordingData::write(const std::string& filename, DataMode mode) con
 
 namespace version2 {
 
+ScriptMessage::ScriptMessage(const version1::ScriptMessage& msg)
+    : version1::ScriptMessage(msg)
+{}
+
 void ScriptMessage::read(std::istream& stream, DataMode mode) {
     ghoul_assert(stream.good(), "Bad stream");
 
@@ -556,6 +562,9 @@ void ScriptMessage::write(std::ostream& stream, DataMode mode) const {
     }
 }
 
+Frame::Frame(const version1::Frame& frame) {
+    std::visit([&](auto a) { message = a; }, frame.message);
+}
 
 bool Frame::read(std::istream& stream, DataMode mode) {
     ghoul_assert(stream.good(), "Bad stream");
@@ -571,7 +580,7 @@ bool Frame::read(std::istream& stream, DataMode mode) {
 
         // Check if we reached the end of the file
         if (stream.eof()) {
-            return false;
+            return true;
         }
 
         if (entryType == CameraFrame) {
@@ -609,7 +618,7 @@ bool Frame::read(std::istream& stream, DataMode mode) {
 
         // Check if we reached the end of the file
         if (stream.eof()) {
-            return false;
+            return true;
         }
         if (entryType == CameraFrame) {
             CameraMessage msg;
@@ -635,7 +644,7 @@ bool Frame::read(std::istream& stream, DataMode mode) {
         }
     }
 
-    return true;
+    return false;
 }
 
 void Frame::write(std::ostream& stream, DataMode mode) const {
@@ -690,6 +699,15 @@ void Frame::write(std::ostream& stream, DataMode mode) const {
                 d.write(stream, mode);
             }
             }, message);
+    }
+}
+
+SessionRecordingData::SessionRecordingData(const version1::SessionRecordingData& data) {
+    header = data.header;
+    header.version = Version;
+    frames.reserve(data.frames.size());
+    for (const version1::Frame& f : data.frames) {
+        frames.push_back(f);
     }
 }
 
@@ -799,10 +817,9 @@ std::filesystem::path convertSessionRecordingFile(const std::filesystem::path& p
 
             version1::SessionRecordingData oldData;
             oldData.read(p.string());
-            //version2::SessionRecordingData newData = oldData;
+            version2::SessionRecordingData newData = oldData;
             //version2::SessionRecordingData newData = version2::updateVersion(oldData);
-            oldData.header.version = Version;
-            oldData.write(target.string(), header.dataMode);
+            newData.write(target.string(), header.dataMode);
             p = target;
         }
         else {

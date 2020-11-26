@@ -137,11 +137,15 @@ inline namespace version2 {
     using CommentMessage = version1::CommentMessage;
 
     struct ScriptMessage : public version1::ScriptMessage {
+        ScriptMessage() = default;
+        ScriptMessage(const version1::ScriptMessage& msg);
         /*virtual*/ void read(std::istream& stream, DataMode mode);
         /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
     };
 
     struct Frame {
+        Frame() = default;
+        Frame(const version1::Frame& frame);
         //virtual ~Frame() = default;
         /*virtual*/ bool read(std::istream& stream, DataMode mode);
         /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
@@ -150,6 +154,8 @@ inline namespace version2 {
     };
 
     struct SessionRecordingData {
+        SessionRecordingData() = default;
+        SessionRecordingData(const version1::SessionRecordingData& data);
         //virtual ~SessionRecordingData() = default;
         /*virtual*/ void read(const std::string& filename);
         /*virtual*/ void write(const std::string& filename, DataMode mode) const;
