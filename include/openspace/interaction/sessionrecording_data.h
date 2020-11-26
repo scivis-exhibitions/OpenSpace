@@ -56,8 +56,10 @@ namespace version1 {
 
     struct Timestamp {
         //~Timestamp() = default;
-        /*virtual*/ void read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void readAscii(std::istream& stream);
+        /*virtual*/ void readBinary(std::istream& stream);
+        /*virtual*/ void writeAscii(std::ostream& stream) const;
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         double timeOs;
         double timeRec;
@@ -66,8 +68,10 @@ namespace version1 {
 
     struct CameraMessage {
         //virtual ~CameraMessage() = default;
-        /*virtual*/ void read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void readAscii(std::istream& stream);
+        /*virtual*/ void readBinary(std::istream& stream);
+        /*virtual*/ void writeAscii(std::ostream& stream) const;
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         Timestamp time;
         glm::dvec3 position;
@@ -80,8 +84,10 @@ namespace version1 {
 
     struct TimeMessage {
         //virtual ~TimeMessage() = default;
-        /*virtual*/ void read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void readAscii(std::istream& stream);
+        /*virtual*/ void readBinary(std::istream& stream);
+        /*virtual*/ void writeAscii(std::ostream& stream) const;
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         Timestamp time;
         double timeUnused; // is still in here for binary compatibility
@@ -93,8 +99,10 @@ namespace version1 {
 
     struct ScriptMessage {
         //virtual ~ScriptMessage() = default;
-        /*virtual*/ void read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void readAscii(std::istream& stream);
+        /*virtual*/ void readBinary(std::istream& stream);
+        /*virtual*/ void writeAscii(std::ostream& stream) const;
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         Timestamp time;
         std::string script;
@@ -103,16 +111,20 @@ namespace version1 {
 
     struct CommentMessage {
         //virtual ~CommentMessage() = default;
-        /*virtual*/ void read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void readAscii(std::istream& stream);
+        /*virtual*/ void readBinary(std::istream& stream);
+        /*virtual*/ void writeAscii(std::ostream& stream) const;
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         std::string comment;
     };
 
     struct Frame {
         //virtual ~Frame() = default;
-        /*virtual*/ bool read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ bool readAscii(std::istream& stream);
+        /*virtual*/ bool readBinary(std::istream& stream);
+        /*virtual*/ void writeAscii(std::ostream& stream) const;
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
 
         std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
     };
@@ -139,16 +151,18 @@ inline namespace version2 {
     struct ScriptMessage : public version1::ScriptMessage {
         ScriptMessage() = default;
         ScriptMessage(const version1::ScriptMessage& msg);
-        /*virtual*/ void read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void readBinary(std::istream& stream);
+        /*virtual*/ void writeBinary(std::ostream& stream) const;
     };
 
     struct Frame {
         Frame() = default;
         Frame(const version1::Frame& frame);
         //virtual ~Frame() = default;
-        /*virtual*/ bool read(std::istream& stream, DataMode mode);
-        /*virtual*/ void write(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ bool readAscii(std::istream& stream);
+        /*virtual*/ bool readBinary(std::istream& stream);
+        /*virtual*/ void writeAscii(std::ostream& stream, DataMode mode) const;
+        /*virtual*/ void writeBinary(std::ostream& stream, DataMode mode) const;
 
         std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
     };
@@ -170,125 +184,3 @@ inline namespace version2 {
 } // namespace version2
 
 } // namespace openspace::interaction::sessionrecording
-
-#if 0
-
-#include <ghoul/misc/exception.h>
-#include <ghoul/fmt.h>
-#include <ghoul/glm.h>
-#include <filesystem>
-#include <string_view>
-#include <utility>
-#include <variant>
-#include <vector>
-
-namespace openspace::interaction::sessionrecording {
-
-struct ConversionError : public ghoul::RuntimeError {
-    explicit ConversionError(std::string msg);
-};
-
-// How to update the version number:
-//   - Add a new namespace
-//   - Mark that namespace as `inline` and remove the `inline` from the previous version
-//   - Mark the `writeSessionRecording` from the previous version as `= delete`
-//   - Add the changes that make the version new into the new namespace
-//   - Add functions:
-//     * `SessionRecordingData updateVersion(versionX::SessionRecordingData)` that takes a
-//       session recording from versionX and returns a session recording object from your
-//       new version
-//     * `bool writeSessionRecording(const SessionRecordingData&, DataMode)` that writes
-//       the passed session recording to disk in the provided data mode
-//   - Add a new case to the if statement in the `convertSessionRecordingFile` function
-
-namespace version1 {
-    constexpr const std::string_view Version = "00.85";
-
-    enum class DataMode {
-        Ascii = 0,
-        Binary,
-        Unknown
-    };
-
-    struct Timestamp {
-        double timeOs;
-        double timeRec;
-        double timeSim;
-    };
-
-    struct CameraMessage {
-        glm::dvec3 position;
-        glm::dquat rotation;
-        bool followNodeRotation;
-        std::string focusNode;
-        float scale;
-        double timestamp;
-    };
-    
-    struct TimeMessage {
-        double time;
-        double dt;
-        bool paused;
-        bool requiresTimeJump;
-        double timestamp;
-    };
-    
-    struct ScriptMessage {
-        std::string script;
-        double timestamp;
-    };
-
-    struct CommentMessage {
-        std::string comment;
-    };
-
-    struct Frame {
-        Timestamp time;
-        std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
-    };
-    using SessionRecordingData = std::vector<Frame>;
-
-    DataMode characterToDataMode(unsigned char c);
-    SessionRecordingData readSessionRecording(const std::string& filename);
-    void writeSessionRecording(const SessionRecordingData& data,
-        const std::string& filename, DataMode mode) = delete;
-} // namespace version1
-
-
-inline namespace version2 {
-    constexpr const std::string_view Version = "01.00";
-
-    // This version only had changes in the way the session recording was loaded, so we
-    // retain all of the data structures from the previous version
-    using DataMode = version1::DataMode;
-    using Timestamp = version1::Timestamp;
-    using CameraMessage = version1::CameraMessage;
-    using TimeMessage = version1::TimeMessage;
-    using ScriptMessage = version1::ScriptMessage;
-    using Frame = version1::Frame;
-    using SessionRecordingData = version1::SessionRecordingData;
-
-    SessionRecordingData updateVersion(version1::SessionRecordingData sessionRecording);
-    SessionRecordingData readSessionRecording(const std::string& filename);
-    void writeSessionRecording(const SessionRecordingData& data,
-        const std::string& filename, DataMode mode);
-
-} // namespace version2
-
-// The header format has to be the same for all session recording versions
-struct Header {
-    static constexpr const std::string_view Title = "OpenSpace_record/playback";
-    static constexpr const int VersionLength = 5;
-
-    std::string version;
-    char dataMode;
-};
-Header readHeader(std::istream& stream);
-
-std::filesystem::path convertSessionRecordingFile(const std::filesystem::path& path);
-
-} // namespace openspace::interaction::sessionrecording
-
-#endif
-
-#endif // __OPENSPACE_CORE___SESSIONRECORDING_DATA___H__
