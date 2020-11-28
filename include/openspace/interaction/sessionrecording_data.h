@@ -131,17 +131,19 @@ namespace version1 {
         std::string comment;
     };
 
-    //template <typename... MessageTypes>
-    struct Frame {
+    template <typename... MessageTypes>
+    struct GenericFrame {
         //virtual ~Frame() = default;
         /*virtual*/ bool readAscii(std::istream& stream);
         /*virtual*/ bool readBinary(std::istream& stream);
         /*virtual*/ void writeAscii(std::ostream& stream) const;
         /*virtual*/ void writeBinary(std::ostream& stream) const;
 
-        std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
-        //std::variant<MessageTypes> message;
+        //std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
+        std::variant<MessageTypes...> message;
     };
+
+    using Frame = GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>;
 
     struct SessionRecordingData {
         //virtual ~SessionRecordingData() = default;

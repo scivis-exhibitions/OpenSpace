@@ -37,6 +37,27 @@ namespace {
     // Helper structs for the visitor pattern of the std::variant on projections
     template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
     template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+    //template <typename Func, typename... Ts>
+    //void for_all(Func&& f, Ts&&... ts) {
+    //    using expand = int[];
+    //    (void)expand {
+    //        0, (f(ts)), 0)...
+    //    };
+    //}
+
+    //template <class... Types>
+    //struct for_each_type;
+
+    //template <typename T>
+    //struct for_each_type<std::tuple<T>> {
+    //    template <class F, class... Args>
+    //    auto operator()(F&& f, Args&&... args) {
+    //        f.template operator()<T>(std::forward<Args>(args)...);
+    //        return std::forward<F>(f);
+    //    }
+    //};
+
 } // namespace
 
 namespace openspace::interaction::sessionrecording {
@@ -323,7 +344,18 @@ void CommentMessage::writeBinary(std::ostream& stream) const {
     stream.write(comment.data(), length);
 }
 
-bool Frame::readAscii(std::istream& stream) {
+
+//template <typename Message/*, typename... MessageTypes*/>
+//void handleMessage(Message, /*std::variant<MessageTypes...>& message,*/ std::string_view key, std::istream stream) {
+//    if (key == Message::Key) {
+//        Message msg;
+//        msg.readAscii(stream);
+//        //message = msg;
+//    }
+//}
+
+template <typename... MessageTypes>
+bool GenericFrame<MessageTypes...>::readAscii(std::istream& stream) {
     ghoul_assert(stream.good(), "Bad stream");
 
     std::string entryType;
@@ -333,6 +365,28 @@ bool Frame::readAscii(std::istream& stream) {
     if (stream.eof()) {
         return true;
     }
+
+    //for_each_type<std::tuple<MessageTypes...>>{}(
+    //    [&](auto& tuple, std::string_view key, std::istream& stream) {
+    //        if (key == tuple.AsciiKey) {
+    //            decltype(tuple) msg;
+    //            msg.readAscii(stream);
+    //            message = msg;
+    //        }
+
+    //    },
+    //    message, entryType, stream
+    //);
+
+    std::string_view key = entryType;
+    std::apply(
+        [this, key, &stream](auto& ...x) { (..., handleMessage(x, key, stream)); },
+        std::tuple<MessageTypes...>()
+    );
+
+    //for_all([&](std::string_view type, auto& msg) {
+    //    if (type == )
+    //}, MessageTypes...);
 
     if (entryType == CameraMessage::AsciiKey) {
         CameraMessage msg;
@@ -596,6 +650,7 @@ bool Frame::readBinary(std::istream& stream) {
     if (entryType == CameraFrame) {
         CameraMessage msg;
         msg.readBinary(stream);
+        message = msg;
     }
     else if (entryType == TimeFrame) {
         TimeMessage msg;
