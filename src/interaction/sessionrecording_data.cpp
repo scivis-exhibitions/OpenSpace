@@ -202,17 +202,10 @@ void GenericFrame<MessageTypes...>::writeBinary(std::ostream& stream) const {
 }
 
 template <typename HeaderType, typename FrameType>
-void GenericSessionRecordingData<HeaderType, FrameType>::read(const std::string& filename)
-{
-    std::ifstream stream;
-    stream.open(filename, std::ifstream::binary);
-
-    if (!stream.good()) {
-        throw ConversionError(fmt::format("Error opening file '{}'", filename));
-    }
+void GenericSessionRecordingData<HeaderType, FrameType>::read(std::istream& stream) {
+    ghoul_assert(stream.good(), "Bad stream");
 
     header.read(stream);
-
     if (header.dataMode == DataMode::Ascii) {
         int iLine = 0;
         std::string line;
@@ -273,16 +266,6 @@ void GenericSessionRecordingData<HeaderType, FrameType>::write(
     }
 
     header.write(stream);
-
-    //if (mode == DataMode::Ascii) {
-    //    std::string title = fmt::format("{}{}A\n", Header::Title, header.version);
-    //    stream << title;
-    //}
-    //else {
-    //    std::string title = fmt::format("{}{}B\n", Header::Title, header.version);
-    //    stream.write(title.data(), title.size());
-    //}
-
     for (const FrameType& frame : frames) {
         if (mode == DataMode::Ascii) {
             frame.writeAscii(stream);
@@ -535,7 +518,6 @@ void CommentMessage::writeBinary(std::ostream& stream) const {
     
     const size_t length = static_cast<size_t>(comment.size());
     stream.write(reinterpret_cast<const char*>(&length), sizeof(size_t));
- 
     stream.write(comment.data(), length);
 }
 
@@ -581,7 +563,8 @@ void ScriptMessage::writeBinary(std::ostream& stream) const {
 // We need to force instantiate all functions. We have template functions in the header
 // but don't actually provide the source code, so we might end up with unresolved symbol
 // errors if we don't use a function in here, but someone out there uses them
-template struct GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>;
+template struct GenericFrame<version1::CameraMessage, version1::TimeMessage,
+    ScriptMessage, version1::CommentMessage>;
 template struct GenericSessionRecordingData<Header, Frame>;
 
 Frame::Frame(version1::Frame frame) {
@@ -594,49 +577,95 @@ SessionRecordingData::SessionRecordingData(version1::SessionRecordingData data) 
     header.version = Version;
     frames.reserve(data.frames.size());
     for (version1::Frame f : data.frames) {
-        frames.push_back(Frame(std::move(f)));
+        frames.push_back(std::move(f));
     }
+}
+
+} // namespace version2
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/////   Functions
+//////////////////////////////////////////////////////////////////////////////////////////
+
+using Versions = std::variant<
+    version1::SessionRecordingData,
+    version2::SessionRecordingData
+>;
+Versions loadSessionRecording(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ifstream::binary);
+    Header header;
+    header.read(file);
+    file.seekg(0);
+
+    if (header.version == version1::Version) {
+        version1::SessionRecordingData data;
+        data.read(file);
+        return data;
+    }
+    else if (header.version == version2::Version) {
+        version2::SessionRecordingData data;
+        data.read(file);
+        return data;
+    }
+    else {
+        throw ConversionError(fmt::format("Unexpected version '{}'", header.version));
+    }
+}
+
+SessionRecordingData load(std::filesystem::path path) {
+    ghoul_assert(std::filesystem::exists(path), "Path must point to an existing file");
+    Versions versions = loadSessionRecording(path);
+
+    // One-by-one go through the versions and set up the version one by one
+    if (std::holds_alternative<version1::SessionRecordingData>(versions)) {
+        // version1 -> version2
+        auto oldData = std::get<version1::SessionRecordingData>(versions);
+        version2::SessionRecordingData newData = oldData;
+        versions = newData;
+    }
+    if (std::holds_alternative<SessionRecordingData>(versions)) {
+        // We have reached the current version
+        SessionRecordingData data = std::get<SessionRecordingData>(versions);
+        return data;
+    }
+    throw std::logic_error(
+        "Reached the end of the loading without getting to the most recent version, so "
+        "it looks like there is an if statement missing above"
+    );
 }
 
 std::filesystem::path convertSessionRecordingFile(const std::filesystem::path& path) {
     ghoul_assert(std::filesystem::exists(path), "Path must point to an existing file");
 
-    std::filesystem::path p = path;
-    while (true) {
-        std::ifstream file(p, std::ifstream::binary);
+    std::string oldVersion;
+    {
+        std::ifstream file(path, std::ifstream::binary);
         Header header;
         header.read(file);
         file.seekg(0);
 
-        if (header.version == Version) {
-            // We have reached the current version
-            return p;
-        }
-        else if (header.version == version1::Version) {
-            std::filesystem::path target = path;
-            target.replace_filename(fmt::format(
-                "{}_{}-{}.{}",
-                path.filename().stem().string(),
-                version1::Version,
-                version2::Version,
-                path.extension().string()
-            ));
-
-            version1::SessionRecordingData oldData;
-            oldData.read(p.string());
-            version2::SessionRecordingData newData = version2::SessionRecordingData(oldData);
-            newData.write(target.string(), header.dataMode);
-            p = target;
-        }
-        else {
-            throw ConversionError(fmt::format(
-                "Unexpected version number '{}' encountered while converting old session "
-                "recording format", header.version
-            ));
-        }
+        oldVersion = header.version;
     }
-}
 
-} // namespace version2
+    SessionRecordingData data = load(path);
+    ghoul_assert(
+        data.header.version == Version,
+        "Something went wrong with conversion in the load function and we haven't "
+        "received the most recent version"
+    );
+
+    std::filesystem::path target = path;
+    target.replace_filename(fmt::format(
+        "{}_{}-{}{}",
+        path.filename().stem().string(),
+        oldVersion,
+        Version,
+        path.has_extension() ? "." + path.extension().string() : ""
+    ));
+
+    data.write(target.string(), data.header.dataMode);
+    return target;
+}
 
 } // namespace::interaction::sessionrecording

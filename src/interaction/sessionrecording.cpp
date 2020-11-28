@@ -88,8 +88,8 @@ namespace {
     static const char DataFormatBinaryTag = 'B';
 
 
-    void saveHeaderAscii(sessionrecording::Timestamp& times, std::string_view type,
-                         std::stringstream& line)
+    void saveHeaderAscii(sessionrecording::version1::Timestamp& times,
+                         std::string_view type, std::stringstream& line)
     {
         line << type << ' ';
         line << times.timeOs << ' ';
@@ -154,7 +154,7 @@ namespace {
      * \param kfBuffer the char buffer holding the recording info to be written
      * \param idx index into write buffer (this is updated with the num of chars written)
      */
-    void saveHeaderBinary(sessionrecording::Timestamp& times, char type,
+    void saveHeaderBinary(sessionrecording::version1::Timestamp& times, char type,
                           unsigned char* kfBuffer, size_t& idx)
     {
         kfBuffer[idx++] = type;
@@ -170,7 +170,7 @@ namespace {
      * \param kf reference to a time keyframe which contains the time details
      * \param file an ofstream reference to the recording file being written-to
      */
-    void saveTimeKeyframeAscii(sessionrecording::Timestamp& times,
+    void saveTimeKeyframeAscii(sessionrecording::version1::Timestamp& times,
                                datamessagestructures::TimeKeyframe& kf,
                                std::ofstream& file)
     {
@@ -187,7 +187,7 @@ namespace {
      * \param kf reference to a camera keyframe which contains the camera details
      * \param file an ofstream reference to the recording file being written-to
      */
-    void saveCameraKeyframeAscii(sessionrecording::Timestamp& times,
+    void saveCameraKeyframeAscii(sessionrecording::version1::Timestamp& times,
                                  datamessagestructures::CameraKeyframe& kf,
                                  std::ofstream& file)
     {
@@ -204,7 +204,7 @@ namespace {
      * \param sm reference to a ScriptMessage which contains the script details
      * \param file an ofstream reference to the recording file being written-to
      */
-    void saveScriptKeyframeAscii(sessionrecording::Timestamp& times,
+    void saveScriptKeyframeAscii(sessionrecording::version1::Timestamp& times,
                                  datamessagestructures::ScriptMessage& sm,
                                  std::ofstream& file)
     {
@@ -215,7 +215,7 @@ namespace {
         saveKeyframeToFile(keyframeLine.str(), file);
     }
     
-    bool readScriptKeyframeBinary(sessionrecording::Timestamp& times,
+    bool readScriptKeyframeBinary(sessionrecording::version1::Timestamp& times,
                                   datamessagestructures::ScriptMessage& kf,
                                   std::ifstream& file, int lineN)
     {
@@ -248,7 +248,7 @@ namespace {
         return true;
     }
 
-    bool readScriptKeyframeAscii(sessionrecording::Timestamp& times,
+    bool readScriptKeyframeAscii(sessionrecording::version1::Timestamp& times,
                                  datamessagestructures::ScriptMessage& kf,
                                  std::string currentParsingLine, int lineN)
     {
@@ -269,7 +269,7 @@ namespace {
     }
 
     bool readSingleKeyframeScript(datamessagestructures::ScriptMessage& kf,
-                                  sessionrecording::Timestamp& times,
+                                  sessionrecording::version1::Timestamp& times,
                                   sessionrecording::DataMode mode,
                                   std::ifstream& file, std::string& inLine, int lineNum)
     {
@@ -281,7 +281,7 @@ namespace {
         }
     }
 
-    void saveScriptKeyframeBinary(sessionrecording::Timestamp& times,
+    void saveScriptKeyframeBinary(sessionrecording::version1::Timestamp& times,
                                   datamessagestructures::ScriptMessage& sm,
                                   unsigned char* smBuffer, std::ofstream& file)
     {
@@ -295,7 +295,7 @@ namespace {
     }
 
     void saveSingleKeyframeScript(datamessagestructures::ScriptMessage& kf,
-                                  sessionrecording::Timestamp& times,
+                                  sessionrecording::version1::Timestamp& times,
                                   sessionrecording::DataMode mode,
                                   std::ofstream& file, unsigned char* buffer)
     {
@@ -307,7 +307,7 @@ namespace {
         }
     }
 
-    bool readCameraKeyframeBinary(sessionrecording::Timestamp& times,
+    bool readCameraKeyframeBinary(sessionrecording::version1::Timestamp& times,
                                   datamessagestructures::CameraKeyframe& kf,
                                   std::ifstream& file, int lineN)
     {
@@ -344,7 +344,7 @@ namespace {
         return true;
     }
 
-    bool readCameraKeyframeAscii(sessionrecording::Timestamp& times,
+    bool readCameraKeyframeAscii(sessionrecording::version1::Timestamp& times,
                                  datamessagestructures::CameraKeyframe& kf,
                                  std::string currentParsingLine, int lineN)
     {
@@ -365,7 +365,7 @@ namespace {
         return true;
     }
 
-    void saveCameraKeyframeBinary(sessionrecording::Timestamp& times,
+    void saveCameraKeyframeBinary(sessionrecording::version1::Timestamp& times,
                                   datamessagestructures::CameraKeyframe& kf,
                                   unsigned char* kfBuffer, std::ofstream& file)
     {
@@ -381,7 +381,7 @@ namespace {
 
 
     bool readSingleKeyframeCamera(datamessagestructures::CameraKeyframe& kf,
-                                  sessionrecording::Timestamp& times,
+                                  sessionrecording::version1::Timestamp& times,
                                   sessionrecording::DataMode mode,
                                   std::ifstream& file, std::string& inLine, int lineNum)
     {
@@ -394,7 +394,7 @@ namespace {
     }
 
     void saveSingleKeyframeCamera(datamessagestructures::CameraKeyframe& kf,
-                                  sessionrecording::Timestamp& times,
+                                  sessionrecording::version1::Timestamp& times,
                                   sessionrecording::DataMode mode,
                                   std::ofstream& file, unsigned char* buffer)
     {
@@ -406,7 +406,7 @@ namespace {
         }
     }
 
-    bool readTimeKeyframeBinary(sessionrecording::Timestamp& times,
+    bool readTimeKeyframeBinary(sessionrecording::version1::Timestamp& times,
                                 datamessagestructures::TimeKeyframe& kf,
                                 std::ifstream& file, int lineN)
     {
@@ -439,7 +439,7 @@ namespace {
         return true;
     }
 
-    bool readTimeKeyframeAscii(sessionrecording::Timestamp& times,
+    bool readTimeKeyframeAscii(sessionrecording::version1::Timestamp& times,
                                datamessagestructures::TimeKeyframe& kf,
                                std::string currentParsingLine, int lineN)
     {
@@ -458,7 +458,7 @@ namespace {
     }
 
     bool readSingleKeyframeTime(datamessagestructures::TimeKeyframe& kf,
-                                sessionrecording::Timestamp& times,
+                                sessionrecording::version1::Timestamp& times,
                                 sessionrecording::DataMode mode, std::ifstream& file,
                                 std::string& inLine, int lineNum)
     {
@@ -470,7 +470,7 @@ namespace {
         }
     }
 
-    void saveTimeKeyframeBinary(sessionrecording::Timestamp& times,
+    void saveTimeKeyframeBinary(sessionrecording::version1::Timestamp& times,
                                 datamessagestructures::TimeKeyframe& kf,
                                 unsigned char* kfBuffer, std::ofstream& file)
     {
@@ -483,7 +483,7 @@ namespace {
     }
 
     void saveSingleKeyframeTime(datamessagestructures::TimeKeyframe& kf,
-                                sessionrecording::Timestamp& times,
+                                sessionrecording::version1::Timestamp& times,
                                 sessionrecording::DataMode mode,
                                 std::ofstream& file, unsigned char* buffer)
     {
@@ -856,7 +856,7 @@ void SessionRecording::saveCameraKeyframe() {
     // & orientation of camera
     datamessagestructures::CameraKeyframe kf = _externInteract.generateCameraKeyframe();
 
-    sessionrecording::Timestamp times = {
+    sessionrecording::version1::Timestamp times = {
         kf._timestamp,
         kf._timestamp - _timestampRecordStarted,
         global::timeManager->time().j2000Seconds()
@@ -872,7 +872,7 @@ void SessionRecording::saveTimeKeyframe() {
     //Create a time keyframe, then call to populate it with current time props
     datamessagestructures::TimeKeyframe kf = _externInteract.generateTimeKeyframe();
 
-    sessionrecording::Timestamp times = {
+    sessionrecording::version1::Timestamp times = {
         kf._timestamp,
         kf._timestamp - _timestampRecordStarted,
         global::timeManager->time().j2000Seconds()
@@ -889,7 +889,7 @@ void SessionRecording::saveScriptKeyframe(std::string scriptToSave)
     datamessagestructures::ScriptMessage sm
         = _externInteract.generateScriptMessage(scriptToSave);
 
-    sessionrecording::Timestamp times = {
+    sessionrecording::version1::Timestamp times = {
         sm._timestamp,
         sm._timestamp - _timestampRecordStarted,
         global::timeManager->time().j2000Seconds()
@@ -1127,7 +1127,7 @@ double SessionRecording::fixedDeltaTimeDuringFrameOutput() const {
 }
 
 bool SessionRecording::playbackCamera() {
-    sessionrecording::Timestamp times;
+    sessionrecording::version1::Timestamp times;
     datamessagestructures::CameraKeyframe kf;
 
     bool success = readSingleKeyframeCamera(
@@ -1154,7 +1154,7 @@ bool SessionRecording::playbackCamera() {
 }
 
 bool SessionRecording::playbackTimeChange() {
-    sessionrecording::Timestamp times;
+    sessionrecording::version1::Timestamp times;
     datamessagestructures::TimeKeyframe kf;
 
     bool success = readSingleKeyframeTime(
@@ -1177,7 +1177,7 @@ bool SessionRecording::playbackTimeChange() {
 }
 
 bool SessionRecording::playbackScript() {
-    sessionrecording::Timestamp times;
+    sessionrecording::version1::Timestamp times;
     datamessagestructures::ScriptMessage kf;
 
     bool success = readSingleKeyframeScript(

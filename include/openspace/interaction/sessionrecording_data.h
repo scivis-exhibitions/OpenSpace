@@ -64,12 +64,17 @@ struct GenericFrame {
 
 template <typename HeaderType, typename FrameType>
 struct GenericSessionRecordingData {
-    void read(const std::string& filename);
+    void read(std::istream& stream);
     void write(const std::string& filename, DataMode mode) const;
 
     HeaderType header;
     std::vector<FrameType> frames;
 };
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/////   Version 1
+//////////////////////////////////////////////////////////////////////////////////////////
 
 namespace version1 {
     constexpr const std::string_view Version = "00.85";
@@ -150,16 +155,15 @@ namespace version1 {
     {};
 
     struct SessionRecordingData : GenericSessionRecordingData<Header, Frame> {};
-
 } // namespace version1
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/////   Version 2
+//////////////////////////////////////////////////////////////////////////////////////////
 
 inline namespace version2 {
     constexpr const std::string_view Version = "01.00";
-
-    using Timestamp = version1::Timestamp;
-    using CameraMessage = version1::CameraMessage;
-    using TimeMessage = version1::TimeMessage;
-    using CommentMessage = version1::CommentMessage;
 
     struct ScriptMessage : public version1::ScriptMessage {
         ScriptMessage() = default;
@@ -168,20 +172,32 @@ inline namespace version2 {
         void writeBinary(std::ostream& stream) const;
     };
 
-    struct Frame : GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>
+    struct Frame : GenericFrame<
+        version1::CameraMessage,
+        version1::TimeMessage,
+        ScriptMessage,
+        version1::CommentMessage
+    >
     {
         Frame() = default;
-        explicit Frame(version1::Frame frame);
+        Frame(version1::Frame frame);
     };
 
     struct SessionRecordingData : GenericSessionRecordingData<Header, Frame> {
         SessionRecordingData() = default;
-        explicit SessionRecordingData(version1::SessionRecordingData data);
+        SessionRecordingData(version1::SessionRecordingData data);
     };
-
-    std::filesystem::path convertSessionRecordingFile(const std::filesystem::path& path);
-
 } // namespace version2
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/////   Functions
+//////////////////////////////////////////////////////////////////////////////////////////
+
+// Load the most current version
+SessionRecordingData load(std::filesystem::path path);
+
+std::filesystem::path convertSessionRecordingFile(const std::filesystem::path& path);
 
 } // namespace openspace::interaction::sessionrecording
 
