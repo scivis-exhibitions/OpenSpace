@@ -38,34 +38,66 @@ namespace {
     template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
     template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-    //template <typename Func, typename... Ts>
-    //void for_all(Func&& f, Ts&&... ts) {
-    //    using expand = int[];
-    //    (void)expand {
-    //        0, (f(ts)), 0)...
-    //    };
-    //}
+    // This function recursively goes through the list of types and tries to see if the
+    // passed 'key' matches any of the `AsciiKey` static member variables of the types. 
+    // If a match is found the `readAscii` function of that type is called and the value
+    // is returned.  If there is no match, an exception is thrown
+    template <size_t I = 0, typename... Ts>
+    std::variant<Ts...> handleAsciiMessage(std::string_view key, std::istream& stream) {
+        using T = std::tuple_element_t<I, std::tuple<Ts...>>;
 
-    //template <class... Types>
-    //struct for_each_type;
+        if (key == T::AsciiKey) {
+            T msg;
+            msg.readAscii(stream);
+            return msg;
+        }
 
-    //template <typename T>
-    //struct for_each_type<std::tuple<T>> {
-    //    template <class F, class... Args>
-    //    auto operator()(F&& f, Args&&... args) {
-    //        f.template operator()<T>(std::forward<Args>(args)...);
-    //        return std::forward<F>(f);
-    //    }
-    //};
+        if constexpr (I + 1 != sizeof...(Ts)) {
+            return handleAsciiMessage<I + 1, Ts...>(key, stream);
+        }
+        else {
+            throw openspace::interaction::sessionrecording::ConversionError(
+                fmt::format("Unknown message key '{}'", key)
+            );
+        }
+    }
+
+    // This function recursively goes through the list of types and tries to see if the
+    // passed 'key' matches any of the `BinaryKey` static member variables of the types.
+    // If a match is found the `readBinary` function of that type is called and the value
+    // is returned.  If there is no match, an exception is thrown
+    template <size_t I = 0, typename... Ts>
+    std::variant<Ts...> handleBinaryMessage(unsigned char key, std::istream& stream) {
+        using T = std::tuple_element_t<I, std::tuple<Ts...>>;
+
+        if (key == T::BinaryKey) {
+            T msg;
+            msg.readBinary(stream);
+            return msg;
+        }
+
+        if constexpr (I + 1 != sizeof...(Ts)) {
+            return handleBinaryMessage<I + 1, Ts...>(key, stream);
+        }
+        else {
+            throw openspace::interaction::sessionrecording::ConversionError(
+                fmt::format("Unknown message key '{}'", key)
+            );
+        }
+    }
 
 } // namespace
 
 namespace openspace::interaction::sessionrecording {
 
+//////////////////////////////////////////////////////////////////////////////////////////
+/////   Shared types
+//////////////////////////////////////////////////////////////////////////////////////////
+
+
 ConversionError::ConversionError(std::string msg)
     : ghoul::RuntimeError(std::move(msg), "ConversionError")
 {}
-
 
 void Header::read(std::istream& stream) {
     static std::array<char, Header::Title.size()> TitleBuffer = {};
@@ -103,6 +135,168 @@ void Header::read(std::istream& stream) {
         ghoul_assert(newline == '\n', "Expected newline character not found");
     }
 }
+
+void Header::write(std::ostream& stream) const {
+    if (dataMode == DataMode::Ascii) {
+        std::string title = fmt::format("{}{}A\n", Header::Title, version);
+        stream << title;
+    }
+    else {
+        std::string title = fmt::format("{}{}B\n", Header::Title, version);
+        stream.write(title.data(), title.size());
+    }
+}
+
+
+template <typename... MessageTypes>
+bool GenericFrame<MessageTypes...>::readAscii(std::istream& stream) {
+    ghoul_assert(stream.good(), "Bad stream");
+
+    std::string entryType;
+    stream >> entryType;
+
+    // Check if we reached the end of the file
+    if (stream.eof()) {
+        return true;
+    }
+
+    message = handleAsciiMessage<0, MessageTypes...>(entryType, stream);
+    return false;
+}
+
+template <typename... MessageTypes>
+bool GenericFrame<MessageTypes...>::readBinary(std::istream& stream) {
+    ghoul_assert(stream.good(), "Bad stream");
+
+    unsigned char entryType;
+    stream.read(reinterpret_cast<char*>(&entryType), sizeof(unsigned char));
+
+    // Check if we reached the end of the file
+    if (stream.eof()) {
+        return true;
+    }
+
+    message = handleBinaryMessage<0, MessageTypes...>(entryType, stream);
+    return false;
+}
+
+template <typename... MessageTypes>
+void GenericFrame<MessageTypes...>::writeAscii(std::ostream& stream) const {
+    ghoul_assert(stream.good(), "Bad stream");
+
+    std::visit([&](auto message) {
+        stream << message.AsciiKey << ' ';
+        message.writeAscii(stream);
+        stream << '\n';
+    }, message);
+}
+
+template <typename... MessageTypes>
+void GenericFrame<MessageTypes...>::writeBinary(std::ostream& stream) const {
+    ghoul_assert(stream.good(), "Bad stream");
+
+    std::visit([&](auto message) {
+        stream.write(&message.BinaryKey, sizeof(char));
+        message.writeBinary(stream);
+    }, message);
+}
+
+template <typename HeaderType, typename FrameType>
+void GenericSessionRecordingData<HeaderType, FrameType>::read(const std::string& filename)
+{
+    std::ifstream stream;
+    stream.open(filename, std::ifstream::binary);
+
+    if (!stream.good()) {
+        throw ConversionError(fmt::format("Error opening file '{}'", filename));
+    }
+
+    header.read(stream);
+
+    if (header.dataMode == DataMode::Ascii) {
+        int iLine = 0;
+        std::string line;
+        while (std::getline(stream, line)) {
+            iLine++;
+
+            std::istringstream iss(line);
+            try {
+                FrameType frame;
+                const bool eof = frame.readAscii(iss);
+                if (eof) {
+                    break;
+                }
+                frames.push_back(std::move(frame));
+            }
+            catch (const ConversionError& e) {
+                LERRORC(
+                    e.component,
+                    fmt::format("Error in line {}: {}", iLine, e.message)
+                );
+                break;
+            }
+        }
+    }
+    else {
+        while (!stream.eof()) {
+            try {
+                FrameType frame;
+                const bool eof = frame.readBinary(stream);
+                if (eof) {
+                    break;
+                }
+                frames.push_back(std::move(frame));
+            }
+            catch (const ConversionError& e) {
+                LERRORC(e.component, e.message);
+            }
+        }
+    }
+}
+
+template <typename HeaderType, typename FrameType>
+void GenericSessionRecordingData<HeaderType, FrameType>::write(
+                                                              const std::string& filename,
+                                                                      DataMode mode) const
+{
+    std::ofstream stream;
+    if (mode == DataMode::Ascii) {
+        stream.open(filename);
+        stream << std::setprecision(20);
+    }
+    else {
+        stream.open(filename, std::ofstream::binary);
+    }
+
+    if (!stream.good()) {
+        throw ghoul::RuntimeError(fmt::format("Error opening file '{}'", filename));
+    }
+
+    header.write(stream);
+
+    //if (mode == DataMode::Ascii) {
+    //    std::string title = fmt::format("{}{}A\n", Header::Title, header.version);
+    //    stream << title;
+    //}
+    //else {
+    //    std::string title = fmt::format("{}{}B\n", Header::Title, header.version);
+    //    stream.write(title.data(), title.size());
+    //}
+
+    for (const FrameType& frame : frames) {
+        if (mode == DataMode::Ascii) {
+            frame.writeAscii(stream);
+        }
+        else {
+            frame.writeBinary(stream);
+        }
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/////   Version 1
+//////////////////////////////////////////////////////////////////////////////////////////
 
 namespace version1 {
 
@@ -341,227 +535,26 @@ void CommentMessage::writeBinary(std::ostream& stream) const {
     
     const size_t length = static_cast<size_t>(comment.size());
     stream.write(reinterpret_cast<const char*>(&length), sizeof(size_t));
+ 
     stream.write(comment.data(), length);
 }
 
-
-//template <typename Message/*, typename... MessageTypes*/>
-//void handleMessage(Message, /*std::variant<MessageTypes...>& message,*/ std::string_view key, std::istream stream) {
-//    if (key == Message::Key) {
-//        Message msg;
-//        msg.readAscii(stream);
-//        //message = msg;
-//    }
-//}
-
-template <typename... MessageTypes>
-bool GenericFrame<MessageTypes...>::readAscii(std::istream& stream) {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    std::string entryType;
-    stream >> entryType;
-
-    // Check if we reached the end of the file
-    if (stream.eof()) {
-        return true;
-    }
-
-    //for_each_type<std::tuple<MessageTypes...>>{}(
-    //    [&](auto& tuple, std::string_view key, std::istream& stream) {
-    //        if (key == tuple.AsciiKey) {
-    //            decltype(tuple) msg;
-    //            msg.readAscii(stream);
-    //            message = msg;
-    //        }
-
-    //    },
-    //    message, entryType, stream
-    //);
-
-    std::string_view key = entryType;
-    std::apply(
-        [this, key, &stream](auto& ...x) { (..., handleMessage(x, key, stream)); },
-        std::tuple<MessageTypes...>()
-    );
-
-    //for_all([&](std::string_view type, auto& msg) {
-    //    if (type == )
-    //}, MessageTypes...);
-
-    if (entryType == CameraMessage::AsciiKey) {
-        CameraMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else if (entryType == TimeMessage::AsciiKey) {
-        TimeMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else if (entryType == ScriptMessage::AsciiKey) {
-        ScriptMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else if (entryType == CommentMessage::AsciiKey) {
-        CommentMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else {
-        throw ConversionError(fmt::format("Unknown frame type {}", entryType));
-    }
-
-    return false;
-}
-
-bool Frame::readBinary(std::istream& stream) {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    unsigned char entryType;
-    stream.read(reinterpret_cast<char*>(&entryType), sizeof(unsigned char));
-
-    // Check if we reached the end of the file
-    if (stream.eof()) {
-        return true;
-    }
-    if (entryType == CameraMessage::BinaryKey) {
-        CameraMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else if (entryType == TimeMessage::BinaryKey) {
-        TimeMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else if (entryType == ScriptMessage::BinaryKey) {
-        ScriptMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else if (entryType == CommentMessage::BinaryKey) {
-        CommentMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else {
-        throw ConversionError(fmt::format("Unknown frame type {}", entryType));
-    }
-
-    return false;
-}
-
-void Frame::writeAscii(std::ostream& stream) const {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    std::visit([&](auto message) {
-        stream << message.AsciiKey << ' ';
-        message.writeAscii(stream);
-        stream << '\n';
-    }, message);
-}
-
-void Frame::writeBinary(std::ostream& stream) const {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    std::visit([&](auto message) {
-        stream.write(&message.BinaryKey, sizeof(char));
-        message.writeBinary(stream);
-    }, message);
-}
-
-void SessionRecordingData::read(const std::string& filename) {
-    std::ifstream stream;
-    stream.open(filename, std::ifstream::binary);
-
-    if (!stream.good()) {
-        throw ConversionError(fmt::format("Error opening file '{}'", filename));
-    }
-
-    header.read(stream);
-
-    SessionRecordingData data;
-    if (header.dataMode == DataMode::Ascii) {
-        int iLine = 0;
-        std::string line;
-        while (std::getline(stream, line)) {
-            iLine++;
-
-            std::istringstream iss(line);
-            try {
-                Frame frame;
-                bool eof = frame.readAscii(iss);
-                if (eof) {
-                    break;
-                }
-                frames.push_back(std::move(frame));
-            }
-            catch (const ConversionError& e) {
-                LERRORC(
-                    e.component,
-                    fmt::format("Error in line {}: {}", iLine, e.message)
-                );
-                break;
-            }
-        }
-    }
-    else {
-        while (!stream.eof()) {
-            try {
-                Frame frame;
-                bool eof = frame.readBinary(stream);
-                if (eof) {
-                    break;
-                }
-                frames.push_back(std::move(frame));
-            }
-            catch (const ConversionError& e) {
-                LERRORC(e.component, e.message);
-            }
-        }
-    }
-}
-
-void SessionRecordingData::write(const std::string& filename, DataMode mode) const {
-    std::ofstream stream;
-    if (mode == DataMode::Ascii) {
-        stream.open(filename);
-        stream << std::setprecision(20);
-    }
-    else {
-        stream.open(filename, std::ofstream::binary);
-    }
-
-    if (!stream.good()) {
-        throw ghoul::RuntimeError(fmt::format("Error opening file '{}'", filename));
-    }
-
-    if (mode == DataMode::Ascii) {
-        std::string title = fmt::format("{}{}A\n", Header::Title, Version);
-        stream << title;
-    }
-    else {
-        std::string title = fmt::format("{}{}B\n", Header::Title, Version);
-        stream.write(title.data(), title.size());
-    }
-
-    for (const Frame& frame : frames) {
-        if (mode == DataMode::Ascii) {
-            frame.writeAscii(stream);
-        }
-        else {
-            frame.writeBinary(stream);
-        }
-    }
-}
+// We need to force instantiate all functions. We have template functions in the header
+// but don't actually provide the source code, so we might end up with unresolved symbol
+// errors if we don't use a function in here, but someone out there uses them
+template struct GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>;
+template struct GenericSessionRecordingData<Header, Frame>;
 
 } // namespace version1
 
+//////////////////////////////////////////////////////////////////////////////////////////
+/////   Version 2
+//////////////////////////////////////////////////////////////////////////////////////////
+
 namespace version2 {
 
-ScriptMessage::ScriptMessage(const version1::ScriptMessage& msg)
-    : version1::ScriptMessage(msg)
+ScriptMessage::ScriptMessage(version1::ScriptMessage msg)
+    : version1::ScriptMessage(std::move(msg))
 {}
 
 void ScriptMessage::readBinary(std::istream& stream) {
@@ -585,242 +578,23 @@ void ScriptMessage::writeBinary(std::ostream& stream) const {
     stream.write(script.data(), length);
 }
 
-Frame::Frame(const version1::Frame& frame) {
+// We need to force instantiate all functions. We have template functions in the header
+// but don't actually provide the source code, so we might end up with unresolved symbol
+// errors if we don't use a function in here, but someone out there uses them
+template struct GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>;
+template struct GenericSessionRecordingData<Header, Frame>;
+
+Frame::Frame(version1::Frame frame) {
+    // Just a 1 to 1 mapping between the frame types since no new type was added
     std::visit([&](auto a) { message = a; }, frame.message);
 }
 
-bool Frame::readAscii(std::istream& stream) {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    constexpr const std::string_view CameraFrame = "camera";
-    constexpr const std::string_view TimeFrame = "time";
-    constexpr const std::string_view ScriptFrame = "script";
-    constexpr const std::string_view CommentFrame = "#";
-
-    std::string entryType;
-    stream >> entryType;
-
-    // Check if we reached the end of the file
-    if (stream.eof()) {
-        return true;
-    }
-
-    if (entryType == CameraFrame) {
-        CameraMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else if (entryType == TimeFrame) {
-        TimeMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else if (entryType == ScriptFrame) {
-        ScriptMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else if (entryType == CommentFrame) {
-        CommentMessage msg;
-        msg.readAscii(stream);
-        message = msg;
-    }
-    else {
-        throw ConversionError(fmt::format("Unknown frame type {}", entryType));
-    }
-
-    return false;
-}
-
-bool Frame::readBinary(std::istream& stream) {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    constexpr const unsigned char CameraFrame = 'c';
-    constexpr const unsigned char TimeFrame = 't';
-    constexpr const unsigned char ScriptFrame = 's';
-    constexpr const unsigned char CommentFrame = '#';
-
-    unsigned char entryType;
-    stream.read(reinterpret_cast<char*>(&entryType), sizeof(unsigned char));
-
-    // Check if we reached the end of the file
-    if (stream.eof()) {
-        return true;
-    }
-    if (entryType == CameraFrame) {
-        CameraMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else if (entryType == TimeFrame) {
-        TimeMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else if (entryType == ScriptFrame) {
-        ScriptMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else if (entryType == CommentFrame) {
-        CommentMessage msg;
-        msg.readBinary(stream);
-        message = msg;
-    }
-    else {
-        throw ConversionError(fmt::format("Unknown frame type {}", entryType));
-    }
-
-    return false;
-}
-
-void Frame::writeAscii(std::ostream& stream) const {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    std::visit(overloaded{
-        [&](const CameraMessage& d) {
-            constexpr const std::string_view CameraFrame = "camera";
-            stream << CameraFrame << ' ';
-            d.writeAscii(stream);
-            stream << '\n';
-        },
-        [&](const TimeMessage& d) {
-            constexpr const std::string_view TimeFrame = "time";
-            stream << TimeFrame << ' ';
-            d.writeAscii(stream);
-            stream << '\n';
-        },
-        [&](const ScriptMessage& d) {
-            constexpr const std::string_view ScriptFrame = "script";
-            stream << ScriptFrame << ' ';
-            d.writeAscii(stream);
-            stream << '\n';
-        },
-        [&](const CommentMessage& d) {
-            d.writeAscii(stream);
-            stream << '\n';
-        }
-    }, message);
-}
-
-void Frame::writeBinary(std::ostream& stream) const {
-    ghoul_assert(stream.good(), "Bad stream");
-
-    std::visit(overloaded{
-        [&](const CameraMessage& d) {
-            constexpr const char CameraFrame = 'c';
-            stream.write(&CameraFrame, sizeof(char));
-            d.writeBinary(stream);
-        },
-        [&](const TimeMessage& d) {
-            constexpr const char TimeFrame = 't';
-            stream.write(&TimeFrame, sizeof(char));
-            d.writeBinary(stream);
-        },
-        [&](const ScriptMessage& d) {
-            constexpr const char ScriptFrame = 's';
-            stream.write(&ScriptFrame, sizeof(char));
-            d.writeBinary(stream);
-        },
-        [&](const CommentMessage& d) {
-            constexpr const char CommentFrame = '#';
-            stream.write(&CommentFrame, sizeof(char));
-            d.writeBinary(stream);
-        }
-    }, message);
-}
-
-SessionRecordingData::SessionRecordingData(const version1::SessionRecordingData& data) {
+SessionRecordingData::SessionRecordingData(version1::SessionRecordingData data) {
     header = data.header;
     header.version = Version;
     frames.reserve(data.frames.size());
-    for (const version1::Frame& f : data.frames) {
-        frames.push_back(f);
-    }
-}
-
-void SessionRecordingData::read(const std::string& filename) {
-    std::ifstream stream;
-    stream.open(filename, std::ifstream::binary);
-
-    if (!stream.good()) {
-        throw ConversionError(fmt::format("Error opening file '{}'", filename));
-    }
-
-    header.read(stream);
-
-    SessionRecordingData data;
-    if (header.dataMode == DataMode::Ascii) {
-        int iLine = 0;
-        std::string line;
-        while (std::getline(stream, line)) {
-            iLine++;
-
-            std::istringstream iss(line);
-            try {
-                Frame frame;
-                bool eof = frame.readAscii(iss);
-                if (eof) {
-                    break;
-                }
-                frames.push_back(std::move(frame));
-            }
-            catch (const ConversionError& e) {
-                LERRORC(
-                    e.component,
-                    fmt::format("Error in line {}: {}", iLine, e.message)
-                );
-                break;
-            }
-        }
-    }
-    else {
-        while (!stream.eof()) {
-            try {
-                Frame frame;
-                bool eof = frame.readBinary(stream);
-                if (eof) {
-                    break;
-                }
-                frames.push_back(std::move(frame));
-            }
-            catch (const ConversionError& e) {
-                LERRORC(e.component, e.message);
-            }
-        }
-    }
-}
-
-void SessionRecordingData::write(const std::string& filename, DataMode mode) const {
-    std::ofstream stream;
-    if (mode == DataMode::Ascii) {
-        stream.open(filename);
-        stream << std::setprecision(20);
-    }
-    else {
-        stream.open(filename, std::ofstream::binary);
-    }
-
-    if (!stream.good()) {
-        throw ghoul::RuntimeError(fmt::format("Error opening file '{}'", filename));
-    }
-
-    if (mode == DataMode::Ascii) {
-        std::string title = fmt::format("{}{}A\n", Header::Title, header.version);
-        stream << title;
-    }
-    else {
-        std::string title = fmt::format("{}{}B\n", Header::Title, header.version);
-        stream.write(title.data(), title.size());
-    }
-
-    for (const Frame& frame : frames) {
-        if (mode == DataMode::Ascii) {
-            frame.writeAscii(stream);
-        }
-        else {
-            frame.writeBinary(stream);
-        }
+    for (version1::Frame f : data.frames) {
+        frames.push_back(Frame(std::move(f)));
     }
 }
 
@@ -850,8 +624,7 @@ std::filesystem::path convertSessionRecordingFile(const std::filesystem::path& p
 
             version1::SessionRecordingData oldData;
             oldData.read(p.string());
-            version2::SessionRecordingData newData = oldData;
-            //version2::SessionRecordingData newData = version2::updateVersion(oldData);
+            version2::SessionRecordingData newData = version2::SessionRecordingData(oldData);
             newData.write(target.string(), header.dataMode);
             p = target;
         }

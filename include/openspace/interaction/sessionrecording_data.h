@@ -46,20 +46,39 @@ struct Header {
     static constexpr const int VersionLength = 5;
 
     void read(std::istream& stream);
+    void write(std::ostream& stream) const;
 
     std::string version;
     DataMode dataMode;
+};
+
+template <typename... MessageTypes>
+struct GenericFrame {
+    bool readAscii(std::istream& stream);
+    bool readBinary(std::istream& stream);
+    void writeAscii(std::ostream& stream) const;
+    void writeBinary(std::ostream& stream) const;
+
+    std::variant<MessageTypes...> message;
+};
+
+template <typename HeaderType, typename FrameType>
+struct GenericSessionRecordingData {
+    void read(const std::string& filename);
+    void write(const std::string& filename, DataMode mode) const;
+
+    HeaderType header;
+    std::vector<FrameType> frames;
 };
 
 namespace version1 {
     constexpr const std::string_view Version = "00.85";
 
     struct Timestamp {
-        //~Timestamp() = default;
-        /*virtual*/ void readAscii(std::istream& stream);
-        /*virtual*/ void readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream) const;
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
+        void readAscii(std::istream& stream);
+        void readBinary(std::istream& stream);
+        void writeAscii(std::ostream& stream) const;
+        void writeBinary(std::ostream& stream) const;
 
         double timeOs;
         double timeRec;
@@ -70,11 +89,10 @@ namespace version1 {
         static constexpr const std::string_view AsciiKey = "camera";
         static constexpr const char BinaryKey = 'c';
 
-        //virtual ~CameraMessage() = default;
-        /*virtual*/ void readAscii(std::istream& stream);
-        /*virtual*/ void readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream) const;
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
+        void readAscii(std::istream& stream);
+        void readBinary(std::istream& stream);
+        void writeAscii(std::ostream& stream) const;
+        void writeBinary(std::ostream& stream) const;
 
         Timestamp time;
         glm::dvec3 position;
@@ -89,11 +107,10 @@ namespace version1 {
         static constexpr const std::string_view AsciiKey = "time";
         static constexpr const char BinaryKey = 't';
 
-        //virtual ~TimeMessage() = default;
-        /*virtual*/ void readAscii(std::istream& stream);
-        /*virtual*/ void readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream) const;
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
+        void readAscii(std::istream& stream);
+        void readBinary(std::istream& stream);
+        void writeAscii(std::ostream& stream) const;
+        void writeBinary(std::ostream& stream) const;
 
         Timestamp time;
         double timeUnused; // is still in here for binary compatibility
@@ -107,11 +124,10 @@ namespace version1 {
         static constexpr const std::string_view AsciiKey = "script";
         static constexpr const char BinaryKey = 's';
 
-        //virtual ~ScriptMessage() = default;
-        /*virtual*/ void readAscii(std::istream& stream);
-        /*virtual*/ void readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream) const;
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
+        void readAscii(std::istream& stream);
+        void readBinary(std::istream& stream);
+        void writeAscii(std::ostream& stream) const;
+        void writeBinary(std::ostream& stream) const;
 
         Timestamp time;
         std::string script;
@@ -122,37 +138,18 @@ namespace version1 {
         static constexpr const std::string_view AsciiKey = "#";
         static constexpr const char BinaryKey = '#';
 
-        //virtual ~CommentMessage() = default;
-        /*virtual*/ void readAscii(std::istream& stream);
-        /*virtual*/ void readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream) const;
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
+        void readAscii(std::istream& stream);
+        void readBinary(std::istream& stream);
+        void writeAscii(std::ostream& stream) const;
+        void writeBinary(std::ostream& stream) const;
 
         std::string comment;
     };
 
-    template <typename... MessageTypes>
-    struct GenericFrame {
-        //virtual ~Frame() = default;
-        /*virtual*/ bool readAscii(std::istream& stream);
-        /*virtual*/ bool readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream) const;
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
+    struct Frame : GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>
+    {};
 
-        //std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
-        std::variant<MessageTypes...> message;
-    };
-
-    using Frame = GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>;
-
-    struct SessionRecordingData {
-        //virtual ~SessionRecordingData() = default;
-        /*virtual*/ void read(const std::string& filename);
-        /*virtual*/ void write(const std::string& filename, DataMode mode) const;
-
-        Header header;
-        std::vector<Frame> frames;
-    };
+    struct SessionRecordingData : GenericSessionRecordingData<Header, Frame> {};
 
 } // namespace version1
 
@@ -166,34 +163,21 @@ inline namespace version2 {
 
     struct ScriptMessage : public version1::ScriptMessage {
         ScriptMessage() = default;
-        ScriptMessage(const version1::ScriptMessage& msg);
-        /*virtual*/ void readBinary(std::istream& stream);
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
+        ScriptMessage(version1::ScriptMessage msg);
+        void readBinary(std::istream& stream);
+        void writeBinary(std::ostream& stream) const;
     };
 
-    struct Frame {
+    struct Frame : GenericFrame<CameraMessage, TimeMessage, ScriptMessage, CommentMessage>
+    {
         Frame() = default;
-        Frame(const version1::Frame& frame);
-        //virtual ~Frame() = default;
-        /*virtual*/ bool readAscii(std::istream& stream);
-        /*virtual*/ bool readBinary(std::istream& stream);
-        /*virtual*/ void writeAscii(std::ostream& stream) const;
-        /*virtual*/ void writeBinary(std::ostream& stream) const;
-
-        std::variant<CameraMessage, TimeMessage, ScriptMessage, CommentMessage> message;
+        explicit Frame(version1::Frame frame);
     };
 
-    struct SessionRecordingData {
+    struct SessionRecordingData : GenericSessionRecordingData<Header, Frame> {
         SessionRecordingData() = default;
-        SessionRecordingData(const version1::SessionRecordingData& data);
-        //virtual ~SessionRecordingData() = default;
-        /*virtual*/ void read(const std::string& filename);
-        /*virtual*/ void write(const std::string& filename, DataMode mode) const;
-
-        Header header;
-        std::vector<Frame> frames;
+        explicit SessionRecordingData(version1::SessionRecordingData data);
     };
-
 
     std::filesystem::path convertSessionRecordingFile(const std::filesystem::path& path);
 
