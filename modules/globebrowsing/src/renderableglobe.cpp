@@ -1277,16 +1277,22 @@ void RenderableGlobe::renderChunks(const RenderData& data, RendererTasks&,
 
     // Render all chunks that want to be rendered globally
     _globalRenderer.program->activate();
-    for (int i = 0; i < globalCount; ++i) {
-        renderChunkGlobally(*_globalChunkBuffer[i], data, shadowData, renderGeomOnly);
-    }
+    {
+        ZoneScopedN("render-all-global-chunks")
+        for (int i = 0; i < globalCount; ++i) {
+            renderChunkGlobally(*_globalChunkBuffer[i], data, shadowData, renderGeomOnly);
+        }
+    }    
     _globalRenderer.program->deactivate();
 
 
     // Render all chunks that need to be rendered locally
     _localRenderer.program->activate();
-    for (int i = 0; i < localCount; ++i) {
-        renderChunkLocally(*_localChunkBuffer[i], data, shadowData, renderGeomOnly);
+    {
+        ZoneScopedN("render-all-local-chunks")
+        for (int i = 0; i < localCount; ++i) {
+            renderChunkLocally(*_localChunkBuffer[i], data, shadowData, renderGeomOnly);
+        }
     }
     _localRenderer.program->deactivate();
 

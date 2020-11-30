@@ -29,6 +29,7 @@
 #include <openspace/scene/translation.h>
 #include <openspace/util/updatestructures.h>
 #include <ghoul/opengl/programobject.h>
+#include <ghoul/misc/profiling.h>
 #include <numeric>
 
 // This class is using a VBO ring buffer + a constantly updated point as follows:
@@ -253,6 +254,12 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                 GL_ARRAY_BUFFER,
                 _primaryRenderInformation.first * sizeof(TrailVBOLayout),
                 sizeof(TrailVBOLayout),
+                nullptr
+            );
+            glBufferSubData(
+                GL_ARRAY_BUFFER,
+                _primaryRenderInformation.first * sizeof(TrailVBOLayout),
+                sizeof(TrailVBOLayout),
                 _vertexArray.data() + _primaryRenderInformation.first
             );
         }
@@ -262,13 +269,21 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
         if (report.nUpdated == UpdateReport::All) {
             // If all of the values have been invalidated, we need to upload the entire
             // array
-            glBufferData(
-                GL_ARRAY_BUFFER,
-                _vertexArray.size() * sizeof(TrailVBOLayout),
-                _vertexArray.data(),
-                GL_STREAM_DRAW
-            );
-
+            {
+                ZoneScopedN("TrailOrbit Update VBO")
+                    glBufferData(
+                        GL_ARRAY_BUFFER,
+                        _vertexArray.size() * sizeof(TrailVBOLayout),
+                        nullptr,
+                        GL_STREAM_DRAW
+                    );
+                    glBufferData(
+                        GL_ARRAY_BUFFER,
+                        _vertexArray.size() * sizeof(TrailVBOLayout),
+                        _vertexArray.data(),
+                        GL_STREAM_DRAW
+                    );
+            }
             if (_indexBufferDirty) {
                 // We only need to upload the index buffer if it has been invalidated
                 // by changing the number of values we want to represent
@@ -276,12 +291,21 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                     GL_ELEMENT_ARRAY_BUFFER,
                     _primaryRenderInformation._iBufferID
                 );
-                glBufferData(
-                    GL_ELEMENT_ARRAY_BUFFER,
-                    _indexArray.size() * sizeof(unsigned int),
-                    _indexArray.data(),
-                    GL_STATIC_DRAW
-                );
+                {
+                    ZoneScopedN("TrailOrbit Update EBO")
+                        glBufferData(
+                            GL_ELEMENT_ARRAY_BUFFER,
+                            _indexArray.size() * sizeof(unsigned int),
+                            nullptr,
+                            GL_STATIC_DRAW
+                        );
+                        glBufferData(
+                            GL_ELEMENT_ARRAY_BUFFER,
+                            _indexArray.size() * sizeof(unsigned int),
+                            _indexArray.data(),
+                            GL_STATIC_DRAW
+                        );
+                }
                 _indexBufferDirty = false;
             }
         }
@@ -289,12 +313,21 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
             // The lambda expression that will upload parts of the array starting at
             // begin and containing length number of elements
             auto upload = [this](int begin, int length) {
-                glBufferSubData(
-                    GL_ARRAY_BUFFER,
-                    begin * sizeof(TrailVBOLayout),
-                    sizeof(TrailVBOLayout) * length,
-                    _vertexArray.data() + begin
-                );
+                {
+                    ZoneScopedN("TrailOrbit Update Parts of VBO")
+                        glBufferSubData(
+                            GL_ARRAY_BUFFER,
+                            begin * sizeof(TrailVBOLayout),
+                            sizeof(TrailVBOLayout) * length,
+                            nullptr
+                        );
+                        glBufferSubData(
+                            GL_ARRAY_BUFFER,
+                            begin * sizeof(TrailVBOLayout),
+                            sizeof(TrailVBOLayout) * length,
+                            _vertexArray.data() + begin
+                        );
+                }
             };
 
             // Only update the changed ones
