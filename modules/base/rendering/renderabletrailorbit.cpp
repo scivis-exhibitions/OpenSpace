@@ -217,6 +217,8 @@ void RenderableTrailOrbit::deinitializeGL() {
 }
 
 void RenderableTrailOrbit::update(const UpdateData& data) {
+    ZoneScoped
+    TracyGpuZone("TrailUpdate")
     // Overview:
     // 1. Update trails
     // 2. Update floating position
@@ -248,20 +250,23 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
     // 3
     if (!report.permanentPointsNeedUpdate) {
         if (report.floatingPointNeedsUpdate) {
-            // If no other values have been touched, we only need to upload the
-            // floating value
-            glBufferSubData(
-                GL_ARRAY_BUFFER,
-                _primaryRenderInformation.first * sizeof(TrailVBOLayout),
-                sizeof(TrailVBOLayout),
-                nullptr
-            );
-            glBufferSubData(
-                GL_ARRAY_BUFFER,
-                _primaryRenderInformation.first * sizeof(TrailVBOLayout),
-                sizeof(TrailVBOLayout),
-                _vertexArray.data() + _primaryRenderInformation.first
-            );
+            {
+                ZoneScopedN("TrailOrbit Update Data in the VBO")
+                    // If no other values have been touched, we only need to upload the
+                    // floating value
+                    glBufferSubData(
+                        GL_ARRAY_BUFFER,
+                        _primaryRenderInformation.first * sizeof(TrailVBOLayout),
+                        sizeof(TrailVBOLayout),
+                        nullptr
+                    );
+                glBufferSubData(
+                    GL_ARRAY_BUFFER,
+                    _primaryRenderInformation.first * sizeof(TrailVBOLayout),
+                    sizeof(TrailVBOLayout),
+                    _vertexArray.data() + _primaryRenderInformation.first
+                );
+            }
         }
     }
     else {
