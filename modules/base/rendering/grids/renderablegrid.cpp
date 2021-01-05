@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -81,7 +81,8 @@ documentation::Documentation RenderableGrid::Documentation() {
             },
             {
                 SegmentsInfo.identifier,
-                new DoubleVector2Verifier, // @TODO (emmbr 2020-07-07): should be Int, but specification test fails...
+                // @TODO (emmbr 2020-07-07): should be Int, but specification test fails..
+                new DoubleVector2Verifier,
                 Optional::Yes,
                 SegmentsInfo.description
             },
@@ -118,14 +119,14 @@ RenderableGrid::RenderableGrid(const ghoul::Dictionary& dictionary)
     registerUpdateRenderBinFromOpacity();
 
     if (dictionary.hasKey(GridColorInfo.identifier)) {
-        _gridColor = dictionary.value<glm::vec3>(GridColorInfo.identifier);
+        _gridColor = dictionary.value<glm::dvec3>(GridColorInfo.identifier);
     }
     _gridColor.setViewOption(properties::Property::ViewOptions::Color);
     addProperty(_gridColor);
 
     if (dictionary.hasKey(SegmentsInfo.identifier)) {
         _segments = static_cast<glm::uvec2>(
-            dictionary.value<glm::vec2>(SegmentsInfo.identifier)
+            dictionary.value<glm::dvec2>(SegmentsInfo.identifier)
         );
     }
     _segments.onChange([&]() { _gridIsDirty = true; });
@@ -139,7 +140,7 @@ RenderableGrid::RenderableGrid(const ghoul::Dictionary& dictionary)
     addProperty(_lineWidth);
 
     if (dictionary.hasKey(SizeInfo.identifier)) {
-        _size = dictionary.value<glm::vec2>(SizeInfo.identifier);
+        _size = dictionary.value<glm::dvec2>(SizeInfo.identifier);
     }
     _size.onChange([&]() { _gridIsDirty = true; });
     addProperty(_size);
@@ -230,13 +231,13 @@ void RenderableGrid::update(const UpdateData&) {
 
     const glm::vec2 halfSize = _size.value() / 2.f;
     const glm::uvec2 nSegments = _segments.value();
-    const glm::vec2 step = _size.value() / static_cast<glm::vec2>(nSegments); 
+    const glm::vec2 step = _size.value() / static_cast<glm::vec2>(nSegments);
 
     const int nLines = (2 * nSegments.x * nSegments.y) + nSegments.x + nSegments.y;
     const int nVertices = 2 * nLines;
     _varray.resize(nVertices);
     // OBS! Could be optimized further by removing duplicate vertices
-       
+
     int nr = 0;
     for (unsigned int i = 0; i < nSegments.x; ++i) {
         for (unsigned int j = 0; j < nSegments.y; ++j) {

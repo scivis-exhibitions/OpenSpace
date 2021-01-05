@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -86,8 +86,8 @@ private:
 
     ghoul::opengl::ProgramObject* _program = nullptr;
     UniformCache(opacity, nLightSources, lightDirectionsViewSpace, lightIntensities,
-        modelViewTransform, normalTransform, projectionTransform, 
-        performShading, texture, ambientIntensity, diffuseIntensity, 
+        modelViewTransform, normalTransform, projectionTransform,
+        performShading, texture, ambientIntensity, diffuseIntensity,
         specularIntensity, opacityBlending) _uniformCache;
 
     std::vector<std::unique_ptr<LightSource>> _lightSources;

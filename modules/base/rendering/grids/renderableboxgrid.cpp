@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -110,7 +110,7 @@ RenderableBoxGrid::RenderableBoxGrid(const ghoul::Dictionary& dictionary)
     registerUpdateRenderBinFromOpacity();
 
     if (dictionary.hasKey(GridColorInfo.identifier)) {
-        _gridColor = dictionary.value<glm::vec3>(GridColorInfo.identifier);
+        _gridColor = dictionary.value<glm::dvec3>(GridColorInfo.identifier);
     }
     _gridColor.setViewOption(properties::Property::ViewOptions::Color);
     addProperty(_gridColor);
@@ -123,7 +123,7 @@ RenderableBoxGrid::RenderableBoxGrid(const ghoul::Dictionary& dictionary)
     addProperty(_lineWidth);
 
     if (dictionary.hasKey(SizeInfo.identifier)) {
-        _size = dictionary.value<glm::vec3>(SizeInfo.identifier);
+        _size = dictionary.value<glm::dvec3>(SizeInfo.identifier);
     }
     _size.onChange([&]() { _gridIsDirty = true; });
     addProperty(_size);
@@ -272,14 +272,7 @@ void RenderableBoxGrid::update(const UpdateData&) {
             GL_STATIC_DRAW
         );
 
-        glVertexAttribPointer(
-            0,
-            3,
-            GL_FLOAT,
-            GL_FALSE,
-            sizeof(Vertex),
-            nullptr 
-        );
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
 
         glBindVertexArray(0);
 
