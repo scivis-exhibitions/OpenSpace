@@ -252,20 +252,27 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
         if (report.floatingPointNeedsUpdate) {
             {
                 ZoneScopedN("TrailOrbit Update Data in the VBO")
-                    // If no other values have been touched, we only need to upload the
-                    // floating value
-                    glBufferSubData(
-                        GL_ARRAY_BUFFER,
-                        _primaryRenderInformation.first * sizeof(TrailVBOLayout),
-                        sizeof(TrailVBOLayout),
-                        nullptr
-                    );
-                glBufferSubData(
+                // If no other values have been touched, we only need to upload the
+                // floating value
+                /*glBufferSubData(
                     GL_ARRAY_BUFFER,
                     _primaryRenderInformation.first * sizeof(TrailVBOLayout),
                     sizeof(TrailVBOLayout),
                     _vertexArray.data() + _primaryRenderInformation.first
-                );
+                );*/
+
+                _primaryRenderInformation.vBufferMapPointer =
+                    glMapBufferRange(
+                        GL_ARRAY_BUFFER,
+                        _primaryRenderInformation.first * sizeof(TrailVBOLayout),
+                        sizeof(TrailVBOLayout),
+                        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT
+                    );
+                memcpy(_primaryRenderInformation.vBufferMapPointer,
+                    _vertexArray.data() + _primaryRenderInformation.first,
+                    sizeof(TrailVBOLayout));
+
+                glUnmapBuffer(GL_ARRAY_BUFFER);
             }
         }
     }
@@ -276,18 +283,33 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
             // array
             {
                 ZoneScopedN("TrailOrbit Update VBO")
-                    glBufferData(
+                /*glBufferData(
+                    GL_ARRAY_BUFFER,
+                    _vertexArray.size() * sizeof(TrailVBOLayout),
+                    _vertexArray.data(),
+                    GL_STREAM_DRAW
+                );*/
+
+                glBufferData(
+                    GL_ARRAY_BUFFER,
+                    _vertexArray.size() * sizeof(TrailVBOLayout),
+                    nullptr,
+                    GL_STREAM_DRAW
+                );
+
+
+                _primaryRenderInformation.vBufferMapPointer = 
+                    glMapBufferRange(
                         GL_ARRAY_BUFFER,
+                        0,
                         _vertexArray.size() * sizeof(TrailVBOLayout),
-                        nullptr,
-                        GL_STREAM_DRAW
+                        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
                     );
-                    glBufferData(
-                        GL_ARRAY_BUFFER,
-                        _vertexArray.size() * sizeof(TrailVBOLayout),
-                        _vertexArray.data(),
-                        GL_STREAM_DRAW
-                    );
+                memcpy( _primaryRenderInformation.vBufferMapPointer, 
+                        _vertexArray.data(), 
+                        _vertexArray.size() * sizeof(TrailVBOLayout) );
+                
+                glUnmapBuffer(GL_ARRAY_BUFFER);
             }
             if (_indexBufferDirty) {
                 // We only need to upload the index buffer if it has been invalidated
@@ -298,18 +320,30 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                 );
                 {
                     ZoneScopedN("TrailOrbit Update EBO")
-                        glBufferData(
+                    /*glBufferData(
+                        GL_ELEMENT_ARRAY_BUFFER,
+                        _indexArray.size() * sizeof(unsigned int),
+                        _indexArray.data(),
+                        GL_STATIC_DRAW
+                    );*/
+                    glBufferData(
+                        GL_ELEMENT_ARRAY_BUFFER,
+                        _indexArray.size() * sizeof(unsigned int),
+                        nullptr,
+                        GL_STATIC_DRAW
+                    );
+
+                    _primaryRenderInformation.iBufferMapPointer =
+                        glMapBufferRange(
                             GL_ELEMENT_ARRAY_BUFFER,
+                            0,
                             _indexArray.size() * sizeof(unsigned int),
-                            nullptr,
-                            GL_STATIC_DRAW
+                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
                         );
-                        glBufferData(
-                            GL_ELEMENT_ARRAY_BUFFER,
-                            _indexArray.size() * sizeof(unsigned int),
-                            _indexArray.data(),
-                            GL_STATIC_DRAW
-                        );
+                    memcpy(_primaryRenderInformation.iBufferMapPointer,
+                        _indexArray.data(),
+                        _indexArray.size() * sizeof(unsigned int));
+                    glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
                 }
                 _indexBufferDirty = false;
             }
@@ -320,18 +354,26 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
             auto upload = [this](int begin, int length) {
                 {
                     ZoneScopedN("TrailOrbit Update Parts of VBO")
-                        glBufferSubData(
+                   /* glBufferSubData(
+                        GL_ARRAY_BUFFER,
+                        begin * sizeof(TrailVBOLayout),
+                        sizeof(TrailVBOLayout) * length,
+                        _vertexArray.data() + begin
+                    );*/
+
+                    _primaryRenderInformation.vBufferMapPointer = 
+                        glMapBufferRange(
                             GL_ARRAY_BUFFER,
                             begin * sizeof(TrailVBOLayout),
-                            sizeof(TrailVBOLayout) * length,
-                            nullptr
+                            sizeof(TrailVBOLayout)* length,
+                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT
                         );
-                        glBufferSubData(
-                            GL_ARRAY_BUFFER,
-                            begin * sizeof(TrailVBOLayout),
-                            sizeof(TrailVBOLayout) * length,
-                            _vertexArray.data() + begin
-                        );
+                    memcpy(_primaryRenderInformation.vBufferMapPointer,
+                        _vertexArray.data() + begin,
+                        sizeof(TrailVBOLayout) * length);
+
+                    glUnmapBuffer(GL_ARRAY_BUFFER);
+
                 }
             };
 

@@ -154,6 +154,9 @@ protected:
         GLuint _vBufferID = 0;
         /// The optional index buffer object
         GLuint _iBufferID = 0;
+
+        void* vBufferMapPointer = nullptr;
+        void* iBufferMapPointer = nullptr;
     };
 
     /// Primary set of information about the main rendering parts
