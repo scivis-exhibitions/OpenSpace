@@ -32,6 +32,11 @@
 #include <ghoul/misc/profiling.h>
 #include <numeric>
 
+
+//#define GLBUFFERDATA
+//#define NO_PERSISTENT_MAP
+#define PERSISTENT_MAP
+
 // This class is using a VBO ring buffer + a constantly updated point as follows:
 // Structure of the array with a _resolution of 16. FF denotes the floating position that
 // is updated every frame:
@@ -254,25 +259,63 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                 ZoneScopedN("TrailOrbit Update Data in the VBO")
                 // If no other values have been touched, we only need to upload the
                 // floating value
-                /*glBufferSubData(
+#ifdef GLBUFFERDATA
+                glBufferSubData(
                     GL_ARRAY_BUFFER,
                     _primaryRenderInformation.first * sizeof(TrailVBOLayout),
                     sizeof(TrailVBOLayout),
                     _vertexArray.data() + _primaryRenderInformation.first
-                );*/
-
-                _primaryRenderInformation.vBufferMapPointer =
+                );
+#endif
+#ifdef NO_PERSISTENT_MAP
+                _primaryRenderInformation.vBufferMapPointer = static_cast<TrailVBOLayout*>(
                     glMapBufferRange(
                         GL_ARRAY_BUFFER,
                         _primaryRenderInformation.first * sizeof(TrailVBOLayout),
                         sizeof(TrailVBOLayout),
-                        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT
+                        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT)
                     );
                 memcpy(_primaryRenderInformation.vBufferMapPointer,
                     _vertexArray.data() + _primaryRenderInformation.first,
                     sizeof(TrailVBOLayout));
 
                 glUnmapBuffer(GL_ARRAY_BUFFER);
+#endif
+#ifdef PERSISTENT_MAP
+                // Wait for GPU
+                if (_primaryRenderInformation.gSyncVBO)
+                {
+                    while (true)
+                    {
+                        GLenum waitReturn = glClientWaitSync(
+                            _primaryRenderInformation.gSyncVBO,
+                            GL_SYNC_FLUSH_COMMANDS_BIT,
+                            1
+                        );
+                        if (waitReturn == GL_ALREADY_SIGNALED ||
+                            waitReturn == GL_CONDITION_SATISFIED) {
+                            return;
+                        }
+
+                    }
+                }
+
+                memcpy(_primaryRenderInformation.vBufferMapPointer +
+                    _primaryRenderInformation.first * sizeof(TrailVBOLayout),
+                    _vertexArray.data() + _primaryRenderInformation.first,
+                    sizeof(TrailVBOLayout));
+
+                // Lock 
+                if (_primaryRenderInformation.gSyncVBO)
+                {
+                    glDeleteSync(_primaryRenderInformation.gSyncVBO);
+                }
+                _primaryRenderInformation.gSyncVBO = glFenceSync(
+                    GL_SYNC_GPU_COMMANDS_COMPLETE,
+                    0
+                );
+#endif                
+                
             }
         }
     }
@@ -283,13 +326,15 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
             // array
             {
                 ZoneScopedN("TrailOrbit Update VBO")
-                /*glBufferData(
+#ifdef GLBUFFERDATA
+                glBufferData(
                     GL_ARRAY_BUFFER,
                     _vertexArray.size() * sizeof(TrailVBOLayout),
                     _vertexArray.data(),
                     GL_STREAM_DRAW
-                );*/
-
+                );
+#endif
+#ifdef NO_PERSISTENT_MAP
                 glBufferData(
                     GL_ARRAY_BUFFER,
                     _vertexArray.size() * sizeof(TrailVBOLayout),
@@ -297,19 +342,86 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                     GL_STREAM_DRAW
                 );
 
-
-                _primaryRenderInformation.vBufferMapPointer = 
+                _primaryRenderInformation.vBufferMapPointer = static_cast<TrailVBOLayout*>(
                     glMapBufferRange(
                         GL_ARRAY_BUFFER,
                         0,
                         _vertexArray.size() * sizeof(TrailVBOLayout),
-                        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
+                        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT)
                     );
                 memcpy( _primaryRenderInformation.vBufferMapPointer, 
                         _vertexArray.data(), 
                         _vertexArray.size() * sizeof(TrailVBOLayout) );
                 
                 glUnmapBuffer(GL_ARRAY_BUFFER);
+#endif
+#ifdef PERSISTENT_MAP
+                //// Wait for GPU
+                //if (_primaryRenderInformation.gSyncVBO)
+                //{
+                //    while (true)
+                //    {
+                //        GLenum waitReturn = glClientWaitSync(
+                //            _primaryRenderInformation.gSyncVBO,
+                //            GL_SYNC_FLUSH_COMMANDS_BIT,
+                //            1
+                //        );
+                //        if (waitReturn == GL_ALREADY_SIGNALED ||
+                //            waitReturn == GL_CONDITION_SATISFIED) {
+                //            return;
+                //        }
+
+                //    }
+                //}
+
+                // Unmap previously mapped array
+                glUnmapBuffer(GL_ARRAY_BUFFER);
+
+                size_t vboTrailSize(_vertexArray.size() * sizeof(TrailVBOLayout));
+
+                glBufferStorage(GL_ARRAY_BUFFER, vboTrailSize, nullptr,
+                    GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+
+                // Map the buffer once
+                _primaryRenderInformation.vBufferMapPointer = static_cast<TrailVBOLayout*>(
+                    glMapBufferRange(GL_ARRAY_BUFFER, 0, vboTrailSize, 
+                        GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+                    );
+
+                //// Wait for GPU
+                //if (_primaryRenderInformation.gSync)
+                //{
+                //    while (true)
+                //    {
+                //        GLenum waitReturn = glClientWaitSync(
+                //            _primaryRenderInformation.gSync,
+                //            GL_SYNC_FLUSH_COMMANDS_BIT,
+                //            1
+                //        );
+                //        if (waitReturn == GL_ALREADY_SIGNALED ||
+                //            waitReturn == GL_CONDITION_SATISFIED) {
+                //            return;
+                //        }
+
+                //    }
+                //}
+
+                // Copy data to pinned memmory
+                memcpy(_primaryRenderInformation.vBufferMapPointer,
+                       _vertexArray.data(), 
+                       _vertexArray.size() * sizeof(TrailVBOLayout)
+                );
+
+                //// Lock 
+                //if (_primaryRenderInformation.gSyncVBO)
+                //{
+                //    glDeleteSync(_primaryRenderInformation.gSyncVBO);
+                //}
+                //_primaryRenderInformation.gSyncVBO = glFenceSync(
+                //    GL_SYNC_GPU_COMMANDS_COMPLETE,
+                //    0
+                //);
+#endif
             }
             if (_indexBufferDirty) {
                 // We only need to upload the index buffer if it has been invalidated
@@ -320,12 +432,15 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                 );
                 {
                     ZoneScopedN("TrailOrbit Update EBO")
-                    /*glBufferData(
+#ifdef GLBUFFERDATA
+                    glBufferData(
                         GL_ELEMENT_ARRAY_BUFFER,
                         _indexArray.size() * sizeof(unsigned int),
                         _indexArray.data(),
                         GL_STATIC_DRAW
-                    );*/
+                    );
+#endif
+#ifdef NO_PERSISTENT_MAP
                     glBufferData(
                         GL_ELEMENT_ARRAY_BUFFER,
                         _indexArray.size() * sizeof(unsigned int),
@@ -333,17 +448,84 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                         GL_STATIC_DRAW
                     );
 
-                    _primaryRenderInformation.iBufferMapPointer =
+                    _primaryRenderInformation.iBufferMapPointer = static_cast<unsigned int*>(
                         glMapBufferRange(
                             GL_ELEMENT_ARRAY_BUFFER,
                             0,
                             _indexArray.size() * sizeof(unsigned int),
-                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
+                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT)
                         );
                     memcpy(_primaryRenderInformation.iBufferMapPointer,
                         _indexArray.data(),
                         _indexArray.size() * sizeof(unsigned int));
                     glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+#endif
+#ifdef PERSISTENT_MAP
+                    //// Wait for GPU
+                    //if (_primaryRenderInformation.gSyncIBO)
+                    //{
+                    //    while (true)
+                    //    {
+                    //        GLenum waitReturn = glClientWaitSync(
+                    //            _primaryRenderInformation.gSyncIBO,
+                    //            GL_SYNC_FLUSH_COMMANDS_BIT,
+                    //            1
+                    //        );
+                    //        if (waitReturn == GL_ALREADY_SIGNALED ||
+                    //            waitReturn == GL_CONDITION_SATISFIED) {
+                    //            return;
+                    //        }
+
+                    //    }
+                    //}
+
+                    // Unmap previously mapped array
+                    glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+
+                    size_t iboTrailSize(_indexArray.size() * sizeof(unsigned int));
+
+                    glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, iboTrailSize, nullptr, 
+                        GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+
+                    // Map the buffer once
+                    _primaryRenderInformation.iBufferMapPointer = static_cast<unsigned int*>(
+                        glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, iboTrailSize,
+                            GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT)
+                    );
+
+                    //// Wait for GPU
+                    //if (_primaryRenderInformation.gSync)
+                    //{
+                    //    while (true)
+                    //    {
+                    //        GLenum waitReturn = glClientWaitSync(
+                    //            _primaryRenderInformation.gSync,
+                    //            GL_SYNC_FLUSH_COMMANDS_BIT,
+                    //            1
+                    //        );
+                    //        if (waitReturn == GL_ALREADY_SIGNALED ||
+                    //            waitReturn == GL_CONDITION_SATISFIED) {
+                    //            return;
+                    //        }
+
+                    //    }
+                    //}
+
+                    // Copy data to buffer
+                    memcpy(_primaryRenderInformation.iBufferMapPointer,
+                        _indexArray.data(),
+                        _indexArray.size() * sizeof(unsigned int));
+
+                    //// Lock 
+                    //if (_primaryRenderInformation.gSyncIBO)
+                    //{
+                    //    glDeleteSync(_primaryRenderInformation.gSyncIBO);
+                    //}
+                    //_primaryRenderInformation.gSyncIBO = glFenceSync(
+                    //    GL_SYNC_GPU_COMMANDS_COMPLETE,
+                    //    0
+                    //);
+#endif
                 }
                 _indexBufferDirty = false;
             }
@@ -354,26 +536,64 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
             auto upload = [this](int begin, int length) {
                 {
                     ZoneScopedN("TrailOrbit Update Parts of VBO")
-                   /* glBufferSubData(
+#ifdef GLBUFFERDATA
+                   glBufferSubData(
                         GL_ARRAY_BUFFER,
                         begin * sizeof(TrailVBOLayout),
                         sizeof(TrailVBOLayout) * length,
                         _vertexArray.data() + begin
-                    );*/
-
-                    _primaryRenderInformation.vBufferMapPointer = 
+                    );
+#endif
+#ifdef NO_PERSISTENT_MAP
+                    _primaryRenderInformation.vBufferMapPointer = static_cast<TrailVBOLayout*>(
                         glMapBufferRange(
                             GL_ARRAY_BUFFER,
                             begin * sizeof(TrailVBOLayout),
                             sizeof(TrailVBOLayout)* length,
-                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT
+                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT)
                         );
                     memcpy(_primaryRenderInformation.vBufferMapPointer,
                         _vertexArray.data() + begin,
                         sizeof(TrailVBOLayout) * length);
 
                     glUnmapBuffer(GL_ARRAY_BUFFER);
+#endif
+#ifdef PERSISTENT_MAP
+                    // Wait for GPU
+                    if (_primaryRenderInformation.gSyncVBO)
+                    {
+                        while (true)
+                        {
+                            GLenum waitReturn = glClientWaitSync(
+                                _primaryRenderInformation.gSyncVBO, 
+                                GL_SYNC_FLUSH_COMMANDS_BIT, 
+                                1
+                            );
+                            if (waitReturn == GL_ALREADY_SIGNALED ||
+                                waitReturn == GL_CONDITION_SATISFIED) {
+                                return;
+                            }
+                                
+                        }
+                    }
 
+                    memcpy(
+                        _primaryRenderInformation.vBufferMapPointer + 
+                        begin * sizeof(TrailVBOLayout),
+                        _vertexArray.data() + begin,
+                        sizeof(TrailVBOLayout)* length
+                    );
+
+                    // Lock 
+                    if (_primaryRenderInformation.gSyncVBO)
+                    {
+                        glDeleteSync(_primaryRenderInformation.gSyncVBO);
+                    }
+                    _primaryRenderInformation.gSyncVBO = glFenceSync(
+                        GL_SYNC_GPU_COMMANDS_COMPLETE, 
+                        0
+                    );
+#endif
                 }
             };
 

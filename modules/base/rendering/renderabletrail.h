@@ -155,8 +155,10 @@ protected:
         /// The optional index buffer object
         GLuint _iBufferID = 0;
 
-        void* vBufferMapPointer = nullptr;
-        void* iBufferMapPointer = nullptr;
+        TrailVBOLayout* vBufferMapPointer = nullptr;
+        unsigned int* iBufferMapPointer = nullptr;
+        GLsync gSyncVBO;
+        GLsync gSyncIBO;
     };
 
     /// Primary set of information about the main rendering parts
