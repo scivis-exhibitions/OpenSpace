@@ -1,7 +1,7 @@
 local assetHelper = asset.require('util/asset_helper')
 local transforms = asset.require('./transforms')
 asset.require("spice/base")
-asset.request('./trail')
+asset.require('./trail')
 local labelsPath = asset.require('./pluto_globelabels').LabelsPath
 
 
@@ -72,3 +72,13 @@ local PlutoLabel = {
 }
 
 assetHelper.registerSceneGraphNodesAndExport(asset, { Pluto, PlutoLabel })
+
+
+asset.meta = {
+    Name = "Pluto",
+    Version = "1.0",
+    Description = [[ Pluto globe, and main planet label.]],
+    Author = "OpenSpace Team",
+    URL = "http://openspaceproject.com",
+    License = "MIT license"
+}

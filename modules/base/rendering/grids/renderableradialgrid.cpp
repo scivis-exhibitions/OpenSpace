@@ -33,6 +33,7 @@
 #include <openspace/documentation/verifier.h>
 #include <ghoul/glm.h>
 #include <ghoul/filesystem/filesystem.h>
+#include <ghoul/opengl/openglstatecache.h>
 #include <ghoul/opengl/programobject.h>
 
 namespace {
@@ -130,8 +131,8 @@ RenderableRadialGrid::RenderableRadialGrid(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
     , _gridColor(GridColorInfo, glm::vec3(0.5f), glm::vec3(0.f), glm::vec3(1.f))
     , _gridSegments(
-        GridSegmentsInfo, 
-        glm::ivec2(1, 1),  
+        GridSegmentsInfo,
+        glm::ivec2(1, 1),
         glm::ivec2(1),
         glm::ivec2(200)
     )
@@ -220,7 +221,7 @@ void RenderableRadialGrid::initializeGL() {
     _gridProgram = BaseModule::ProgramObjectManager.request(
         ProgramName,
         []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
-            return global::renderEngine.buildRenderProgram(
+            return global::renderEngine->buildRenderProgram(
                 ProgramName,
                 absPath("${MODULE_BASE}/shaders/grid_vs.glsl"),
                 absPath("${MODULE_BASE}/shaders/grid_fs.glsl")
@@ -233,7 +234,7 @@ void RenderableRadialGrid::deinitializeGL() {
     BaseModule::ProgramObjectManager.release(
         ProgramName,
         [](ghoul::opengl::ProgramObject* p) {
-            global::renderEngine.removeRenderProgram(p);
+            global::renderEngine->removeRenderProgram(p);
         }
     );
     _gridProgram = nullptr;
@@ -257,7 +258,7 @@ void RenderableRadialGrid::render(const RenderData& data, RendererTasks&) {
         "MVPTransform",
         glm::dmat4(data.camera.projectionMatrix()) * modelViewTransform
     );
-    
+
     _gridProgram->setUniform("gridColor", _gridColor);
 
     float adjustedLineWidth = 1.f;
@@ -266,31 +267,12 @@ void RenderableRadialGrid::render(const RenderData& data, RendererTasks&) {
     adjustedLineWidth = _lineWidth;
 #endif
 
-    // Saves current state:
-    GLboolean isBlendEnabled = glIsEnabledi(GL_BLEND, 0);
-    GLfloat currentLineWidth;
-    glGetFloatv(GL_LINE_WIDTH, &currentLineWidth);
-    GLboolean isLineSmoothEnabled = glIsEnabled(GL_LINE_SMOOTH);
-
-    GLenum blendEquationRGB;
-    GLenum blendEquationAlpha;
-    GLenum blendDestAlpha;
-    GLenum blendDestRGB;
-    GLenum blendSrcAlpha;
-    GLenum blendSrcRGB;
-    glGetIntegerv(GL_BLEND_EQUATION_RGB, &blendEquationRGB);
-    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &blendEquationAlpha);
-    glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDestAlpha);
-    glGetIntegerv(GL_BLEND_DST_RGB, &blendDestRGB);
-    glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcAlpha);
-    glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRGB);
-
     // Changes GL state:
     glLineWidth(adjustedLineWidth);
     glEnablei(GL_BLEND, 0);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_LINE_SMOOTH);
-    
+
     for (GeometryData& c : _circles) {
         c.render();
     }
@@ -300,17 +282,8 @@ void RenderableRadialGrid::render(const RenderData& data, RendererTasks&) {
     _gridProgram->deactivate();
 
     // Restores GL State
-    glLineWidth(currentLineWidth);
-    glBlendEquationSeparate(blendEquationRGB, blendEquationAlpha);
-    glBlendFuncSeparate(blendSrcRGB, blendDestRGB, blendSrcAlpha, blendDestAlpha);
-
-    if (!isBlendEnabled) {
-        glDisablei(GL_BLEND, 0);
-    }
-
-    if (!isLineSmoothEnabled) {
-        glDisable(GL_LINE_SMOOTH);
-    }
+    global::renderEngine->openglStateCache().resetBlendState();
+    global::renderEngine->openglStateCache().resetLineState();
 }
 
 void RenderableRadialGrid::update(const UpdateData&) {
@@ -364,9 +337,9 @@ void RenderableRadialGrid::update(const UpdateData&) {
             rendering::helper::createRing(nLines, _minRadius);
 
         for (int i = 0; i < nLines; ++i) {
-            const rendering::helper::VertexXYZ vOut = 
+            const rendering::helper::VertexXYZ vOut =
                 rendering::helper::convertToXYZ(outerVertices[i]);
-            
+
             const rendering::helper::VertexXYZ vIn =
                 rendering::helper::convertToXYZ(innerVertices[i]);
 
@@ -379,7 +352,7 @@ void RenderableRadialGrid::update(const UpdateData&) {
     _gridIsDirty = false;
 }
 
-RenderableRadialGrid::GeometryData::GeometryData(GLenum renderMode) 
+RenderableRadialGrid::GeometryData::GeometryData(GLenum renderMode)
     : mode(renderMode)
 {
     glGenVertexArrays(1, &vao);
@@ -402,8 +375,8 @@ RenderableRadialGrid::GeometryData::GeometryData(GeometryData&& other) noexcept 
     other.vbo = 0;
 }
 
-RenderableRadialGrid::GeometryData& 
-RenderableRadialGrid::GeometryData::operator=(GeometryData&& other) noexcept 
+RenderableRadialGrid::GeometryData&
+RenderableRadialGrid::GeometryData::operator=(GeometryData&& other) noexcept
 {
     if (this != &other) {
         vao = other.vao;
@@ -436,11 +409,11 @@ void RenderableRadialGrid::GeometryData::update() {
     );
 
     glVertexAttribPointer(
-        0, 
-        3, 
-        GL_FLOAT, 
-        GL_FALSE, 
-        sizeof(rendering::helper::VertexXYZ), 
+        0,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        sizeof(rendering::helper::VertexXYZ),
         nullptr
     );
 }

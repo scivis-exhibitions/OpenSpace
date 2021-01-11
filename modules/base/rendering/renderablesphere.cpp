@@ -310,7 +310,7 @@ void RenderableSphere::initializeGL() {
     _shader = BaseModule::ProgramObjectManager.request(
         ProgramName,
         []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
-            return global::renderEngine.buildRenderProgram(
+            return global::renderEngine->buildRenderProgram(
                 ProgramName,
                 absPath("${MODULE_BASE}/shaders/sphere_vs.glsl"),
                 absPath("${MODULE_BASE}/shaders/sphere_fs.glsl")
@@ -329,7 +329,7 @@ void RenderableSphere::deinitializeGL() {
     BaseModule::ProgramObjectManager.release(
         ProgramName,
         [](ghoul::opengl::ProgramObject* p) {
-            global::renderEngine.removeRenderProgram(p);
+            global::renderEngine->removeRenderProgram(p);
         }
     );
     _shader = nullptr;
@@ -370,7 +370,9 @@ void RenderableSphere::render(const RenderData& data, RendererTasks&) {
             const float startLogFadeDistance = glm::log(_size * _fadeInThreshold);
             const float stopLogFadeDistance = startLogFadeDistance + 1.f;
 
-            if (logDistCamera > startLogFadeDistance && logDistCamera < stopLogFadeDistance) {
+            if (logDistCamera > startLogFadeDistance && logDistCamera <
+                stopLogFadeDistance)
+            {
                 const float fadeFactor = glm::clamp(
                     (logDistCamera - startLogFadeDistance) /
                     (stopLogFadeDistance - startLogFadeDistance),
@@ -391,7 +393,9 @@ void RenderableSphere::render(const RenderData& data, RendererTasks&) {
             const float startLogFadeDistance = glm::log(_size * _fadeOutThreshold);
             const float stopLogFadeDistance = startLogFadeDistance + 1.f;
 
-            if (logDistCamera > startLogFadeDistance && logDistCamera < stopLogFadeDistance) {
+            if (logDistCamera > startLogFadeDistance && logDistCamera <
+                stopLogFadeDistance)
+            {
                 const float fadeFactor = glm::clamp(
                     (logDistCamera - startLogFadeDistance) /
                     (stopLogFadeDistance - startLogFadeDistance),
@@ -430,10 +434,10 @@ void RenderableSphere::render(const RenderData& data, RendererTasks&) {
         glDisable(GL_CULL_FACE);
     }
 
-    bool usingFramebufferRenderer = global::renderEngine.rendererImplementation() ==
+    bool usingFramebufferRenderer = global::renderEngine->rendererImplementation() ==
                                     RenderEngine::RendererImplementation::Framebuffer;
 
-    bool usingABufferRenderer = global::renderEngine.rendererImplementation() ==
+    bool usingABufferRenderer = global::renderEngine->rendererImplementation() ==
                                 RenderEngine::RendererImplementation::ABuffer;
 
     if (usingABufferRenderer && _useAdditiveBlending) {
@@ -488,6 +492,7 @@ void RenderableSphere::loadTexture() {
             );
             texture->uploadTexture();
             texture->setFilter(ghoul::opengl::Texture::FilterMode::LinearMipMap);
+            texture->purgeFromRAM();
             _texture = std::move(texture);
         }
     }

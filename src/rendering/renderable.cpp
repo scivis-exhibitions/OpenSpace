@@ -112,7 +112,7 @@ ghoul::mm_unique_ptr<Renderable> Renderable::createFromDictionary(
     Renderable* result = factory->create(
         renderableType,
         dictionary,
-        &global::memoryManager.PersistentMemory
+        &global::memoryManager->PersistentMemory
     );
     return ghoul::mm_unique_ptr<Renderable>(result);
 }
@@ -233,6 +233,10 @@ bool Renderable::isReady() const {
 
 bool Renderable::isEnabled() const {
     return _enabled;
+}
+
+bool Renderable::shouldUpdateIfDisabled() const {
+    return _shouldUpdateIfDisabled;
 }
 
 void Renderable::onEnabledChange(std::function<void(bool)> callback) {

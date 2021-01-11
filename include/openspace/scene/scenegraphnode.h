@@ -120,7 +120,6 @@ public:
     glm::dvec3 worldPosition() const;
     const glm::dmat3& worldRotationMatrix() const;
     glm::dmat4 modelTransform() const;
-    glm::dmat4 inverseModelTransform() const;
     glm::dvec3 worldScale() const;
     bool isTimeFrameActive(const Time& time) const;
 
@@ -160,6 +159,7 @@ private:
 
     properties::StringProperty _guiPath;
     properties::StringProperty _guiDisplayName;
+    properties::StringProperty _guiDescription;
 
     // Transformation defined by ephemeris, rotation and scale
     struct {
@@ -176,7 +176,6 @@ private:
     glm::dvec3 _worldScaleCached = glm::dvec3(1.0);
 
     glm::dmat4 _modelTransformCached = glm::dmat4(1.0);
-    glm::dmat4 _inverseModelTransformCached = glm::dmat4(1.0);
 
     properties::FloatProperty _boundingSphere;
     properties::BoolProperty _computeScreenSpaceValues;

@@ -1,7 +1,7 @@
 local assetHelper = asset.require('util/asset_helper')
 local transforms = asset.require('./../transforms')
 asset.require("spice/base")
-asset.request('./../trail')
+asset.require('../trail')
 local labelsPath = asset.require('./../pluto_globelabels').LabelsPath
 
 
@@ -50,6 +50,14 @@ local Charon = {
     }
 }
 
-
-
 assetHelper.registerSceneGraphNodesAndExport(asset, { Charon })
+
+
+asset.meta = {
+    Name = "Charon",
+    Version = "1.0",
+    Description = [[ Charon globe with labels.]],
+    Author = "OpenSpace Team",
+    URL = "http://openspaceproject.com",
+    License = "MIT license"
+}

@@ -1,11 +1,12 @@
 openspace.globebrowsing.documentation = {
     {
         Name = "createTemporalGibsGdalXml",
-        Arguments = "string, string, string, string, string, string",
+        Arguments = "string, string, string, string, string, string, [string]",
         Documentation =
             "Creates an XML configuration for a temporal GIBS dataset." ..
             "Arguments are: Name, Start date, end date, time resolution, time format," ..
-            "resolution, file format. For all specifications, see " ..
+            "resolution, file format. The last parameter is the temporal format and " ..
+            "defaults to YYYY-MM-DD. For all specifications, see " ..
             "https://wiki.earthdata.nasa.gov/display/GIBS/GIBS+Available+Imagery+Products" ..
             "Usage:" ..
             "openspace.globebrowsing.addLayer(" ..
@@ -115,13 +116,14 @@ openspace.globebrowsing.addGibsLayer = function(layer, resolution, format, start
     openspace.globebrowsing.addLayer('Earth', 'ColorLayers', { Identifier = layer,  Type = "TemporalTileLayer", FilePath = xml })
 end
 
-openspace.globebrowsing.createTemporalGibsGdalXml = function (layerName, startDate, endDate, timeResolution, resolution, format)
+openspace.globebrowsing.createTemporalGibsGdalXml = function (layerName, startDate, endDate, timeResolution, resolution, format, temporalFormat)
+    temporalFormat = temporalFormat or 'YYYY-MM-DD'
     temporalTemplate =
         "<OpenSpaceTemporalGDALDataset>" ..
         "<OpenSpaceTimeStart>" .. startDate .. "</OpenSpaceTimeStart>" ..
         "<OpenSpaceTimeEnd>" .. endDate .. "</OpenSpaceTimeEnd>" ..
         "<OpenSpaceTimeResolution>" .. timeResolution .. "</OpenSpaceTimeResolution>" ..
-        "<OpenSpaceTimeIdFormat>YYYY-MM-DD</OpenSpaceTimeIdFormat>" ..
+        "<OpenSpaceTimeIdFormat>" .. temporalFormat .. "</OpenSpaceTimeIdFormat>" ..
         openspace.globebrowsing.createGibsGdalXml(layerName, "${OpenSpaceTimeId}", resolution, format) ..
         "</OpenSpaceTemporalGDALDataset>"
     return temporalTemplate
@@ -203,10 +205,21 @@ openspace.globebrowsing.parseInfoFile = function (file)
     HeightFile = nil
 
     local dir = openspace.directoryForPath(file)
-    dofile(file)
+    file_func, error = loadfile(file)
+    if file_func then
+        file_func()
+    else
+        openspace.printError('Error loading file "' .. file .. '": '.. error)
+        return nil, nil, nil, nil
+    end
 
     local name = Name or Identifier
     local identifier = Identifier or Name
+
+    if name == nil and identifier == nil then
+        openspace.printError('Error loading file "' .. file .. '": No "Name" or "Identifier" found')
+        return nil, nil, nil, nil
+    end
 
     local color = nil
     if ColorFile then

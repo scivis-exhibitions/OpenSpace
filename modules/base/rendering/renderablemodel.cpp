@@ -34,31 +34,37 @@
 #include <openspace/util/updatestructures.h>
 #include <openspace/scene/scene.h>
 #include <openspace/scene/lightsource.h>
-
 #include <ghoul/filesystem/filesystem.h>
-#include <ghoul/io/texture/texturereader.h>
-#include <ghoul/misc/invariants.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/invariants.h>
+#include <ghoul/misc/profiling.h>
+#include <ghoul/opengl/openglstatecache.h>
 #include <ghoul/opengl/programobject.h>
-#include <ghoul/opengl/texture.h>
 #include <ghoul/opengl/textureunit.h>
 
 namespace {
     constexpr const char* ProgramName = "ModelProgram";
     constexpr const char* KeyGeometry = "Geometry";
 
-    constexpr const std::array<const char*, 12> UniformNames = {
-        "opacity", "nLightSources", "lightDirectionsViewSpace", "lightIntensities",
-        "modelViewTransform", "crippedModelViewTransform", "projectionTransform", 
-        "performShading", "texture1", "ambientIntensity", "diffuseIntensity", 
-        "specularIntensity"
+    constexpr const int DefaultBlending = 0;
+    constexpr const int AdditiveBlending = 1;
+    constexpr const int PointsAndLinesBlending = 2;
+    constexpr const int PolygonBlending = 3;
+    constexpr const int ColorAddingBlending = 4;
+
+    std::map<std::string, int> BlendingMapping = {
+        { "Default", DefaultBlending },
+        { "Additive", AdditiveBlending },
+        { "Points and Lines", PointsAndLinesBlending },
+        { "Polygon", PolygonBlending },
+        { "Color Adding", ColorAddingBlending }
     };
 
-    constexpr openspace::properties::Property::PropertyInfo TextureInfo = {
-        "ColorTexture",
-        "Color Texture",
-        "This value points to a color texture file that is applied to the geometry "
-        "rendered in this object."
+    constexpr const std::array<const char*, 13> UniformNames = {
+        "opacity", "nLightSources", "lightDirectionsViewSpace", "lightIntensities",
+        "modelViewTransform", "normalTransform", "projectionTransform",
+        "performShading", "texture1", "ambientIntensity", "diffuseIntensity",
+        "specularIntensity", "opacityBlending"
     };
 
     constexpr openspace::properties::Property::PropertyInfo AmbientIntensityInfo = {
@@ -110,6 +116,24 @@ namespace {
         "Light Sources",
         "A list of light sources that this model should accept light from."
     };
+
+    constexpr openspace::properties::Property::PropertyInfo DisableDepthTestInfo = {
+        "DisableDepthTest",
+        "Disable Depth Test",
+        "Disable Depth Testing for the Model."
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo BlendingOptionInfo = {
+        "BledingOption",
+        "Blending Options",
+        "Debug option for blending colors."
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo EnableOpacityBlendingInfo = {
+        "EnableOpacityBlending",
+        "Enable Opacity Blending",
+        "Enable Opacity Blending."
+    };
 } // namespace
 
 namespace openspace {
@@ -122,15 +146,15 @@ documentation::Documentation RenderableModel::Documentation() {
         {
             {
                 KeyGeometry,
-                new ReferencingVerifier("base_geometry_model"),
+                new TableVerifier({
+                    {
+                        "*",
+                        new ReferencingVerifier("base_geometry_model"),
+                        Optional::Yes
+                    }
+                }),
                 Optional::No,
                 "This specifies the model that is rendered by the Renderable."
-            },
-            {
-                TextureInfo.identifier,
-                new StringVerifier,
-                Optional::Yes,
-                TextureInfo.description
             },
             {
                 AmbientIntensityInfo.identifier,
@@ -185,14 +209,31 @@ documentation::Documentation RenderableModel::Documentation() {
                 }),
                 Optional::Yes,
                 LightSourcesInfo.description
-            }
+            },
+            {
+                DisableDepthTestInfo.identifier,
+                new BoolVerifier,
+                Optional::Yes,
+                DisableDepthTestInfo.description
+            },
+            {
+                BlendingOptionInfo.identifier,
+                new StringVerifier,
+                Optional::Yes,
+                BlendingOptionInfo.description
+            },
+            {
+                EnableOpacityBlendingInfo.identifier,
+                new BoolVerifier,
+                Optional::Yes,
+                EnableOpacityBlendingInfo.description
+            },
         }
     };
 }
 
 RenderableModel::RenderableModel(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
-    , _colorTexturePath(TextureInfo)
     , _ambientIntensity(AmbientIntensityInfo, 0.2f, 0.f, 1.f)
     , _diffuseIntensity(DiffuseIntensityInfo, 1.f, 0.f, 1.f)
     , _specularIntensity(SpecularIntensityInfo, 1.f, 0.f, 1.f)
@@ -205,6 +246,12 @@ RenderableModel::RenderableModel(const ghoul::Dictionary& dictionary)
         glm::dmat3(1.0)
     )
     , _rotationVec(RotationVecInfo, glm::dvec3(0.0), glm::dvec3(0.0), glm::dvec3(360.0))
+    , _enableOpacityBlending(EnableOpacityBlendingInfo, false)
+    , _disableDepthTest(DisableDepthTestInfo, false)
+    , _blendingFuncOption(
+        BlendingOptionInfo,
+        properties::OptionProperty::DisplayType::Dropdown
+    )
     , _lightSourcePropertyOwner({ "LightSources", "Light Sources" })
 {
     documentation::testSpecificationAndThrow(
@@ -219,13 +266,11 @@ RenderableModel::RenderableModel(const ghoul::Dictionary& dictionary)
 
     if (dictionary.hasKey(KeyGeometry)) {
         ghoul::Dictionary dict = dictionary.value<ghoul::Dictionary>(KeyGeometry);
-        _geometry = modelgeometry::ModelGeometry::createFromDictionary(dict);
-    }
-
-    if (dictionary.hasKey(TextureInfo.identifier)) {
-        _colorTexturePath = absPath(dictionary.value<std::string>(
-            TextureInfo.identifier
-        ));
+        for (int i = 1; i <= dict.size(); ++i) {
+            std::string key = std::to_string(i);
+            ghoul::Dictionary geom = dict.value<ghoul::Dictionary>(key);
+            _geometry.push_back(modelgeometry::ModelGeometry::createFromDictionary(geom));
+        }
     }
 
     if (dictionary.hasKey(ModelTransformInfo.identifier)) {
@@ -246,6 +291,10 @@ RenderableModel::RenderableModel(const ghoul::Dictionary& dictionary)
         _performShading = dictionary.value<bool>(ShadingInfo.identifier);
     }
 
+    if (dictionary.hasKey(DisableDepthTestInfo.identifier)) {
+        _disableDepthTest = dictionary.value<bool>(DisableDepthTestInfo.identifier);
+    }
+
     if (dictionary.hasKey(DisableFaceCullingInfo.identifier)) {
         _disableFaceCulling = dictionary.value<bool>(DisableFaceCullingInfo.identifier);
     }
@@ -263,19 +312,13 @@ RenderableModel::RenderableModel(const ghoul::Dictionary& dictionary)
         }
     }
 
-
     addPropertySubOwner(_lightSourcePropertyOwner);
-    addPropertySubOwner(_geometry.get());
-
-    addProperty(_colorTexturePath);
-    _colorTexturePath.onChange(std::bind(&RenderableModel::loadTexture, this));
-
-
     addProperty(_ambientIntensity);
     addProperty(_diffuseIntensity);
     addProperty(_specularIntensity);
     addProperty(_performShading);
     addProperty(_disableFaceCulling);
+    addProperty(_disableDepthTest);
     addProperty(_modelTransform);
     addProperty(_rotationVec);
 
@@ -287,23 +330,50 @@ RenderableModel::RenderableModel(const ghoul::Dictionary& dictionary)
     if (dictionary.hasKey(RotationVecInfo.identifier)) {
         _rotationVec = dictionary.value<glm::vec3>(RotationVecInfo.identifier);
     }
+
+    _blendingFuncOption.addOption(DefaultBlending, "Default");
+    _blendingFuncOption.addOption(AdditiveBlending, "Additive");
+    _blendingFuncOption.addOption(PointsAndLinesBlending, "Points and Lines");
+    _blendingFuncOption.addOption(PolygonBlending, "Polygon");
+    _blendingFuncOption.addOption(ColorAddingBlending, "Color Adding");
+
+    addProperty(_blendingFuncOption);
+
+    if (dictionary.hasKey(BlendingOptionInfo.identifier)) {
+        const std::string blendingOpt = dictionary.value<std::string>(
+            BlendingOptionInfo.identifier
+        );
+        _blendingFuncOption.set(BlendingMapping[blendingOpt]);
+    }
+
+    if (dictionary.hasKey(DisableDepthTestInfo.identifier)) {
+        _enableOpacityBlending = dictionary.value<bool>(
+            EnableOpacityBlendingInfo.identifier
+        );
+    }
+
+    addProperty(_enableOpacityBlending);
 }
 
 bool RenderableModel::isReady() const {
-    return _program && _texture;
+    return _program;
 }
 
 void RenderableModel::initialize() {
+    ZoneScoped
+
     for (const std::unique_ptr<LightSource>& ls : _lightSources) {
         ls->initialize();
     }
 }
 
 void RenderableModel::initializeGL() {
+    ZoneScoped
+
     _program = BaseModule::ProgramObjectManager.request(
         ProgramName,
         []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
-            return global::renderEngine.buildRenderProgram(
+            return global::renderEngine->buildRenderProgram(
                 ProgramName,
                 absPath("${MODULE_BASE}/shaders/model_vs.glsl"),
                 absPath("${MODULE_BASE}/shaders/model_fs.glsl")
@@ -313,22 +383,21 @@ void RenderableModel::initializeGL() {
 
     ghoul::opengl::updateUniformLocations(*_program, _uniformCache, UniformNames);
 
-    loadTexture();
-
-    _geometry->initialize(this);
+    for (const ghoul::mm_unique_ptr<modelgeometry::ModelGeometry>& geom : _geometry) {
+        geom->initialize(this);
+    }
 }
 
 void RenderableModel::deinitializeGL() {
-    if (_geometry) {
-        _geometry->deinitialize();
-        _geometry = nullptr;
+    for (const ghoul::mm_unique_ptr<modelgeometry::ModelGeometry>& geom : _geometry) {
+        geom->deinitialize();
     }
-    _texture = nullptr;
+    _geometry.clear();
 
     BaseModule::ProgramObjectManager.release(
         ProgramName,
         [](ghoul::opengl::ProgramObject* p) {
-            global::renderEngine.removeRenderProgram(p);
+            global::renderEngine->removeRenderProgram(p);
         }
     );
     _program = nullptr;
@@ -382,52 +451,66 @@ void RenderableModel::render(const RenderData& data, RendererTasks&) {
         glm::mat4(modelViewTransform)
     );
 
-    glm::dmat4 crippedModelViewTransform = glm::transpose(glm::inverse(
-        glm::dmat4(glm::inverse(data.camera.sgctInternal.viewMatrix())) * modelViewTransform
-    ));
+    glm::dmat4 normalTransform = glm::transpose(glm::inverse(modelViewTransform));
 
     _program->setUniform(
-        _uniformCache.crippedModelViewTransform,
-        glm::mat4(crippedModelViewTransform)
+        _uniformCache.normalTransform,
+        glm::mat4(normalTransform)
     );
 
     _program->setUniform(
         _uniformCache.projectionTransform,
         data.camera.projectionMatrix()
     );
-    _program->setUniform(
-        _uniformCache.ambientIntensity,
-        _ambientIntensity
-    );
-    _program->setUniform(
-        _uniformCache.diffuseIntensity,
-        _diffuseIntensity
-    );
-    _program->setUniform(
-        _uniformCache.specularIntensity,
-        _specularIntensity
-    );
-    _program->setUniform(
-        _uniformCache.performShading,
-        _performShading
-    );
-
-    _geometry->setUniforms(*_program);
-
-    // Bind texture
-    ghoul::opengl::TextureUnit unit;
-    unit.activate();
-    _texture->bind();
-    _program->setUniform(_uniformCache.texture, unit);
+    _program->setUniform(_uniformCache.ambientIntensity, _ambientIntensity);
+    _program->setUniform(_uniformCache.diffuseIntensity, _diffuseIntensity);
+    _program->setUniform(_uniformCache.specularIntensity, _specularIntensity);
+    _program->setUniform(_uniformCache.performShading, _performShading);
+    _program->setUniform(_uniformCache.opacityBlending, _enableOpacityBlending);
 
     if (_disableFaceCulling) {
         glDisable(GL_CULL_FACE);
     }
 
-    _geometry->render();
-    
+    glEnablei(GL_BLEND, 0);
+    switch (_blendingFuncOption) {
+        case DefaultBlending:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case AdditiveBlending:
+            glBlendFunc(GL_ONE, GL_ONE);
+            break;
+        case PointsAndLinesBlending:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case PolygonBlending:
+            glBlendFunc(GL_SRC_ALPHA_SATURATE, GL_ONE);
+            break;
+        case ColorAddingBlending:
+            glBlendFunc(GL_SRC_COLOR, GL_DST_COLOR);
+            break;
+    };
+
+    if (_disableDepthTest) {
+        glDisable(GL_DEPTH_TEST);
+    }
+
+    ghoul::opengl::TextureUnit unit;
+    unit.activate();
+    _program->setUniform(_uniformCache.texture, unit);
+    for (const ghoul::mm_unique_ptr<modelgeometry::ModelGeometry>& geom : _geometry) {
+        geom->setUniforms(*_program);
+        geom->bindTexture();
+        geom->render();
+    }
     if (_disableFaceCulling) {
         glEnable(GL_CULL_FACE);
+    }
+
+    global::renderEngine->openglStateCache().resetBlendState();
+
+    if (_disableDepthTest) {
+        glEnable(GL_DEPTH_TEST);
     }
 
     _program->deactivate();
@@ -437,23 +520,6 @@ void RenderableModel::update(const UpdateData&) {
     if (_program->isDirty()) {
         _program->rebuildFromFile();
         ghoul::opengl::updateUniformLocations(*_program, _uniformCache, UniformNames);
-    }
-}
-
-void RenderableModel::loadTexture() {
-    _texture = nullptr;
-    if (!_colorTexturePath.value().empty()) {
-        _texture = ghoul::io::TextureReader::ref().loadTexture(
-            absPath(_colorTexturePath)
-        );
-        if (_texture) {
-            LDEBUGC(
-                "RenderableModel",
-                fmt::format("Loaded texture from '{}'", absPath(_colorTexturePath))
-            );
-            _texture->uploadTexture();
-            _texture->setFilter(ghoul::opengl::Texture::FilterMode::AnisotropicMipMap);
-        }
     }
 }
 

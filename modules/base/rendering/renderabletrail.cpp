@@ -71,11 +71,17 @@ namespace {
     };
 
     // Fragile! Keep in sync with documentation
-    const std::map<std::string, openspace::Renderable::RenderBin> RenderBinModeConversion = {
+    const std::map<std::string, openspace::Renderable::RenderBin> RenderBinConversion = {
         { "Background", openspace::Renderable::RenderBin::Background },
         { "Opaque", openspace::Renderable::RenderBin::Opaque },
-        { "PreDeferredTransparent", openspace::Renderable::RenderBin::PreDeferredTransparent},
-        { "PostDeferredTransparent", openspace::Renderable::RenderBin::PostDeferredTransparent}
+        {
+            "PreDeferredTransparent",
+            openspace::Renderable::RenderBin::PreDeferredTransparent
+        },
+        {
+            "PostDeferredTransparent",
+            openspace::Renderable::RenderBin::PostDeferredTransparent
+        }
     };
 
     static const openspace::properties::PropertyOwner::PropertyOwnerInfo
@@ -274,7 +280,7 @@ RenderableTrail::RenderableTrail(const ghoul::Dictionary& dictionary)
     addPropertySubOwner(_appearance);
 
     if (dictionary.hasKeyAndValue<std::string>(RenderBinModeInfo.identifier)) {
-        openspace::Renderable::RenderBin cfgRenderBin = RenderBinModeConversion.at(
+        openspace::Renderable::RenderBin cfgRenderBin = RenderBinConversion.at(
             dictionary.value<std::string>(RenderBinModeInfo.identifier)
         );
         setRenderBin(cfgRenderBin);
@@ -282,11 +288,13 @@ RenderableTrail::RenderableTrail(const ghoul::Dictionary& dictionary)
 }
 
 void RenderableTrail::initializeGL() {
+    ZoneScoped
+
 #ifdef __APPLE__
     _programObject = BaseModule::ProgramObjectManager.request(
         ProgramName,
         []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
-            return global::renderEngine.buildRenderProgram(
+            return global::renderEngine->buildRenderProgram(
                 ProgramName,
                 absPath("${MODULE_BASE}/shaders/renderabletrail_apple_vs.glsl"),
                 absPath("${MODULE_BASE}/shaders/renderabletrail_apple_fs.glsl")
@@ -297,7 +305,7 @@ void RenderableTrail::initializeGL() {
     _programObject = BaseModule::ProgramObjectManager.request(
         ProgramName,
         []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
-            return global::renderEngine.buildRenderProgram(
+            return global::renderEngine->buildRenderProgram(
                 ProgramName,
                 absPath("${MODULE_BASE}/shaders/renderabletrail_vs.glsl"),
                 absPath("${MODULE_BASE}/shaders/renderabletrail_fs.glsl")
@@ -313,7 +321,7 @@ void RenderableTrail::deinitializeGL() {
     BaseModule::ProgramObjectManager.release(
         ProgramName,
         [](ghoul::opengl::ProgramObject* p) {
-            global::renderEngine.removeRenderProgram(p);
+            global::renderEngine->removeRenderProgram(p);
         }
     );
     _programObject = nullptr;
@@ -325,7 +333,7 @@ bool RenderableTrail::isReady() const {
 
 void RenderableTrail::internalRender(bool renderLines, bool renderPoints,
                                      const RenderData& data,
-                                     const glm::dmat4& modelTransform, 
+                                     const glm::dmat4& modelTransform,
                                      RenderInformation& info, int nVertices, int offset)
 {
     ZoneScoped
@@ -357,7 +365,7 @@ void RenderableTrail::internalRender(bool renderLines, bool renderPoints,
     _programObject->setUniform(_uniformCache.nVertices, nVertices);
 
 #if !defined(__APPLE__)
-    glm::ivec2 resolution = global::renderEngine.renderingResolution();
+    glm::ivec2 resolution = global::renderEngine->renderingResolution();
     _programObject->setUniform(_uniformCache.resolution, resolution);
     _programObject->setUniform(
         _uniformCache.lineWidth,
@@ -418,7 +426,7 @@ void RenderableTrail::internalRender(bool renderLines, bool renderPoints,
         }
     }
 }
-#pragma optimize("", off)
+
 void RenderableTrail::render(const RenderData& data, RendererTasks&) {
     ZoneScoped
 
@@ -442,7 +450,7 @@ void RenderableTrail::render(const RenderData& data, RendererTasks&) {
     _programObject->setUniform(_uniformCache.resolution, resolution);*/
 
     const bool usingFramebufferRenderer =
-        global::renderEngine.rendererImplementation() ==
+        global::renderEngine->rendererImplementation() ==
         RenderEngine::RendererImplementation::Framebuffer;
 
     if (usingFramebufferRenderer) {

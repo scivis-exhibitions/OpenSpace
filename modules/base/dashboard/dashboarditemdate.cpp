@@ -31,6 +31,7 @@
 #include <ghoul/font/font.h>
 #include <ghoul/font/fontmanager.h>
 #include <ghoul/font/fontrenderer.h>
+#include <ghoul/misc/profiling.h>
 
 namespace {
     constexpr const char* KeyFontMono = "Mono";
@@ -94,7 +95,7 @@ DashboardItemDate::DashboardItemDate(const ghoul::Dictionary& dictionary)
         _fontName = dictionary.value<std::string>(FontNameInfo.identifier);
     }
     _fontName.onChange([this](){
-        _font = global::fontManager.font(_fontName, _fontSize);
+        _font = global::fontManager->font(_fontName, _fontSize);
     });
     addProperty(_fontName);
 
@@ -102,27 +103,30 @@ DashboardItemDate::DashboardItemDate(const ghoul::Dictionary& dictionary)
         _fontSize = static_cast<float>(dictionary.value<double>(FontSizeInfo.identifier));
     }
     _fontSize.onChange([this](){
-        _font = global::fontManager.font(_fontName, _fontSize);
+        _font = global::fontManager->font(_fontName, _fontSize);
     });
     addProperty(_fontSize);
 
-    _font = global::fontManager.font(_fontName, _fontSize);
+    _font = global::fontManager->font(_fontName, _fontSize);
 }
 
 void DashboardItemDate::render(glm::vec2& penPosition) {
-    penPosition.y -= _font->height();
+    ZoneScoped
+
     RenderFont(
         *_font,
         penPosition,
-        fmt::format("Date: {} UTC", global::timeManager.time().UTC())
+        fmt::format("Date: {} UTC", global::timeManager->time().UTC())
     );
+    penPosition.y -= _font->height();
 }
 
 glm::vec2 DashboardItemDate::size() const {
-    return ghoul::fontrendering::FontRenderer::defaultRenderer().boundingBox(
-        *_font,
-        fmt::format("Date: {} UTC", global::timeManager.time().UTC())
-    ).boundingBox;
+    ZoneScoped
+
+    return _font->boundingBox(
+        fmt::format("Date: {} UTC", global::timeManager->time().UTC())
+    );
 }
 
 } // namespace openspace

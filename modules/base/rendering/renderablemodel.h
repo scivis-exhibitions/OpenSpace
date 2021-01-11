@@ -26,17 +26,16 @@
 #define __OPENSPACE_MODULE_BASE___RENDERABLEMODEL___H__
 
 #include <openspace/rendering/renderable.h>
-
+#include <openspace/properties/optionproperty.h>
 #include <openspace/properties/stringproperty.h>
+#include <openspace/properties/matrix/dmat4property.h>
 #include <openspace/properties/matrix/mat3property.h>
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
+#include <openspace/properties/vector/vec3property.h>
+#include <ghoul/misc/managedmemoryuniqueptr.h>
 #include <ghoul/opengl/uniformcache.h>
 #include <memory>
-#include <openspace/properties/matrix/dmat4property.h>
-#include <openspace/properties/vector/vec3property.h>
-
-
 
 namespace ghoul::opengl {
     class ProgramObject;
@@ -68,13 +67,8 @@ public:
 
     static documentation::Documentation Documentation();
 
-protected:
-    void loadTexture();
-
 private:
-    std::unique_ptr<modelgeometry::ModelGeometry> _geometry;
-
-    properties::StringProperty _colorTexturePath;
+    std::vector<ghoul::mm_unique_ptr<modelgeometry::ModelGeometry>> _geometry;
 
     properties::FloatProperty _ambientIntensity;
 
@@ -86,13 +80,16 @@ private:
     properties::DMat4Property _modelTransform;
     properties::Vec3Property _rotationVec;
 
+    properties::BoolProperty _disableDepthTest;
+    properties::BoolProperty _enableOpacityBlending;
+    properties::OptionProperty _blendingFuncOption;
+
     ghoul::opengl::ProgramObject* _program = nullptr;
     UniformCache(opacity, nLightSources, lightDirectionsViewSpace, lightIntensities,
-        modelViewTransform, crippedModelViewTransform, projectionTransform, 
-        performShading, texture, ambientIntensity, diffuseIntensity, 
-        specularIntensity) _uniformCache;
+        modelViewTransform, normalTransform, projectionTransform,
+        performShading, texture, ambientIntensity, diffuseIntensity,
+        specularIntensity, opacityBlending) _uniformCache;
 
-    std::unique_ptr<ghoul::opengl::Texture> _texture;
     std::vector<std::unique_ptr<LightSource>> _lightSources;
 
     // Buffers for uniform uploading

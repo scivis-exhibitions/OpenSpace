@@ -63,6 +63,8 @@ set(OPENSPACE_SOURCE
   ${OPENSPACE_BASE_DIR}/src/interaction/shortcutmanager_lua.inl
   ${OPENSPACE_BASE_DIR}/src/interaction/websocketinputstate.cpp
   ${OPENSPACE_BASE_DIR}/src/interaction/websocketcamerastates.cpp
+  ${OPENSPACE_BASE_DIR}/src/interaction/tasks/convertrecfileversiontask.cpp
+  ${OPENSPACE_BASE_DIR}/src/interaction/tasks/convertrecformattask.cpp
   ${OPENSPACE_BASE_DIR}/src/mission/mission.cpp
   ${OPENSPACE_BASE_DIR}/src/mission/missionmanager.cpp
   ${OPENSPACE_BASE_DIR}/src/mission/missionmanager_lua.inl
@@ -170,6 +172,7 @@ set(OPENSPACE_SOURCE
   ${OPENSPACE_BASE_DIR}/src/util/blockplaneintersectiongeometry.cpp
   ${OPENSPACE_BASE_DIR}/src/util/boxgeometry.cpp
   ${OPENSPACE_BASE_DIR}/src/util/camera.cpp
+  ${OPENSPACE_BASE_DIR}/src/util/coordinateconversion.cpp
   ${OPENSPACE_BASE_DIR}/src/util/distanceconversion.cpp
   ${OPENSPACE_BASE_DIR}/src/util/factorymanager.cpp
   ${OPENSPACE_BASE_DIR}/src/util/httprequest.cpp
@@ -244,6 +247,8 @@ set(OPENSPACE_HEADER
   ${OPENSPACE_BASE_DIR}/include/openspace/interaction/shortcutmanager.h
   ${OPENSPACE_BASE_DIR}/include/openspace/interaction/websocketinputstate.h
   ${OPENSPACE_BASE_DIR}/include/openspace/interaction/websocketcamerastates.h
+  ${OPENSPACE_BASE_DIR}/include/openspace/interaction/tasks/convertrecfileversiontask.h
+  ${OPENSPACE_BASE_DIR}/include/openspace/interaction/tasks/convertrecformattask.h
   ${OPENSPACE_BASE_DIR}/include/openspace/mission/mission.h
   ${OPENSPACE_BASE_DIR}/include/openspace/mission/missionmanager.h
   ${OPENSPACE_BASE_DIR}/include/openspace/network/parallelconnection.h
@@ -357,6 +362,7 @@ set(OPENSPACE_HEADER
   ${OPENSPACE_BASE_DIR}/include/openspace/util/concurrentjobmanager.inl
   ${OPENSPACE_BASE_DIR}/include/openspace/util/concurrentqueue.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/concurrentqueue.inl
+  ${OPENSPACE_BASE_DIR}/include/openspace/util/coordinateconversion.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/distanceconstants.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/distanceconversion.h
   ${OPENSPACE_BASE_DIR}/include/openspace/util/factorymanager.h
@@ -433,6 +439,10 @@ target_include_directories(openspace-core PUBLIC
   ${OPENSPACE_BASE_DIR}/include
   # In order to be able to include module files
   ${OPENSPACE_BASE_DIR}
+  # In order to use the date library
+  ${OPENSPACE_BASE_DIR}/ext/date/include
+  # In order to use the nlohmann JSON library
+  ${OPENSPACE_BASE_DIR}/ext
   # In order to be able to include the module_registration file
   ${CMAKE_BINARY_DIR}/_generated/include
 )
@@ -451,7 +461,7 @@ configure_file(
 
 if (APPLE)
   find_library(APPKIT_LIBRARY AppKit REQUIRED)
-  target_link_libraries(openspace-core ${APPKIT_LIBRARY})
+  target_link_libraries(openspace-core PUBLIC ${APPKIT_LIBRARY})
 endif ()
 
 set_openspace_compile_settings(openspace-core)

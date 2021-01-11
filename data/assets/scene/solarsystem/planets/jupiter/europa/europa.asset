@@ -1,7 +1,7 @@
 local transforms = asset.require('../transforms')
 local assetHelper = asset.require('util/asset_helper')
 asset.require("spice/base")
-asset.request('./trail')
+asset.require('./trail')
 local kernel = asset.require('../kernels').jup310
 local labelsPath = asset.require('../jupiter_globelabels').LabelsPath
 
@@ -50,6 +50,15 @@ local Europa = {
     }
 }
 
-
-
 assetHelper.registerSceneGraphNodesAndExport(asset, { Europa })
+
+
+asset.meta = {
+    Name = "Mimas",
+    Version = "1.0",
+    Description = [[ Europa globe with labels.]],
+    Author = "OpenSpace Team",
+    URL = "http://openspaceproject.com",
+    License = "MIT license",
+    Identifiers = {"Europa"}
+}

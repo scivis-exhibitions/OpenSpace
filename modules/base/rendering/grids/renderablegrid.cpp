@@ -33,6 +33,7 @@
 #include <openspace/util/updatestructures.h>
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/glm.h>
+#include <ghoul/opengl/openglstatecache.h>
 #include <ghoul/opengl/programobject.h>
 
 namespace {
@@ -80,7 +81,8 @@ documentation::Documentation RenderableGrid::Documentation() {
             },
             {
                 SegmentsInfo.identifier,
-                new DoubleVector2Verifier, // @TODO (emmbr 2020-07-07): should be Int, but specification test fails...
+                // @TODO (emmbr 2020-07-07): should be Int, but specification test fails..
+                new DoubleVector2Verifier,
                 Optional::Yes,
                 SegmentsInfo.description
             },
@@ -152,7 +154,7 @@ void RenderableGrid::initializeGL() {
     _gridProgram = BaseModule::ProgramObjectManager.request(
         ProgramName,
         []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
-            return global::renderEngine.buildRenderProgram(
+            return global::renderEngine->buildRenderProgram(
                 ProgramName,
                 absPath("${MODULE_BASE}/shaders/grid_vs.glsl"),
                 absPath("${MODULE_BASE}/shaders/grid_fs.glsl")
@@ -179,7 +181,7 @@ void RenderableGrid::deinitializeGL() {
     BaseModule::ProgramObjectManager.release(
         ProgramName,
         [](ghoul::opengl::ProgramObject* p) {
-            global::renderEngine.removeRenderProgram(p);
+            global::renderEngine->removeRenderProgram(p);
         }
     );
     _gridProgram = nullptr;
@@ -205,25 +207,6 @@ void RenderableGrid::render(const RenderData& data, RendererTasks&){
 
     _gridProgram->setUniform("gridColor", _gridColor);
 
-    // Saves current state:
-    GLboolean isBlendEnabled = glIsEnabledi(GL_BLEND, 0);
-    GLfloat currentLineWidth;
-    glGetFloatv(GL_LINE_WIDTH, &currentLineWidth);
-    GLboolean isLineSmoothEnabled = glIsEnabled(GL_LINE_SMOOTH);
-
-    GLenum blendEquationRGB;
-    GLenum blendEquationAlpha;
-    GLenum blendDestAlpha;
-    GLenum blendDestRGB;
-    GLenum blendSrcAlpha;
-    GLenum blendSrcRGB;
-    glGetIntegerv(GL_BLEND_EQUATION_RGB, &blendEquationRGB);
-    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &blendEquationAlpha);
-    glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDestAlpha);
-    glGetIntegerv(GL_BLEND_DST_RGB, &blendDestRGB);
-    glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcAlpha);
-    glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRGB);
-
     // Changes GL state:
     glLineWidth(_lineWidth);
     glEnablei(GL_BLEND, 0);
@@ -237,17 +220,8 @@ void RenderableGrid::render(const RenderData& data, RendererTasks&){
     _gridProgram->deactivate();
 
     // Restores GL State
-    glLineWidth(currentLineWidth);
-    glBlendEquationSeparate(blendEquationRGB, blendEquationAlpha);
-    glBlendFuncSeparate(blendSrcRGB, blendDestRGB, blendSrcAlpha, blendDestAlpha);
-
-    if (!isBlendEnabled) {
-        glDisablei(GL_BLEND, 0);
-    }
-
-    if (!isLineSmoothEnabled) {
-        glDisable(GL_LINE_SMOOTH);
-    }
+    global::renderEngine->openglStateCache().resetBlendState();
+    global::renderEngine->openglStateCache().resetLineState();
 }
 
 void RenderableGrid::update(const UpdateData&) {
@@ -257,13 +231,13 @@ void RenderableGrid::update(const UpdateData&) {
 
     const glm::vec2 halfSize = _size.value() / 2.f;
     const glm::uvec2 nSegments = _segments.value();
-    const glm::vec2 step = _size.value() / static_cast<glm::vec2>(nSegments); 
+    const glm::vec2 step = _size.value() / static_cast<glm::vec2>(nSegments);
 
     const int nLines = (2 * nSegments.x * nSegments.y) + nSegments.x + nSegments.y;
     const int nVertices = 2 * nLines;
     _varray.resize(nVertices);
     // OBS! Could be optimized further by removing duplicate vertices
-       
+
     int nr = 0;
     for (unsigned int i = 0; i < nSegments.x; ++i) {
         for (unsigned int j = 0; j < nSegments.y; ++j) {
