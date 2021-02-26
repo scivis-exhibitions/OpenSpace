@@ -22,8 +22,8 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETS___EXOPLANETSDATACOMPOSITIONTASK___H__
-#define __OPENSPACE_MODULE_EXOPLANETS___EXOPLANETSDATACOMPOSITIONTASK___H__
+#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSDATACOMPOSITIONTASK___H__
+#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSDATACOMPOSITIONTASK___H__
 
 #include <modules/exoplanetsexperttool/datastructures.h>
 #include <openspace/util/task.h>
@@ -54,4 +54,4 @@ private:
 
 } // namespace openspace::exoplanets
 
-#endif // __OPENSPACE_MODULE_EXOPLANETS___EXOPLANETSDATACOMPOSITIONTASK___H__
+#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSDATACOMPOSITIONTASK___H__
