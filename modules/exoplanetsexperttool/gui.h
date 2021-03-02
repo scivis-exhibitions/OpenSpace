@@ -22,35 +22,68 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
+#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___GUI___H__
+#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___GUI___H__
 
-#include <openspace/util/openspacemodule.h>
+#include <openspace/properties/propertyowner.h>
 
-#include <modules/exoplanetsexperttool/gui.h>
-#include <openspace/documentation/documentation.h>
+#include <openspace/util/keys.h>
+#include <openspace/util/mouse.h>
+#include <openspace/util/touch.h>
+#include <ghoul/glm.h>
+#include <ghoul/opengl/ghoul_gl.h>
+#include <ghoul/opengl/uniformcache.h>
+#include <array>
 
-namespace openspace {
+#define SHOW_IMGUI_HELPERS
 
-class Gui;
+struct ImGuiContext;
 
-class ExoplanetsExpertToolModule : public OpenSpaceModule {
+namespace ghoul::opengl {
+    class ProgramObject;
+    class Texture;
+} // namespace ghoul::opengl
+
+namespace openspace::exoplanets::gui {
+
+class Gui : public properties::PropertyOwner {
 public:
-    constexpr static const char* Name = "ExoplanetsExpertTool";
+    Gui(std::string identifier, std::string guiName = "");
+    ~Gui();
 
-    ExoplanetsExpertToolModule();
-    virtual ~ExoplanetsExpertToolModule() = default;
+    void initialize();
+    void deinitialize();
 
-    std::vector<documentation::Documentation> documentations() const override;
+    void initializeGL();
+    void deinitializeGL();
 
-protected:
-    void internalInitialize(const ghoul::Dictionary&) override;
+    bool mouseButtonCallback(MouseButton button, MouseAction action);
+    bool mouseWheelCallback(double position);
+    bool keyCallback(Key key, KeyModifier modifier, KeyAction action);
+    bool charCallback(unsigned int character, KeyModifier modifier);
 
-    exoplanets::gui::Gui _gui;
-    glm::vec2 _mousePosition = glm::vec2(0.f);
-    uint32_t _mouseButtons = 0;
+    void startFrame(float deltaTime, const glm::vec2& windowSize,
+        const glm::vec2& dpiScaling, const glm::vec2& mousePos,
+        uint32_t mouseButtonsPressed);
+    void endFrame();
+
+    void render();
+
+private:
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    GLuint vboElements = 0;
+    std::unique_ptr<ghoul::opengl::ProgramObject> _program;
+    UniformCache(tex, ortho) _uniformCache;
+    std::unique_ptr<ghoul::opengl::Texture> _fontTexture;
+
+    std::vector<ImGuiContext*> _contexts;
+
+#ifdef SHOW_IMGUI_HELPERS
+    bool _showHelpers = false;
+#endif // SHOW_IMGUI_HELPERS
 };
 
-} // namespace openspace
+} // namespace openspace::exoplanets::gui
 
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
+#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___GUI___H__

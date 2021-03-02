@@ -22,35 +22,15 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
+#version __CONTEXT__
 
-#include <openspace/util/openspacemodule.h>
+uniform sampler2D tex;
 
-#include <modules/exoplanetsexperttool/gui.h>
-#include <openspace/documentation/documentation.h>
+in vec2 out_uv;
+in vec4 out_color;
 
-namespace openspace {
+out vec4 FragColor;
 
-class Gui;
-
-class ExoplanetsExpertToolModule : public OpenSpaceModule {
-public:
-    constexpr static const char* Name = "ExoplanetsExpertTool";
-
-    ExoplanetsExpertToolModule();
-    virtual ~ExoplanetsExpertToolModule() = default;
-
-    std::vector<documentation::Documentation> documentations() const override;
-
-protected:
-    void internalInitialize(const ghoul::Dictionary&) override;
-
-    exoplanets::gui::Gui _gui;
-    glm::vec2 _mousePosition = glm::vec2(0.f);
-    uint32_t _mouseButtons = 0;
-};
-
-} // namespace openspace
-
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
+void main() {
+    FragColor = out_color * texture(tex, out_uv);
+}

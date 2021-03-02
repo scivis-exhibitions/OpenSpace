@@ -27,12 +27,14 @@ include(${OPENSPACE_CMAKE_EXT_DIR}/module_definition.cmake)
 set(HEADER_FILES
     datastructures.h
     exoplanetsexperttoolmodule.h
+    gui.h
     tasks/datacompositiontask.h
 )
 source_group("Header Files" FILES ${HEADER_FILES})
 
 set(SOURCE_FILES
     exoplanetsexperttoolmodule.cpp
+    gui.cpp
     tasks/datacompositiontask.cpp
 )
 source_group("Source Files" FILES ${SOURCE_FILES})

@@ -22,35 +22,19 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
+#version __CONTEXT__
 
-#include <openspace/util/openspacemodule.h>
+in vec2 in_position;
+in vec2 in_uv;
+in vec4 in_color;
 
-#include <modules/exoplanetsexperttool/gui.h>
-#include <openspace/documentation/documentation.h>
+out vec2 out_uv;
+out vec4 out_color;
 
-namespace openspace {
+uniform mat4 ortho;
 
-class Gui;
-
-class ExoplanetsExpertToolModule : public OpenSpaceModule {
-public:
-    constexpr static const char* Name = "ExoplanetsExpertTool";
-
-    ExoplanetsExpertToolModule();
-    virtual ~ExoplanetsExpertToolModule() = default;
-
-    std::vector<documentation::Documentation> documentations() const override;
-
-protected:
-    void internalInitialize(const ghoul::Dictionary&) override;
-
-    exoplanets::gui::Gui _gui;
-    glm::vec2 _mousePosition = glm::vec2(0.f);
-    uint32_t _mouseButtons = 0;
-};
-
-} // namespace openspace
-
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___EXOPLANETSEXPERTTOOLMODULE___H__
+void main() {
+    out_uv = in_uv;
+    out_color = in_color;
+    gl_Position = ortho * vec4(in_position.xy, 0.0, 1.0);
+}
