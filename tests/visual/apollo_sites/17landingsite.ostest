@@ -1,4 +1,4 @@
-m[ 
+[ 
     { "type": "pause", 
       "value": "true"},
     { "type": "keys", 
@@ -12,7 +12,7 @@ m[
     { "type": "wait", 
       "value": "20"}, 
     { "type": "screenshot", 
-      "value": "17landingsite"}, 
+      "value": "17landingsite"}
 ] 
 
 

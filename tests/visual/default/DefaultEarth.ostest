@@ -4,5 +4,5 @@
     { "type": "wait", 
       "value": "20"}, 
     { "type": "screenshot", 
-      "value": "Earth"}, 
+      "value": "Earth"}
 ] 

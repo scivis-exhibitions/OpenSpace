@@ -12,5 +12,5 @@
     { "type": "wait", 
       "value": "20"}, 
     { "type": "screenshot", 
-      "value": "11landingsite"}, 
+      "value": "11landingsite"}
 ] 

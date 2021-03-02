@@ -6,5 +6,5 @@
     { "type": "wait", 
       "value": "2"}, 
     { "type": "screenshot", 
-      "value": "SolarSystem"}, 
+      "value": "SolarSystem"}
 ] 

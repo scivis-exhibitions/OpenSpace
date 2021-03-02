@@ -8,7 +8,7 @@
     { "type": "wait", 
       "value": "40"}, 
     { "type": "screenshot", 
-      "value": "MoonSurface"}, 
+      "value": "MoonSurface"}
 ] 
 
 
