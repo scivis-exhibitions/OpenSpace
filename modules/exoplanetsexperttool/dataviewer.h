@@ -22,71 +22,34 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___GUI___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___GUI___H__
+#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATAVIEWER___H__
+#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATAVIEWER___H__
 
 #include <openspace/properties/propertyowner.h>
 
-#include <modules/exoplanetsexperttool/dataviewer.h>
-#include <openspace/util/keys.h>
-#include <openspace/util/mouse.h>
-#include <openspace/util/touch.h>
-#include <ghoul/glm.h>
-#include <ghoul/opengl/ghoul_gl.h>
-#include <ghoul/opengl/uniformcache.h>
-#include <array>
-
-#define SHOW_IMGUI_HELPERS
-
-struct ImGuiContext;
-
-namespace ghoul::opengl {
-    class ProgramObject;
-    class Texture;
-} // namespace ghoul::opengl
+#include <modules/exoplanetsexperttool/datastructures.h>
+#include <vector>
 
 namespace openspace::exoplanets::gui {
 
-class Gui : public properties::PropertyOwner {
+// @TODO give it a less generic name
+class DataViewer : public properties::PropertyOwner {
 public:
-    Gui(std::string identifier, std::string guiName = "");
-    ~Gui();
+    // @TODO: maybe move this somewhere else
+    struct ExoplanetGuiItem : public ExoplanetRecord {
+        std::string planetName;
+        std::string hostName;
+    };
 
-    void initialize();
-    void deinitialize();
+    DataViewer(std::string identifier, std::string guiName = "");
 
-    void initializeGL();
-    void deinitializeGL();
-
-    bool mouseButtonCallback(MouseButton button, MouseAction action);
-    bool mouseWheelCallback(double position);
-    bool keyCallback(Key key, KeyModifier modifier, KeyAction action);
-    bool charCallback(unsigned int character, KeyModifier modifier);
-
-    void startFrame(float deltaTime, const glm::vec2& windowSize,
-        const glm::vec2& dpiScaling, const glm::vec2& mousePos,
-        uint32_t mouseButtonsPressed);
-    void endFrame();
-
+    void loadData();
     void render();
 
 private:
-    GLuint vao = 0;
-    GLuint vbo = 0;
-    GLuint vboElements = 0;
-    std::unique_ptr<ghoul::opengl::ProgramObject> _program;
-    UniformCache(tex, ortho) _uniformCache;
-    std::unique_ptr<ghoul::opengl::Texture> _fontTexture;
-
-    std::vector<ImGuiContext*> _contexts;
-
-    DataViewer _dataViewer;
-
-#ifdef SHOW_IMGUI_HELPERS
-    bool _showHelpers = false;
-#endif // SHOW_IMGUI_HELPERS
+    std::vector<ExoplanetGuiItem> _data;
 };
 
 } // namespace openspace::exoplanets::gui
 
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___GUI___H__
+#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATAVIEWER___H__

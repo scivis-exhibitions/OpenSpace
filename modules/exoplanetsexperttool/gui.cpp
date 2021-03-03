@@ -52,11 +52,14 @@ namespace openspace::exoplanets::gui {
 
 Gui::Gui(std::string identifier, std::string guiName)
     : properties::PropertyOwner({ std::move(identifier), std::move(guiName) })
+    , _dataViewer("ExoplanetDataViewer")
 {}
 
 Gui::~Gui() {} // NOLINT
 
-void Gui::initialize() {}
+void Gui::initialize() {
+    _dataViewer.loadData();
+}
 
 void Gui::deinitialize() {
     for (ImGuiContext* ctx : _contexts) {
@@ -387,7 +390,7 @@ void Gui::render() {
     ImGui::SetNextWindowSize(DefaultSize, ImGuiCond_FirstUseEver);
     ImGui::Begin("ExoplanetExpertTool Gui", nullptr);
 
-    // TODO: Render my UI!
+    _dataViewer.render();
 
 #ifdef SHOW_IMGUI_HELPERS
     ImGui::Checkbox("ImGUI Helpers", &_showHelpers);

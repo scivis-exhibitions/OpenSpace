@@ -26,6 +26,7 @@ include(${OPENSPACE_CMAKE_EXT_DIR}/module_definition.cmake)
 
 set(HEADER_FILES
     datastructures.h
+    dataviewer.h
     exoplanetsexperttoolmodule.h
     gui.h
     tasks/datacompositiontask.h
@@ -34,14 +35,21 @@ source_group("Header Files" FILES ${HEADER_FILES})
 
 set(SOURCE_FILES
     exoplanetsexperttoolmodule.cpp
+    dataviewer.cpp
     gui.cpp
     tasks/datacompositiontask.cpp
 )
 source_group("Source Files" FILES ${SOURCE_FILES})
 
+set(SHADER_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/shaders/gui_fs.glsl
+  ${CMAKE_CURRENT_SOURCE_DIR}/shaders/gui_vs.glsl
+)
+source_group("Shader Files" FILES ${SHADER_FILES})
+
 create_new_module(
     "ExoplanetsExpertTool"
     exoplanets_expert_tool_module
     STATIC
-    ${HEADER_FILES} ${SOURCE_FILES}
+    ${HEADER_FILES} ${SOURCE_FILES} ${SHADER_FILES}
 )
