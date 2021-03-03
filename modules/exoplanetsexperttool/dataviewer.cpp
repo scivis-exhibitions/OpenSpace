@@ -97,27 +97,43 @@ void DataViewer::render() {
         //| ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti
         //| ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter;
 
-    int nColumns = 4;
+    const std::vector<const char*> columns = {
+        "Name",
+        "Host",
+        "Number planets",
+        "ESM",
+        "TSM",
+        "Planet radius",
+        "Planet equilibrium temp. (Kelvin)",
+        "Star effective temp. (Kelvin)",
+    };
+    const int nColumns = columns.size();
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
-        ImGui::TableSetupColumn("Name");
-        ImGui::TableSetupColumn("Host");
-        ImGui::TableSetupColumn("ESM");
-        ImGui::TableSetupColumn("TSM");
+        for (auto c : columns) {
+            ImGui::TableSetupColumn(c);
+        }
         ImGui::TableSetupScrollFreeze(0, 1); // Make header always visible
         ImGui::TableHeadersRow();
 
-        for (int row = 0; row < _data.size(); row++)
-        {
+        for (int row = 0; row < _data.size(); row++) {
             const ExoplanetGuiItem& item = _data[row];
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(item.planetName.c_str());
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(item.hostName.c_str());
             ImGui::TableNextColumn();
+            ImGui::Text("%d", item.nPlanets);
+            ImGui::TableNextColumn();
             ImGui::Text("%f", item.esm);
             ImGui::TableNextColumn();
             ImGui::Text("%f", item.tsm);
+            ImGui::TableNextColumn();
+            ImGui::Text("%f", item.radius.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%f", item.eqilibriumTemp.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%f", item.starEffectiveTemp.value);
         }
         ImGui::EndTable();
     }
