@@ -208,10 +208,10 @@ void ExoplanetsDataCompositionTask::perform(
 
            // Mass radius relationship from Chen & Kipping (2017)
            // See eq. (2) in https://arxiv.org/pdf/1805.03671.pdf
-           if (r < 1.23 * EarthRadius) {
+           if (r < 1.23) {
                p.mass.value = 0.9718 * glm::pow(r, 3.58);
            }
-           else if (r < 14.26 * EarthRadius) {
+           else if (r < 14.26) {
                p.mass.value = 1.436 * glm::pow(r, 1.70);
            }
        }
@@ -234,8 +234,8 @@ void ExoplanetsDataCompositionTask::perform(
        p.tsm = computeTSM(p);
        p.esm = computeESM(p);
 
-       // For now, only care about entries where TSM or ESM could be computed
-       if (std::isnan(p.tsm) && std::isnan(p.esm)) {
+       // For now, only include the planets with TSM values
+       if (std::isnan(p.tsm)) {
            continue;
        }
 
@@ -304,14 +304,15 @@ float ExoplanetsDataCompositionTask::computeTSM(const ExoplanetRecord& p) {
     }
 
     // Scale factor based on table 1 in Kempton et al. (2018)
+    // planetRadius is in Earth radii
     auto scaleFactor = [](double planetRadius) {
-        if (planetRadius < 1.5 * EarthRadius) {
+        if (planetRadius < 1.5) {
             return 0.19;
         }
-        else if (planetRadius < 2.75 * EarthRadius) {
+        else if (planetRadius < 2.75) {
             return 1.26;
         }
-        else if (planetRadius < 4.0 * EarthRadius) {
+        else if (planetRadius < 4.0) {
             return 1.28;
         }
         else { // 4.0 < r  < 10 EarthRadius
@@ -345,6 +346,16 @@ float ExoplanetsDataCompositionTask::computeESM(const ExoplanetRecord& p) {
         return std::numeric_limits<float>::quiet_NaN();
     }
 
+
+    const double rPlanet = p.radius.value;
+    const double tempPlanetDay = 1.10 * p.eqilibriumTemp.value;
+    const double rStar = p.starRadius.value;
+    const double teffStar = p.starEffectiveTemp.value;
+    const double mK = p.magnitudeK.value;
+
+    constexpr const double earthToSolar = 0.0091577;
+    const double normalizedPlanetRadius = (rPlanet * earthToSolar) / rStar;
+
     // Plack's function computes the energy emitted per second per unit lambda wavelength
     // per steradian from one square meter of a perfect blackbody at temperature T
     // http://spiff.rit.edu/classes/phys317/lectures/planck.html
@@ -358,17 +369,12 @@ float ExoplanetsDataCompositionTask::computeESM(const ExoplanetRecord& p) {
         return nom / denom;
     };
 
-    const double rPlanet = p.radius.value;
-    const double tempPlanetDay = 1.10 * p.eqilibriumTemp.value;
-    const double rStar = p.starRadius.value;
-    const double teffStar = p.starEffectiveTemp.value;
-    const double mK = p.magnitudeK.value;
+    const double lambda = 7.5 * 10e-6; // micrometer
 
     double esm = 4.29 * 10e6;
-    esm *= plancksFunction(tempPlanetDay, 7.5) / plancksFunction(teffStar, 7.5);
-    esm *= std::pow(rPlanet / rStar, 2.0);
-    esm *= std::pow(1.0, -mK / 5.0);
-
+    esm *= plancksFunction(tempPlanetDay, lambda) / plancksFunction(teffStar, lambda);
+    esm *= std::pow(normalizedPlanetRadius, 2.0);
+    esm *= std::pow(10.0, -mK / 5.0);
     return static_cast<float>(esm);
 }
 
