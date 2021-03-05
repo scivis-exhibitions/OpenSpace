@@ -47,6 +47,8 @@ public:
     void render();
 
 private:
+    void renderTable();
+
     std::vector<ExoplanetGuiItem> _data;
 };
 
