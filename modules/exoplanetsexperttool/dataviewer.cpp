@@ -103,9 +103,11 @@ void DataViewer::render() {
 
 void DataViewer::renderTable() {
     static ImGuiTableFlags flags =
-        ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_BordersV
-        | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_BordersOuter
-        | ImGuiTableFlags_Sortable | ImGuiTableFlags_RowBg;
+        ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY
+        | ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuter
+        | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable
+        | ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable
+        | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings;
 
     enum ColumnID {
         Name,
