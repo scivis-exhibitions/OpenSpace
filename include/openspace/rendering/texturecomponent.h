@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -22,17 +22,51 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include <modules/globebrowsing/src/rawtile.h>
+#ifndef __OPENSPACE_CORE___TEXTURECOMPONENT___H__
+#define __OPENSPACE_CORE___TEXTURECOMPONENT___H__
 
-namespace openspace::globebrowsing {
+#include <ghoul/opengl/texture.h>
 
-RawTile createDefaultTile(TileTextureInitData initData) {
-    RawTile defaultRes;
-    std::byte* data = new std::byte[initData.totalNumBytes];
-    defaultRes.imageData = std::unique_ptr<std::byte[]>(data);
-    std::fill_n(defaultRes.imageData.get(), initData.totalNumBytes, std::byte(0));
-    defaultRes.textureInitData = std::move(initData);
-    return defaultRes;
-}
+namespace ghoul::filesystem { class File; }
+namespace ghoul::opengl {class Texture; }
 
-} // namespace openspace::globebrowsing
+namespace openspace {
+
+class TextureComponent {
+public:
+    using Texture = ghoul::opengl::Texture;
+
+    const Texture* texture() const;
+    Texture* texture();
+
+    void setFilterMode(Texture::FilterMode filterMode);
+    void setWrapping(Texture::WrappingMode wrapping);
+    void setShouldWatchFileForChanges(bool value);
+    void setShouldPurgeFromRAM(bool value);
+
+    void bind();
+    void uploadToGpu();
+
+    // Loads a texture from a file on disk
+    void loadFromFile(const std::string& path);
+
+    // Function to call in a renderable's update function to make sure
+    // the texture is kept up to date
+    void update();
+
+private:
+    std::unique_ptr<ghoul::filesystem::File> _textureFile;
+    std::unique_ptr<Texture> _texture;
+
+    Texture::FilterMode _filterMode = Texture::FilterMode::LinearMipMap;
+    Texture::WrappingMode _wrappingMode = Texture::WrappingMode::Repeat;
+    bool _shouldWatchFile = true;
+    bool _shouldPurgeFromRAM = true;
+
+    bool _fileIsDirty = false;
+    bool _textureIsDirty = false;
+};
+
+} // namespace openspace
+
+#endif // __OPENSPACE_CORE___TEXTURECOMPONENT___H__

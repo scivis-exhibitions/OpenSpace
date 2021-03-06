@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -22,72 +22,32 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_BASE___MODELGEOMETRY___H__
-#define __OPENSPACE_MODULE_BASE___MODELGEOMETRY___H__
+#ifndef __OPENSPACE_MODULE_BASE___DASHBOARDITEMTEXT___H__
+#define __OPENSPACE_MODULE_BASE___DASHBOARDITEMTEXT___H__
 
-#include <ghoul/misc/managedmemoryuniqueptr.h>
-#include <ghoul/opengl/ghoul_gl.h>
-#include <ghoul/opengl/texture.h>
-#include <memory>
+#include <openspace/rendering/dashboarditem.h>
 
-namespace ghoul { class Dictionary; }
-namespace ghoul::opengl { class ProgramObject; }
+#include <openspace/properties/stringproperty.h>
 
-namespace openspace { class Renderable; }
-namespace openspace::documentation { struct Documentation; }
+namespace openspace {
 
-namespace openspace::modelgeometry {
+namespace documentation { struct Documentation; }
 
-class ModelGeometry {
+class DashboardItemText : public DashboardTextItem {
 public:
-    struct Vertex {
-        GLfloat location[4];
-        GLfloat tex[2];
-        GLfloat normal[3];
-    };
+    DashboardItemText(const ghoul::Dictionary& dictionary);
+    virtual ~DashboardItemText() = default;
 
-    static ghoul::mm_unique_ptr<ModelGeometry> createFromDictionary(
-        const ghoul::Dictionary& dictionary
-    );
+    void render(glm::vec2& penPosition) override;
 
-    ModelGeometry(const ghoul::Dictionary& dictionary);
-    virtual ~ModelGeometry() = default;
-
-    virtual bool initialize(Renderable* parent);
-    virtual void deinitialize();
-    void bindTexture();
-    void render();
-
-    virtual bool loadModel(const std::string& filename) = 0;
-    void changeRenderMode(const GLenum mode);
-    //bool getVertices(std::vector<Vertex>* vertexList);
-    //bool getIndices(std::vector<int>* indexList);
-
-    double boundingRadius() const;
-
-    virtual void setUniforms(ghoul::opengl::ProgramObject& program);
+    glm::vec2 size() const override;
 
     static documentation::Documentation Documentation();
 
-protected:
-    bool loadObj(const std::string& filename);
-    bool loadCachedFile(const std::string& filename);
-    bool saveCachedFile(const std::string& filename);
-
-    GLuint _vaoID = 0;
-    GLuint _vbo = 0;
-    GLuint _ibo = 0 ;
-    GLenum _mode = GL_TRIANGLES;
-
-    double _boundingRadius = 0.0;
-    std::string _colorTexturePath;
-    std::unique_ptr<ghoul::opengl::Texture> _texture;
-
-    std::vector<Vertex> _vertices;
-    std::vector<int> _indices;
-    std::string _file;
+private:
+    properties::StringProperty _text;
 };
 
-}  // namespace openspace::modelgeometry
+} // namespace openspace
 
-#endif // __OPENSPACE_MODULE_BASE___MODELGEOMETRY___H__
+#endif // __OPENSPACE_MODULE_BASE___DASHBOARDITEMTEXT___H__

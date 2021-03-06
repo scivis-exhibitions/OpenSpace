@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -42,7 +42,13 @@
 
 int main(int argc, char** argv) {
     using namespace openspace;
+
+    ghoul::logging::LogManager::initialize(
+        ghoul::logging::LogLevel::Debug,
+        ghoul::logging::LogManager::ImmediateFlush::Yes
+    );
     ghoul::initialize();
+    global::create();
 
     // Register the path of the executable,
     // to make it possible to find other files in the same directory.

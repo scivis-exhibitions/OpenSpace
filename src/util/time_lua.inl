@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -86,13 +86,15 @@ int time_setDeltaTimeSteps(lua_State* L) {
 
     for (size_t i = 1; i <= nItems; ++i) {
         std::string key = std::to_string(i);
-        if (dict.hasKeyAndValue<double>(key)) {
+        if (dict.hasValue<double>(key)) {
             const double time = dict.value<double>(key);
             inputDeltaTimes.push_back(time);
         }
         else {
-            const char* msg = lua_pushfstring(L,
-                "Error setting delta times. Expected list of numbers.");
+            const char* msg = lua_pushfstring(
+                L,
+                "Error setting delta times. Expected list of numbers"
+            );
             return ghoul::lua::luaError(L, fmt::format("bad argument ({})", msg));
         }
     }
@@ -613,7 +615,7 @@ int time_interpolateTimeRelative(lua_State* L) {
         return ghoul::lua::luaError(L, fmt::format("bad argument #1 ({})", msg));
     }
 
-    if (lua_gettop(L) == 1 && isNumber) {
+    if (lua_gettop(L) == 1) {
         double delta = lua_tonumber(L, 1);
         global::timeManager->interpolateTimeRelative(
             delta,

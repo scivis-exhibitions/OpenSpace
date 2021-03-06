@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -86,13 +86,13 @@ documentation::Documentation RenderableCrawlingLine::Documentation() {
                 new TableVerifier({
                     {
                         KeyColorStart,
-                        new DoubleVector4Verifier,
+                        new Color4Verifier,
                         Optional::No,
                         "The color at the start of the line",
                     },
                     {
                         KeyColorEnd,
-                        new DoubleVector4Verifier,
+                        new Color4Verifier,
                         Optional::No,
                         "The color at the end of the line"
                     }
@@ -119,11 +119,11 @@ RenderableCrawlingLine::RenderableCrawlingLine(const ghoul::Dictionary& dictiona
     _target = dictionary.value<std::string>(KeyTarget);
     _instrumentName = dictionary.value<std::string>(KeyInstrument);
 
-    _lineColorBegin = dictionary.value<glm::vec4>(
+    _lineColorBegin = dictionary.value<glm::dvec4>(
         std::string(KeyColor) + "." + KeyColorStart
     );
 
-    _lineColorEnd = dictionary.value<glm::vec4>(
+    _lineColorEnd = dictionary.value<glm::dvec4>(
         std::string(KeyColor) + "." + KeyColorEnd
     );
 }

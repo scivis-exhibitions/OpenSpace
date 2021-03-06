@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -103,37 +103,6 @@ namespace {
        GL_COLOR_ATTACHMENT2,
        GL_COLOR_ATTACHMENT3
     };
-
-    void saveTextureToMemory(GLenum attachment, int width, int height,
-                             std::vector<double>& memory)
-    {
-        memory.clear();
-        memory.resize(width * height * 3);
-
-        std::vector<float> tempMemory(width * height * 3);
-
-        if (attachment != GL_DEPTH_ATTACHMENT) {
-            glReadBuffer(attachment);
-            glReadPixels(0, 0, width, height, GL_RGB, GL_FLOAT, tempMemory.data());
-
-        }
-        else {
-            glReadPixels(
-                0,
-                0,
-                width,
-                height,
-                GL_DEPTH_COMPONENT,
-                GL_FLOAT,
-                tempMemory.data()
-            );
-        }
-
-        for (int i = 0; i < width * height * 3; ++i) {
-            memory[i] = static_cast<double>(tempMemory[i]);
-        }
-    }
-
 } // namespace
 
 namespace openspace {
@@ -416,7 +385,11 @@ void FramebufferRenderer::initialize() {
     glDisablei(GL_BLEND, 1);
     glDisablei(GL_BLEND, 2);
 
-    glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE);
+    // glClampColor is weird as it requires a GLenum in the function definition, but
+    // the OpenGL standard says that it only accepts GL_FALSE and GL_TRUE, which are
+    // of type GLboolean *eye rolling*
+    // GLenum(0) == GLboolen(0) == GL_FALSE
+    glClampColor(GL_CLAMP_READ_COLOR, GLenum(0));
 
     glEnable(GL_DEPTH_TEST);
 
@@ -583,27 +556,6 @@ void FramebufferRenderer::updateDownscaleTextures() {
 }
 
 void FramebufferRenderer::writeDownscaledVolume() {
-    // Saving current OpenGL state
-    GLboolean blendEnabled = glIsEnabledi(GL_BLEND, 0);
-
-    GLenum blendEquationRGB;
-    glGetIntegerv(GL_BLEND_EQUATION_RGB, &blendEquationRGB);
-
-    GLenum blendEquationAlpha;
-    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &blendEquationAlpha);
-
-    GLenum blendDestAlpha;
-    glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDestAlpha);
-
-    GLenum blendDestRGB;
-    glGetIntegerv(GL_BLEND_DST_RGB, &blendDestRGB);
-
-    GLenum blendSrcAlpha;
-    glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcAlpha);
-
-    GLenum blendSrcRGB;
-    glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRGB);
-
     glEnablei(GL_BLEND, 0);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
@@ -647,14 +599,9 @@ void FramebufferRenderer::writeDownscaledVolume() {
 
     _downscaledVolumeProgram->deactivate();
 
-    // Restores blending state
-    glBlendEquationSeparate(blendEquationRGB, blendEquationAlpha);
-    glBlendFuncSeparate(blendSrcRGB, blendDestRGB, blendSrcAlpha, blendDestAlpha);
-
-    if (!blendEnabled) {
-        glDisablei(GL_BLEND, 0);
-    }
-
+    // Restores OpenGL Rendering State
+    global::renderEngine->openglStateCache().resetBlendState();
+    global::renderEngine->openglStateCache().resetDepthState();
 }
 
 void FramebufferRenderer::update() {
@@ -1037,7 +984,7 @@ void FramebufferRenderer::updateRaycastData() {
 
         try {
             ghoul::Dictionary outsideDict = dict;
-            outsideDict.setValue("getEntryPath", GetEntryOutsidePath);
+            outsideDict.setValue("getEntryPath", std::string(GetEntryOutsidePath));
             _raycastPrograms[raycaster] = ghoul::opengl::ProgramObject::Build(
                 "Volume " + std::to_string(data.id) + " raycast",
                 absPath(vsPath),
@@ -1050,7 +997,7 @@ void FramebufferRenderer::updateRaycastData() {
 
         try {
             ghoul::Dictionary insideDict = dict;
-            insideDict.setValue("getEntryPath", GetEntryInsidePath);
+            insideDict.setValue("getEntryPath", std::string(GetEntryInsidePath));
             _insideRaycastPrograms[raycaster] = ghoul::opengl::ProgramObject::Build(
                 "Volume " + std::to_string(data.id) + " inside raycast",
                 absPath("${SHADERS}/framebuffer/resolveframebuffer.vert"),
@@ -1152,6 +1099,7 @@ void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFac
     TracyGpuZone("FramebufferRenderer")
 
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &_defaultFBO);
+    global::renderEngine->openglStateCache().setDefaultFramebuffer(_defaultFBO);
 
     GLint viewport[4] = { 0 };
     global::renderEngine->openglStateCache().viewport(viewport);
@@ -1426,13 +1374,8 @@ void FramebufferRenderer::performDeferredTasks(
 
         Deferredcaster* deferredcaster = deferredcasterTask.deferredcaster;
 
-        ghoul::opengl::ProgramObject* deferredcastProgram = nullptr;
-
-        if (deferredcastProgram != _deferredcastPrograms[deferredcaster].get()
-            || deferredcastProgram == nullptr)
-        {
-            deferredcastProgram = _deferredcastPrograms[deferredcaster].get();
-        }
+        ghoul::opengl::ProgramObject* deferredcastProgram =
+            _deferredcastPrograms[deferredcaster].get();
 
         if (deferredcastProgram) {
             _pingPongIndex = _pingPongIndex == 0 ? 1 : 0;

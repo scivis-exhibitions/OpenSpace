@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -41,13 +41,11 @@
 #include <ghoul/lua/ghoul_lua.h>
 #include <ghoul/misc/assert.h>
 #include <ghoul/misc/boolean.h>
-//#include <ghoul/opengl/ghoul_gl.h>
-#include <GLFW/glfw3.h>
-#ifdef _WIN32
+#include <ghoul/opengl/ghoul_gl.h>
+#ifdef WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
-#else
-#define GLFW_INCLUDE_NONE
 #endif
+#include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 #include <sgct/clustermanager.h>
 #include <sgct/commandline.h>
@@ -224,6 +222,8 @@ void mainInitFunc(GLFWwindow*) {
     global::openSpaceEngine->initialize();
     LDEBUG("Initializing OpenSpace Engine finished");
 
+#ifndef __APPLE__
+    // Apparently: "Cocoa: Regular windows do not have icons on macOS"
     {
         std::string path = absPath("${DATA}/openspace-icon.png");
         int x;
@@ -242,6 +242,7 @@ void mainInitFunc(GLFWwindow*) {
 
         stbi_image_free(icons[0].pixels);
     }
+#endif // __APPLE__
 
     currentWindow = Engine::instance().windows().front().get();
     currentViewport = currentWindow->viewports().front().get();
@@ -575,7 +576,7 @@ void mainPostDrawFunc() {
             glBindTexture(GL_TEXTURE_2D, texId);
             w.leftOrMain.handle->SendTexture(
                 texId,
-                GL_TEXTURE_2D,
+                GLuint(GL_TEXTURE_2D),
                 window.framebufferResolution().x,
                 window.framebufferResolution().y
             );
@@ -586,7 +587,7 @@ void mainPostDrawFunc() {
             glBindTexture(GL_TEXTURE_2D, tId);
             w.right.handle->SendTexture(
                 tId,
-                GL_TEXTURE_2D,
+                GLuint(GL_TEXTURE_2D),
                 window.framebufferResolution().x,
                 window.framebufferResolution().y
             );
@@ -655,6 +656,17 @@ void mainCharCallback(unsigned int codepoint, int modifiers) {
 
     const KeyModifier m = KeyModifier(modifiers);
     global::openSpaceEngine->charCallback(codepoint, m);
+}
+
+
+
+void mainDropCallback(int amount, const char** paths) {
+    ghoul_assert(amount > 0, "Expected at least one file path");
+    ghoul_assert(paths, "expected non-nullptr");
+
+    for (int i = 0; i < amount; ++i) {
+        global::openSpaceEngine->handleDragDrop(paths[i]);
+    }
 }
 
 
@@ -1004,16 +1016,14 @@ std::string selectedSgctProfileFromLauncher(LauncherWindow& lw, bool hasCliSGCTC
             }
         }
         else {
-            config = "${CONFIG}/" + config + xmlExt;
+            config += xmlExt;
         }
         global::configuration->windowConfiguration = config;
     }
     return config;
 }
 
-int main(int argc, char** argv) {
-    glfwInit();
-
+int main(int argc, char* argv[]) {
 #ifdef WIN32
     SetUnhandledExceptionFilter(generateMiniDump);
 #endif // WIN32
@@ -1026,7 +1036,6 @@ int main(int argc, char** argv) {
     {
         using namespace ghoul::logging;
         LogManager::initialize(LogLevel::Debug, LogManager::ImmediateFlush::Yes);
-        LogMgr.addLog(std::make_unique<ConsoleLog>());
 #ifdef WIN32
         if (IsDebuggerPresent()) {
             LogMgr.addLog(std::make_unique<ghoul::logging::VisualStudioOutputLog>());
@@ -1153,7 +1162,6 @@ int main(int argc, char** argv) {
 
     global::openSpaceEngine->registerPathTokens();
 
-
     bool hasSGCTConfig = false;
     bool hasProfile = false;
     std::string sgctFunctionName;
@@ -1169,19 +1177,41 @@ int main(int argc, char** argv) {
         sgctFunctionName
     );
 
+    //TODO consider LFATAL if ${USER} doens't exist rather then recurisve create.
+    global::openSpaceEngine->createUserDirectoriesIfNecessary();
+
+    // (abock, 2020-12-07)  For some reason on Apple the keyboard handler in CEF will call
+    // the Qt one even if the QApplication was destroyed, leading to invalid memory
+    // access.  The only way we could fix this for the release was to keep the
+    // QApplication object around until the end of the program.  Even though the Qt
+    // keyboard handler gets called, it doesn't do anything so everything still works.
+#ifdef __APPLE__
+    int qac = 0;
+    QApplication app(qac, nullptr);
+#endif // __APPLE__
+
     bool skipLauncher =
         (hasProfile && hasSGCTConfig) || global::configuration->bypassLauncher;
     if (!skipLauncher) {
+#ifndef __APPLE__
         int qac = 0;
         QApplication app(qac, nullptr);
-        LauncherWindow win(!hasProfile,
-            *global::configuration, !hasSGCTConfig, windowCfgPreset, nullptr);
+#endif // __APPLE__
+
+        LauncherWindow win(
+            !hasProfile,
+            *global::configuration,
+            !hasSGCTConfig,
+            windowCfgPreset,
+            nullptr
+        );
         win.show();
         app.exec();
 
         if (!win.wasLaunchSelected()) {
             exit(EXIT_SUCCESS);
         }
+        glfwInit();
 
         global::configuration->profile = win.selectedProfile();
         windowConfiguration = selectedSgctProfileFromLauncher(
@@ -1191,6 +1221,8 @@ int main(int argc, char** argv) {
             labelFromCfgFile,
             xmlExt
         );
+    } else {
+        glfwInit();
     }
     if (global::configuration->profile.empty()) {
         LFATAL("Cannot launch with an empty profile");
@@ -1232,6 +1264,7 @@ int main(int argc, char** argv) {
     callbacks.mousePos = mainMousePosCallback;
     callbacks.mouseScroll = mainMouseScrollCallback;
     callbacks.character = mainCharCallback;
+    callbacks.drop = mainDropCallback;
     callbacks.encode = mainEncodeFun;
     callbacks.decode = mainDecodeFun;
     Log::instance().setNotifyLevel(Log::Level::Debug);

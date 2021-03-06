@@ -75,6 +75,7 @@ linux_gcc_make: {
       }
       stage('linux-gcc-make/test') {
         // testHelper.runUnitTests('build/OpenSpaceTest');
+        // testHelper.runUnitTests('bin/codegentest')
       }
       cleanWs()
     } // node('linux')
@@ -95,6 +96,7 @@ linux_gcc_ninja: {
       }
       stage('linux-gcc-ninja/test') {
         // testHelper.runUnitTests('build/OpenSpaceTest');
+        // testHelper.runUnitTests('bin/codegentest')
       }
       cleanWs()
     } // node('linux')
@@ -116,6 +118,7 @@ linux_clang_make: {
       }
       stage('linux-clang-make/test') {
         // testHelper.runUnitTests('build/OpenSpaceTest');
+        // testHelper.runUnitTests('bin/codegentest')
       }
       cleanWs()
     } // node('linux')
@@ -136,6 +139,7 @@ linux_clang_ninja: {
       }
       stage('linux-clang-ninja/test') {
         // testHelper.runUnitTests('build/OpenSpaceTest');
+        // testHelper.runUnitTests('bin/codegentest')
       }
       cleanWs()
     } // node('linux')
@@ -144,20 +148,31 @@ linux_clang_ninja: {
 windows_msvc: {
   if (env.USE_BUILD_OS_WINDOWS == 'true') {
     node('windows') {
-      ws("${env.JENKINS_BASE}/O/${env.BRANCH_NAME}/${env.BUILD_ID}") {
-        stage('windows-msvc/scm') {
-          deleteDir();
-          gitHelper.checkoutGit(url, branch);
-        }
-        stage('windows-msvc/build') {
-          compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '', 'build-msvc');
-          compileHelper.recordCompileIssues(compileHelper.VisualStudio());
-        }
-        stage('windows-msvc/test') {
-          // Currently, the unit tests are failing on Windows
-          // testHelper.runUnitTests('bin\\Debug\\OpenSpaceTest')
-        },
-        stage('windows/visual-tests') {
+      stage('windows-msvc/scm') {
+        deleteDir();
+        gitHelper.checkoutGit(url, branch);
+      }
+      stage('windows-msvc/build') {
+        compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '', 'build-msvc');
+        compileHelper.recordCompileIssues(compileHelper.VisualStudio());
+      }
+      stage('windows-msvc/test') {
+        // Currently, the unit tests are failing on Windows
+        // testHelper.runUnitTests('bin\\Debug\\OpenSpaceTest')
+        testHelper.runUnitTests('bin\\Debug\\codegentest')
+      }
+      cleanWs()
+    } // node('windows')
+    node('windows-visual') {
+      stage('windows-msvc/scm') {
+        deleteDir();
+        gitHelper.checkoutGit(url, branch);
+      }
+      stage('windows-msvc/build') {
+        compileHelper.build(compileHelper.VisualStudio(), compileHelper.VisualStudio(), moduleCMakeFlags(), '', 'build-msvc');
+        compileHelper.recordCompileIssues(compileHelper.VisualStudio());
+      }
+      stage('windows/visual-tests') {
           dir('OpenSpace') {
             testHelper.linkFolder(env.OPENSPACE_FILES + "\\sync_full", "sync", );
             testHelper.linkFolder(env.OPENSPACE_FILES + "\\cache_gdal", "cache_gdal");
@@ -166,10 +181,8 @@ windows_msvc: {
           testHelper.runUiTests()
           //commit new test images
           //copy test results to static dir
-        }
-      } // node('windows')
-      cleanWs()
-    } // node('windows')
+      }
+    }
   }
 },
 // windows_ninja: {

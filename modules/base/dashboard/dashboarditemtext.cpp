@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -22,26 +22,59 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_BASE___MULTIMODELGEOMETRY___H__
-#define __OPENSPACE_MODULE_BASE___MULTIMODELGEOMETRY___H__
+#include <modules/base/dashboard/dashboarditemtext.h>
 
-#include <modules/base/rendering/modelgeometry.h>
+#include <openspace/documentation/documentation.h>
+#include <openspace/documentation/verifier.h>
+#include <openspace/engine/globals.h>
+#include <ghoul/font/font.h>
+#include <ghoul/font/fontmanager.h>
+#include <ghoul/font/fontrenderer.h>
+#include <ghoul/misc/profiling.h>
+#include <optional>
+
+namespace {
+    constexpr openspace::properties::Property::PropertyInfo TextInfo = {
+        "Text",
+        "Text",
+        "The text to be displayed"
+    };
+
+    struct [[codegen::Dictionary(DashboardItemText)]] Parameters {
+        // [[codegen::verbatim(TextInfo.description)]]
+        std::optional<std::string> text;
+    };
+#include "dashboarditemtext_codegen.cpp"
+} // namespace
 
 namespace openspace {
-    class RenderableModel;
-    class RenderableModelProjection;
+
+documentation::Documentation DashboardItemText::Documentation() {
+    documentation::Documentation doc = codegen::doc<Parameters>();
+    doc.id = "base_dashboarditem_text";
+    return doc;
+}
+
+DashboardItemText::DashboardItemText(const ghoul::Dictionary& dictionary)
+    : DashboardTextItem(dictionary)
+    , _text(TextInfo, "")
+{
+    const Parameters p = codegen::bake<Parameters>(dictionary);
+    _text = p.text.value_or(_text);
+    addProperty(_text);
+}
+
+void DashboardItemText::render(glm::vec2& penPosition) {
+    ZoneScoped
+
+    RenderFont(*_font, penPosition, _text.value());
+    penPosition.y -= _font->height();
+}
+
+glm::vec2 DashboardItemText::size() const {
+    ZoneScoped
+
+    return _font->boundingBox(_text.value());
+}
+
 } // namespace openspace
-
-namespace openspace::modelgeometry {
-
-class MultiModelGeometry : public ModelGeometry {
-public:
-    MultiModelGeometry(const ghoul::Dictionary& dictionary);
-
-private:
-    virtual bool loadModel(const std::string& filename) override;
-};
-
-}  // namespace openspace::modelgeometry
-
-#endif // __OPENSPACE_MODULE_BASE___MULTIMODELGEOMETRY___H__

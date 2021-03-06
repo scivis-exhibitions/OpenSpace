@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2020                                                               *
+ * Copyright (c) 2014-2021                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -48,6 +48,10 @@
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/profiling.h>
 #include <iomanip>
+
+#ifdef WIN32
+#include <windows.h>
+#endif // WIN32
 
 namespace {
     constexpr const char* _loggerCat = "SessionRecording";
@@ -301,7 +305,8 @@ bool SessionRecording::startPlayback(std::string& filename,
         LERROR("Unknown data type in header (should be Ascii or Binary)");
         cleanUpPlayback();
     }
-    std::string throwawayNewlineChar = readHeaderElement(_playbackFile, 1);
+    // throwaway newline character
+    readHeaderElement(_playbackFile, 1);
 
     if (_recordingDataMode == DataMode::Binary) {
         //Close & re-open the file, starting from the beginning, and do dummy read
@@ -702,7 +707,7 @@ void SessionRecording::preSynchronization() {
 
     //Handle callback(s) for change in idle/record/playback state
     if (_state != _lastState) {
-        using K = const CallbackHandle;
+        using K = CallbackHandle;
         using V = StateChangeCallback;
         for (const std::pair<K, V>& it : _stateChangeCallbacks) {
             it.second();
@@ -754,9 +759,8 @@ bool SessionRecording::playbackAddEntriesToTimeline() {
 
     if (_recordingDataMode == DataMode::Binary) {
         unsigned char frameType;
-        bool fileReadOk = true;
 
-        while (parsingStatusOk && fileReadOk) {
+        while (parsingStatusOk) {
             frameType = readFromPlayback<unsigned char>(_playbackFile);
             // Check if have reached EOF
             if (!_playbackFile) {
@@ -764,7 +768,6 @@ bool SessionRecording::playbackAddEntriesToTimeline() {
                     "Finished parsing {} entries from playback file {}",
                     _playbackLineNum - 1, _playbackFilename
                 ));
-                fileReadOk = false;
                 break;
             }
             if (frameType == HeaderCameraBinary) {
@@ -1714,7 +1717,17 @@ std::vector<std::string> SessionRecording::playbackList() const {
     std::vector<std::string> allInputFiles = currentDir.readFiles();
     for (const std::string& f : allInputFiles) {
         // Remove path and keep only the filename
-        fileList.push_back(f.substr(path.length() + 1, f.length() - path.length() - 1));
+        const std::string filename = f.substr(path.length() + 1, f.length() - path.length() - 1);
+        bool isHidden = false;
+#ifdef WIN32
+        DWORD attributes = GetFileAttributes(f.c_str());
+        isHidden = attributes & FILE_ATTRIBUTE_HIDDEN;
+#else
+        isHidden = filename.rfind(".", 0) != 0;
+#endif // WIN32
+        if (!isHidden) { //Don't add hidden files
+            fileList.push_back(filename);
+        }
     }
     return fileList;
 }
@@ -1768,9 +1781,8 @@ SessionRecording::DataMode SessionRecording::readModeFromHeader(std::string file
         mode = DataMode::Binary;
     }
     else {
-        LERROR("Unknown data type in header (should be Ascii or Binary)");
+        throw ConversionError("Unknown data type in header (should be Ascii or Binary)");
     }
-    inputFile.close();
     return mode;
 }
 
@@ -1917,9 +1929,8 @@ bool SessionRecording::convertEntries(std::string& inFilename,
 
     if (mode == DataMode::Binary) {
         unsigned char frameType;
-        bool fileReadOk = true;
 
-        while (conversionStatusOk && fileReadOk) {
+        while (conversionStatusOk) {
             frameType = readFromPlayback<unsigned char>(inStream);
             // Check if have reached EOF
             if (!inStream) {
@@ -1927,7 +1938,6 @@ bool SessionRecording::convertEntries(std::string& inFilename,
                     "Finished converting {} entries from playback file {}",
                     lineNum - 1, inFilename
                 ));
-                fileReadOk = false;
                 break;
             }
             if (frameType == HeaderCameraBinary) {
@@ -2051,7 +2061,7 @@ std::string SessionRecording::getLegacyConversionResult(std::string filename, in
 }
 
 std::string SessionRecording_legacy_0085::getLegacyConversionResult(std::string filename,
-                                                                    int depth)
+                                                                    int)
 {
     //This method is overriden in each legacy subclass, but does nothing in this instance
     // as the oldest supported legacy version.
