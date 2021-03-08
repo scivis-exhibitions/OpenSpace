@@ -39,7 +39,7 @@ namespace {
 
     // @TODO: naturally, this path should not be hardcoded
     std::string DataPath =
-        "D:/Exoplanets Experts Paper/Data/Exoplanets/PS_2021.03.03_05.23.01_nocomments.csv";
+        "D:/Exoplanets Experts Paper/Data/Exoplanets/PSCompPars_2021.03.08_05.14.56_nocomments.csv";
 
     constexpr const double EarthRadius = 6.3781e6; // meter
 
