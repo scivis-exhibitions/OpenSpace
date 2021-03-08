@@ -22,31 +22,31 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATAVIEWER___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATAVIEWER___H__
+#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATALOADER___H__
+#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATALOADER___H__
 
-#include <openspace/properties/propertyowner.h>
-
-#include <modules/exoplanetsexperttool/dataloader.h>
 #include <modules/exoplanetsexperttool/datastructures.h>
+#include <string>
 #include <vector>
 
-namespace openspace::exoplanets::gui {
+namespace openspace::exoplanets {
 
-// @TODO give it a less generic name
-class DataViewer : public properties::PropertyOwner {
+class DataLoader {
 public:
-    DataViewer(std::string identifier, std::string guiName = "");
+    DataLoader();
 
-    void render();
+    std::vector<ExoplanetItem> loadData();
 
 private:
-    void renderTable();
+    // TODO: document / move to python
+    float computeTSM(const ExoplanetItem& p);
 
-    DataLoader _dataLoader;
-    std::vector<ExoplanetItem> _fullData;
+    // TODO: document / move to python
+    float computeESM(const ExoplanetItem& p);
+
+    std::string _inExoplanetsCsvPath;
 };
 
-} // namespace openspace::exoplanets::gui
+} // namespace openspace::exoplanets
 
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATAVIEWER___H__
+#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATALOADER___H__

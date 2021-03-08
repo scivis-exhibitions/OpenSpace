@@ -43,7 +43,9 @@ struct DataPoint {
     };
 };
 
-struct ExoplanetRecord {
+struct ExoplanetItem {
+    std::string planetName;
+    std::string hostName;
     DataPoint radius; // in Earth radii
     DataPoint mass; // in Earth mass
     DataPoint eqilibriumTemp;  // in Kelvin

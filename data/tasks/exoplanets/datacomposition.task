@@ -1,9 +1,0 @@
-local dataFolder = "D:/Exoplanets Experts Paper/Data/Exoplanets"
-return {
-    {
-        Type = "ExoplanetsDataCompositionTask",
-        InputExoplanetsCsvFile = dataFolder .. "/PS_2021.03.03_05.23.01_nocomments.csv", 
-        OutputBIN = dataFolder .. "/data.bin",
-        OutputLUT = dataFolder .. "/lookup.txt"
-    }
-}

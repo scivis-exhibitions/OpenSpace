@@ -24,7 +24,6 @@
 
 #include <modules/exoplanetsexperttool/exoplanetsexperttoolmodule.h>
 
-#include <modules/exoplanetsexperttool/tasks/datacompositiontask.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/globalscallbacks.h>
 #include <openspace/engine/windowdelegate.h>
@@ -129,18 +128,12 @@ ExoplanetsExpertToolModule::ExoplanetsExpertToolModule()
     );
 }
 
-void ExoplanetsExpertToolModule::internalInitialize(const ghoul::Dictionary&) {
-    auto fTask = FactoryManager::ref().factory<Task>();
-    ghoul_assert(fTask, "No task factory existed");
-    fTask->registerClass<ExoplanetsDataCompositionTask>("ExoplanetsDataCompositionTask");
-}
+void ExoplanetsExpertToolModule::internalInitialize(const ghoul::Dictionary&) {}
 
 std::vector<documentation::Documentation>
 ExoplanetsExpertToolModule::documentations() const
 {
-    return {
-        ExoplanetsDataCompositionTask::documentation(),
-    };
+    return {};
 }
 
 } // namespace openspace

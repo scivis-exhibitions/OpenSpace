@@ -32,8 +32,6 @@
 
 namespace openspace {
 
-class Gui;
-
 class ExoplanetsExpertToolModule : public OpenSpaceModule {
 public:
     constexpr static const char* Name = "ExoplanetsExpertTool";

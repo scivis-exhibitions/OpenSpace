@@ -33,13 +33,6 @@
 namespace {
     constexpr const char _loggerCat[] = "ExoplanetsDataViewer";
 
-    // TODO: make these file paths a property or something
-    constexpr const char dataFilePath[] =
-        "${MODULE_EXOPLANETSEXPERTTOOL}/data/data.bin";
-
-    constexpr const char lookupTablePath[] =
-        "${MODULE_EXOPLANETSEXPERTTOOL}/data/lookup.txt";
-
     auto caseInsensitiveLessThan(std::string lhs, std::string rhs) {
         std::transform(lhs.begin(), lhs.end(), lhs.begin(), std::tolower);
         std::transform(rhs.begin(), rhs.end(), rhs.begin(), std::tolower);
@@ -51,50 +44,8 @@ namespace openspace::exoplanets::gui {
 
 DataViewer::DataViewer(std::string identifier, std::string guiName)
     : properties::PropertyOwner({ std::move(identifier), std::move(guiName) })
-{}
-
-void DataViewer::loadData() {
-    std::ifstream data(absPath(dataFilePath), std::ios::in | std::ios::binary);
-    if (!data.good()) {
-        LERROR(fmt::format("Failed to open data file: '{}'", dataFilePath));
-        return;
-    }
-
-    std::ifstream lut(absPath(lookupTablePath));
-    if (!lut.good()) {
-        LERROR(fmt::format("Failed to open look-up table: '{}'", lookupTablePath));
-        return;
-    }
-
-    _data.clear();
-
-    // TODO: resize data vector based on number of planets
-
-    // Iterate through the lookup-table file and add each planet
-    std::string line;
-    while (std::getline(lut, line)) {
-        std::istringstream ss(line);
-        std::string name;
-        std::getline(ss, name, ',');
-
-        std::string location_s;
-        std::getline(ss, location_s, ',');
-        long location = std::stol(location_s.c_str());
-
-        std::string hostName;
-        std::getline(ss, hostName, ',');
-
-        // Not used for now, but is in the lookup-table
-        std::string component;
-        std::getline(ss, component);
-
-        ExoplanetRecord e;
-        data.seekg(location);
-        data.read(reinterpret_cast<char*>(&e), sizeof(ExoplanetRecord));
-
-        ExoplanetGuiItem item{ e, name, hostName };
-        _data.push_back(item);
-    }
+{
+    _fullData = _dataLoader.loadData();
 }
 
 void DataViewer::render() {
@@ -127,7 +78,7 @@ void DataViewer::renderTable() {
     };
 
     // TODO: filter the data based on user inputs
-    static std::vector<ExoplanetGuiItem> data = _data;
+    static std::vector<ExoplanetItem> data = _fullData;
 
     const std::vector<Column> columns = {
         { "Name", ColumnID::Name, ImGuiTableColumnFlags_DefaultSort },
@@ -153,14 +104,14 @@ void DataViewer::renderTable() {
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
             if (sortSpecs->SpecsDirty) {
                 // TODO: sort based on sort specs (column, order, etc)
-                auto compare = [&sortSpecs](const ExoplanetGuiItem& lhs,
-                                            const ExoplanetGuiItem& rhs) -> bool
+                auto compare = [&sortSpecs](const ExoplanetItem& lhs,
+                                            const ExoplanetItem& rhs) -> bool
                 {
                     bool flip = (sortSpecs->Specs->SortDirection
                                  == ImGuiSortDirection_Descending);
 
-                    const ExoplanetGuiItem& l = flip ? rhs : lhs;
-                    const ExoplanetGuiItem& r = flip ? lhs : rhs;
+                    const ExoplanetItem& l = flip ? rhs : lhs;
+                    const ExoplanetItem& r = flip ? lhs : rhs;
 
                     switch (sortSpecs->Specs->ColumnUserID) {
                     case ColumnID::Name:
@@ -188,8 +139,8 @@ void DataViewer::renderTable() {
         }
 
         // Rows
-        for (int row = 0; row < _data.size(); row++) {
-            const ExoplanetGuiItem& item = data[row];
+        for (int row = 0; row < data.size(); row++) {
+            const ExoplanetItem& item = data[row];
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(item.planetName.c_str());
             ImGui::TableNextColumn();
