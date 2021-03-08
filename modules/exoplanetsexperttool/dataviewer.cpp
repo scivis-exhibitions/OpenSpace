@@ -95,7 +95,8 @@ void DataViewer::renderTable() {
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
         for (auto c : columns) {
-            ImGui::TableSetupColumn(c.name, c.flags, 0.f, c.id);
+            auto flags = c.flags | ImGuiTableColumnFlags_PreferSortDescending;
+            ImGui::TableSetupColumn(c.name, flags, 0.f, c.id);
         }
         ImGui::TableSetupScrollFreeze(0, 1); // Make header always visible
         ImGui::TableHeadersRow();
@@ -115,9 +116,9 @@ void DataViewer::renderTable() {
 
                     switch (sortSpecs->Specs->ColumnUserID) {
                     case ColumnID::Name:
-                        return caseInsensitiveLessThan(l.planetName, r.planetName);
+                        return !caseInsensitiveLessThan(l.planetName, r.planetName);
                     case ColumnID::Host:
-                        return caseInsensitiveLessThan(l.hostName, r.hostName);
+                        return !caseInsensitiveLessThan(l.hostName, r.hostName);
                     case ColumnID::NPlanets:
                         return l.nPlanets < r.nPlanets;
                     case ColumnID::ESM:
