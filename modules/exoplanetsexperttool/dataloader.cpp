@@ -26,6 +26,7 @@
 
 #include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
+#include <openspace/util/coordinateconversion.h>
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/misc/csvreader.h>
 #include <ghoul/logging/logmanager.h>
@@ -122,6 +123,10 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
        std::string component;
        std::string hostStar;
 
+       float ra = std::numeric_limits<float>::quiet_NaN();
+       float dec = std::numeric_limits<float>::quiet_NaN();
+       double distInParsec = std::numeric_limits<double>::quiet_NaN();
+
        for (int col = 0; col < columns.size(); col++) {
            const std::string& column = columns[col];
            const std::string& data = csvContent[row][col];
@@ -133,16 +138,6 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            else if (column == "hostname") {
                p.hostName = data;
                // TODO: create identifier matching exoplanets module?
-           }
-           // System properties
-           else if (column == "sy_snum") {
-               p.nStars = parseIntegerData(data);
-           }
-           else if (column == "sy_pnum") {
-               p.nPlanets = parseIntegerData(data);
-           }
-           else if (column == "disc_year") {
-               p.discoveryYear = parseIntegerData(data);
            }
            // Planet properties
            else if (column == "pl_rade") {
@@ -167,9 +162,35 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            else if (column == "sy_kmag") {
                p.magnitudeK.value = parseDoubleData(data);
            }
+           // System properties
+           else if (column == "sy_snum") {
+               p.nStars = parseIntegerData(data);
+           }
+           else if (column == "sy_pnum") {
+               p.nPlanets = parseIntegerData(data);
+           }
+           else if (column == "disc_year") {
+               p.discoveryYear = parseIntegerData(data);
+           }
+           // Position
+           else if (column == "ra") {
+               ra = parseFloatData(data);
+           }
+           else if (column == "dec") {
+               dec = parseFloatData(data);
+           }
+           else if (column == "sy_dist") {
+               distInParsec = parseDoubleData(data);
+           }
        }
 
        p.multiSystemFlag = (p.nPlanets > 1);
+
+       // Compute galactic position of system
+       bool hasPos = !(std::isnan(ra) || std::isnan(dec) || std::isnan(distInParsec));
+       if (hasPos) {
+           p.position = icrsToGalacticCartesian(ra, dec, distInParsec);
+       }
 
        // If uknown, compute planet mass
        if ((!p.mass.hasValue()) && p.radius.hasValue()) {

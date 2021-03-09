@@ -24,6 +24,7 @@
 
 #include <modules/exoplanetsexperttool/exoplanetsexperttoolmodule.h>
 
+#include <modules/exoplanetsexperttool/rendering/renderablepointdata.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/globalscallbacks.h>
 #include <openspace/engine/windowdelegate.h>
@@ -128,12 +129,19 @@ ExoplanetsExpertToolModule::ExoplanetsExpertToolModule()
     );
 }
 
-void ExoplanetsExpertToolModule::internalInitialize(const ghoul::Dictionary&) {}
+void ExoplanetsExpertToolModule::internalInitialize(const ghoul::Dictionary&) {
+    auto fRenderable = FactoryManager::ref().factory<Renderable>();
+    ghoul_assert(fRenderable, "No renderable factory existed");
+    fRenderable->registerClass<RenderablePointData>("RenderablePointData");
+
+}
 
 std::vector<documentation::Documentation>
 ExoplanetsExpertToolModule::documentations() const
 {
-    return {};
+    return {
+        RenderablePointData::Documentation()
+    };
 }
 
 } // namespace openspace

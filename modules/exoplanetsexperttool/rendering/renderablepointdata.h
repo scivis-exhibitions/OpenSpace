@@ -22,58 +22,53 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
+#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___RENDERABLEPOINTDATA___H__
+#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___RENDERABLEPOINTDATA___H__
 
-#include<optional>
-#include<string>
+#include <openspace/rendering/renderable.h>
 
-// @TODO: separate namespace
-namespace openspace::exoplanets {
+#include <openspace/properties/scalar/floatproperty.h>
+#include <openspace/properties/vector/vec3property.h>
+#include <ghoul/opengl/ghoul_gl.h>
+#include <ghoul/opengl/uniformcache.h>
 
-// Represent a data point with upper and lower uncertainty values
-struct DataPoint {
-    double value = std::numeric_limits<double>::quiet_NaN();
-    float errorUpper = 0.f;
-    float errorLower = 0.f;
+namespace openspace::documentation { struct Documentation; }
 
-    // TODO:move to a cpp file
-    bool hasValue() const {
-        return !std::isnan(value);
-    };
+namespace ghoul::filesystem { class File; }
+namespace ghoul::opengl { class ProgramObject; }
+
+namespace openspace {
+
+class RenderablePointData : public Renderable {
+public:
+    RenderablePointData(const ghoul::Dictionary& dictionary);
+
+    void initializeGL() override;
+    void deinitializeGL() override;
+
+    bool isReady() const override;
+
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
+    void update(const UpdateData& data) override;
+
+    static documentation::Documentation Documentation();
+
+protected:
+    bool _isDirty = true;
+
+    std::unique_ptr<ghoul::opengl::ProgramObject> _shaderProgram = nullptr;
+    UniformCache(modelViewTransform, modelViewProjectionTransform,
+        color, opacity, size) _uniformCache;
+
+    properties::FloatProperty _size;
+    properties::Vec3Property _color;
+
+    std::vector<GLfloat> _pointData;
+
+    GLuint _vertexArrayObjectID = 0;
+    GLuint _vertexBufferObjectID = 0;
 };
 
-struct ExoplanetItem {
-    std::string planetName;
-    std::string hostName;
-    DataPoint radius; // in Earth radii
-    DataPoint mass; // in Earth mass
-    DataPoint eqilibriumTemp;  // in Kelvin
-    DataPoint eccentricity;
-    DataPoint semiMajorAxis; // in AU
-    DataPoint period;
-    DataPoint inclination;
-    float tsm = std::numeric_limits<float>::quiet_NaN();
-    float esm = std::numeric_limits<float>::quiet_NaN();
-    bool multiSystemFlag;
-    int nStars;
-    int nPlanets;
-    int discoveryYear;
-    // TODO:
-    //transmission spectroscopy
-    //thermal spectroscopy
-    //surface gravity
-    // etc....
-    DataPoint starEffectiveTemp; // in Kelvin
-    DataPoint starAge; // in Gyr
-    DataPoint starRadius; // in Solar radii
-    DataPoint magnitudeJ; // apparent magnitude in the J band (star)
-    DataPoint magnitudeK; // apparent magnitude in the K band (star)
+}// namespace openspace
 
-    // in Parsec
-    std::optional<glm::dvec3> position = std::nullopt;
-};
-
-} // namespace openspace
-
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
+#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___RENDERABLEPOINTDATA___H__

@@ -25,8 +25,13 @@
 #include <modules/exoplanetsexperttool/dataviewer.h>
 
 #include <modules/imgui/include/imgui_include.h>
+#include <openspace/engine/globals.h>
+#include <openspace/scripting/scriptengine.h>
 #include <ghoul/filesystem/filesystem.h>
+#include <ghoul/glm.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/dictionary.h>
+#include <ghoul/misc/dictionaryluaformatter.h>
 #include <algorithm>
 #include <fstream>
 
@@ -46,6 +51,39 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     : properties::PropertyOwner({ std::move(identifier), std::move(guiName) })
 {
     _fullData = _dataLoader.loadData();
+
+    // Create points from data (should be a function depending on the indices?)
+    ghoul::Dictionary positions;
+    int counter = 1;
+    for (auto item : _fullData) {
+        if (item.position.has_value()) {
+            positions.setValue<glm::dvec3>(fmt::format("[{}]", counter), item.position.value());
+            counter++;
+        }
+        // TODO: will it be a problem that we don't add all points?
+    }
+
+    using namespace std::string_literals;
+
+    ghoul::Dictionary gui;
+    gui.setValue("Name", "All Exoplanets"s);
+    gui.setValue("Path", "/ExoplanetsTool"s);
+
+    ghoul::Dictionary renderable;
+    renderable.setValue("Type", "RenderablePointData"s);
+    renderable.setValue("Color", glm::dvec3(0.9, 1.0, 0.5));
+    renderable.setValue("Size", 10.0);
+    renderable.setValue("Positions", positions);
+
+    ghoul::Dictionary node;
+    node.setValue("Identifier", "AllExoplanets"s);
+    node.setValue("Renderable", renderable);
+    node.setValue("GUI", gui);
+
+    openspace::global::scriptEngine->queueScript(
+        fmt::format("openspace.addSceneGraphNode({})", ghoul::formatLua(node)),
+        scripting::ScriptEngine::RemoteScripting::Yes
+    );
 }
 
 void DataViewer::render() {

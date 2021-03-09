@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2021                                                               *
+ * Copyright (c) 2014-2020                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -22,58 +22,29 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
+#version __CONTEXT__
 
-#include<optional>
-#include<string>
+#include "PowerScaling/powerScaling_vs.hglsl"
 
-// @TODO: separate namespace
-namespace openspace::exoplanets {
+layout(location = 0) in vec3 in_position;
 
-// Represent a data point with upper and lower uncertainty values
-struct DataPoint {
-    double value = std::numeric_limits<double>::quiet_NaN();
-    float errorUpper = 0.f;
-    float errorLower = 0.f;
+out float vs_depthClipSpace;
+out vec4 vs_positionViewSpace;
 
-    // TODO:move to a cpp file
-    bool hasValue() const {
-        return !std::isnan(value);
-    };
-};
+uniform dmat4 modelViewTransform;
+uniform dmat4 MVPTransform;
+uniform float size;
 
-struct ExoplanetItem {
-    std::string planetName;
-    std::string hostName;
-    DataPoint radius; // in Earth radii
-    DataPoint mass; // in Earth mass
-    DataPoint eqilibriumTemp;  // in Kelvin
-    DataPoint eccentricity;
-    DataPoint semiMajorAxis; // in AU
-    DataPoint period;
-    DataPoint inclination;
-    float tsm = std::numeric_limits<float>::quiet_NaN();
-    float esm = std::numeric_limits<float>::quiet_NaN();
-    bool multiSystemFlag;
-    int nStars;
-    int nPlanets;
-    int discoveryYear;
-    // TODO:
-    //transmission spectroscopy
-    //thermal spectroscopy
-    //surface gravity
-    // etc....
-    DataPoint starEffectiveTemp; // in Kelvin
-    DataPoint starAge; // in Gyr
-    DataPoint starRadius; // in Solar radii
-    DataPoint magnitudeJ; // apparent magnitude in the J band (star)
-    DataPoint magnitudeK; // apparent magnitude in the K band (star)
+void main() {
+    dvec4 position = dvec4(in_position, 1.0);
+    dvec4 positionViewSpace = modelViewTransform * position;
+    dvec4 positionClipSpace = MVPTransform * position;
 
-    // in Parsec
-    std::optional<glm::dvec3> position = std::nullopt;
-};
+    positionClipSpace.z = 0.0;
 
-} // namespace openspace
+    vs_depthClipSpace = float(positionClipSpace.w);
+    vs_positionViewSpace = vec4(positionViewSpace);
 
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
+    gl_PointSize = size;
+    gl_Position = vec4(positionClipSpace);
+}
