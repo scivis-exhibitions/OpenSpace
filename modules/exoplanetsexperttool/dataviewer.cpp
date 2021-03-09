@@ -77,9 +77,6 @@ void DataViewer::renderTable() {
         ImGuiTableColumnFlags flags = 0;
     };
 
-    // TODO: filter the data based on user inputs
-    static std::vector<ExoplanetItem> data = _fullData;
-
     const std::vector<Column> columns = {
         { "Name", ColumnID::Name, ImGuiTableColumnFlags_DefaultSort },
         { "Host", ColumnID::Host },
@@ -92,11 +89,14 @@ void DataViewer::renderTable() {
     };
     const int nColumns = columns.size();
 
+    // TODO: filter the data based on user inputs
+    static std::vector<ExoplanetItem> data = _fullData;
+
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
         for (auto c : columns) {
-            auto flags = c.flags | ImGuiTableColumnFlags_PreferSortDescending;
-            ImGui::TableSetupColumn(c.name, flags, 0.f, c.id);
+            auto colFlags = c.flags | ImGuiTableColumnFlags_PreferSortDescending;
+            ImGui::TableSetupColumn(c.name, colFlags, 0.f, c.id);
         }
         ImGui::TableSetupScrollFreeze(0, 1); // Make header always visible
         ImGui::TableHeadersRow();
@@ -104,7 +104,6 @@ void DataViewer::renderTable() {
         // Sorting
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
             if (sortSpecs->SpecsDirty) {
-                // TODO: sort based on sort specs (column, order, etc)
                 auto compare = [&sortSpecs](const ExoplanetItem& lhs,
                                             const ExoplanetItem& rhs) -> bool
                 {
@@ -142,6 +141,7 @@ void DataViewer::renderTable() {
         // Rows
         for (int row = 0; row < data.size(); row++) {
             const ExoplanetItem& item = data[row];
+            ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(item.planetName.c_str());
             ImGui::TableNextColumn();
