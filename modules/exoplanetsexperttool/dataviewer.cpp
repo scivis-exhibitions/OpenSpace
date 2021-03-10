@@ -129,6 +129,7 @@ void DataViewer::renderTable() {
 
     // TODO: filter the data based on user inputs
     static std::vector<ExoplanetItem> data = _fullData;
+    static ImVector<int> selection;
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
@@ -179,9 +180,29 @@ void DataViewer::renderTable() {
         // Rows
         for (int row = 0; row < data.size(); row++) {
             const ExoplanetItem& item = data[row];
-            ImGui::TableNextRow();
+
+            ImGuiSelectableFlags selectableFlags = ImGuiSelectableFlags_SpanAllColumns
+                | ImGuiSelectableFlags_AllowItemOverlap;
+
+            const bool itemIsSelected = selection.contains(item.id);
+
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted(item.planetName.c_str());
+
+            if (ImGui::Selectable(item.planetName.c_str(), itemIsSelected, selectableFlags)) {
+                if (ImGui::GetIO().KeyCtrl) {
+                    if (itemIsSelected) {
+                        selection.find_erase_unsorted(item.id);
+                    }
+                    else {
+                        selection.push_back(item.id);
+                    }
+                }
+                else {
+                    selection.clear();
+                    selection.push_back(item.id);
+                }
+            }
+
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(item.hostName.c_str());
             ImGui::TableNextColumn();

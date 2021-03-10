@@ -117,6 +117,8 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
    std::vector<ExoplanetItem> planets;
    planets.reserve(nRows);
 
+   int idCounter = 0;
+
    for (int row = 1; row < nRows; row++) {
        ExoplanetItem p;
        std::string name;
@@ -230,6 +232,9 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
        }
 
        // @TODO: also compute planet surface gravity?
+
+       p.id = idCounter;
+       idCounter++;
 
        planets.push_back(p);
    }
