@@ -43,9 +43,22 @@
 namespace {
     constexpr const char _loggerCat[] = "ExoplanetsDataViewer";
 
-    auto caseInsensitiveLessThan(std::string lhs, std::string rhs) {
+    bool caseInsensitiveLessThan(std::string lhs, std::string rhs) {
         std::transform(lhs.begin(), lhs.end(), lhs.begin(), std::tolower);
         std::transform(rhs.begin(), rhs.end(), rhs.begin(), std::tolower);
+        return (lhs < rhs);
+    }
+
+    bool compareValues(double lhs, double rhs) {
+        if (std::isnan(lhs)) {
+            // also includes rhs is nan, in which case the roder does no matter
+            return true;
+        }
+
+        // rhs is nan, but not lhs
+        if (std::isnan(rhs)) {
+            return false;
+        }
         return (lhs < rhs);
     }
 }
@@ -130,12 +143,22 @@ void DataViewer::renderTable() {
     enum ColumnID {
         Name,
         Host,
+        DiscoveryYear,
         NPlanets,
+        NStars,
         ESM,
         TSM,
         PlanetRadius,
         PlanetTemperature,
-        StarTemperature
+        PlanetMass,
+        SemiMajorAxis,
+        Eccentricity,
+        Period,
+        Inclination,
+        StarTemperature,
+        StarRadius,
+        MagnitudeJ,
+        MagnitudeK
     };
 
     static struct Column {
@@ -144,15 +167,29 @@ void DataViewer::renderTable() {
         ImGuiTableColumnFlags flags = 0;
     };
 
+    const ImGuiTableColumnFlags hide = ImGuiTableColumnFlags_DefaultHide;
+
     const std::vector<Column> columns = {
         { "Name", ColumnID::Name, ImGuiTableColumnFlags_DefaultSort },
         { "Host", ColumnID::Host },
-        { "Number planets", ColumnID::NPlanets },
+        { "Year of discovery", ColumnID::DiscoveryYear },
+        { "Num. planets", ColumnID::NPlanets },
+        { "Num. stars ", ColumnID::NStars },
         { "ESM", ColumnID::ESM },
         { "TSM", ColumnID::TSM },
         { "Planet radius (Earth radii)", ColumnID::PlanetRadius },
         { "Planet equilibrium temp. (Kelvin)", ColumnID::PlanetTemperature },
-        { "Star effective temp. (Kelvin)", ColumnID::StarTemperature }
+        { "Mass", ColumnID::PlanetMass },
+        // Orbits
+        { "Semi-major axis (AU)", ColumnID::SemiMajorAxis },
+        { "Eccentricity", ColumnID::Eccentricity },
+        { "Orbit period", ColumnID::Period },
+        { "Inclination", ColumnID::Inclination },
+        // Star
+        { "Star effective temp. (Kelvin)", ColumnID::StarTemperature },
+        { "Star radius (Solar)", ColumnID::StarRadius },
+        { "MagJ", ColumnID::MagnitudeJ },
+        { "MagK", ColumnID::MagnitudeK }
     };
     const int nColumns = columns.size();
 
@@ -174,10 +211,10 @@ void DataViewer::renderTable() {
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
             if (sortSpecs->SpecsDirty) {
                 auto compare = [&sortSpecs](const ExoplanetItem& lhs,
-                    const ExoplanetItem& rhs) -> bool
+                                            const ExoplanetItem& rhs) -> bool
                 {
-                    bool flip = (sortSpecs->Specs->SortDirection
-                        == ImGuiSortDirection_Descending);
+                    auto sortDir = sortSpecs->Specs->SortDirection;
+                    bool flip = (sortDir == ImGuiSortDirection_Descending);
 
                     const ExoplanetItem& l = flip ? rhs : lhs;
                     const ExoplanetItem& r = flip ? lhs : rhs;
@@ -187,18 +224,53 @@ void DataViewer::renderTable() {
                         return !caseInsensitiveLessThan(l.planetName, r.planetName);
                     case ColumnID::Host:
                         return !caseInsensitiveLessThan(l.hostName, r.hostName);
+                    case ColumnID::DiscoveryYear:
+                        return l.discoveryYear < r.discoveryYear;
                     case ColumnID::NPlanets:
                         return l.nPlanets < r.nPlanets;
+                    case ColumnID::NStars:
+                        return l.nStars < r.nStars;
                     case ColumnID::ESM:
-                        return l.esm < r.esm;
+                        return compareValues(l.esm, r.esm);
                     case ColumnID::TSM:
-                        return l.tsm < r.tsm;
+                        return compareValues(l.tsm, r.tsm);
                     case ColumnID::PlanetRadius:
-                        return l.radius.value < r.radius.value;
+                        return compareValues(l.radius.value, r.radius.value);
                     case ColumnID::PlanetTemperature:
-                        return l.eqilibriumTemp.value < r.eqilibriumTemp.value;
+                        return compareValues(
+                            l.eqilibriumTemp.value,
+                            r.eqilibriumTemp.value
+                        );
+                    case ColumnID::PlanetMass:
+                        return compareValues(l.mass.value, r.mass.value);
+                    // Orbits
+                    case ColumnID::SemiMajorAxis:
+                        return compareValues(
+                            l.semiMajorAxis.value,
+                            r.semiMajorAxis.value
+                        );
+                    case ColumnID::Eccentricity:
+                        return compareValues(l.eccentricity.value, r.eccentricity.value);
+                    case ColumnID::Period:
+                        return compareValues(l.period.value, r.period.value);
+
+                    case ColumnID::Inclination:
+                        return compareValues(l.inclination.value, r.inclination.value);
+                    // Star
                     case ColumnID::StarTemperature:
-                        return l.starEffectiveTemp.value < r.starEffectiveTemp.value;
+                        return compareValues(
+                            l.starEffectiveTemp.value,
+                            r.starEffectiveTemp.value
+                        );
+                    case ColumnID::StarRadius:
+                        return compareValues(l.starRadius.value, r.starRadius.value);
+                    case ColumnID::MagnitudeJ:
+                        return compareValues(l.magnitudeJ.value, r.magnitudeJ.value);
+                    case ColumnID::MagnitudeK:
+                        return compareValues(l.magnitudeK.value, r.magnitudeK.value);
+                    default:
+                        LWARNING(fmt::format("Sorting for column {} not defined"));
+                        return false;
                     }
                 };
 
@@ -234,10 +306,15 @@ void DataViewer::renderTable() {
                 selectionChanged = true;
             }
 
+            // OBS! Same order as columns list above
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(item.hostName.c_str());
             ImGui::TableNextColumn();
+            ImGui::Text("%d", item.discoveryYear);
+            ImGui::TableNextColumn();
             ImGui::Text("%d", item.nPlanets);
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", item.nStars);
             ImGui::TableNextColumn();
             ImGui::Text("%.2f", item.esm);
             ImGui::TableNextColumn();
@@ -247,7 +324,25 @@ void DataViewer::renderTable() {
             ImGui::TableNextColumn();
             ImGui::Text("%.0f", item.eqilibriumTemp.value);
             ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.mass.value);
+            // Orbital
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.semiMajorAxis.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.eccentricity.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.period.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.inclination.value);
+            // Star
+            ImGui::TableNextColumn();
             ImGui::Text("%.0f", item.starEffectiveTemp.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.starRadius.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.magnitudeJ.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.magnitudeK.value);
         }
         ImGui::EndTable();
 
