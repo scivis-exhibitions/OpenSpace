@@ -24,8 +24,13 @@
 
 #include <modules/exoplanetsexperttool/dataviewer.h>
 
+#include <modules/exoplanetsexperttool/rendering/renderablepointdata.h>
 #include <modules/imgui/include/imgui_include.h>
 #include <openspace/engine/globals.h>
+#include <openspace/query/query.h>
+#include <openspace/rendering/renderable.h>
+#include <openspace/rendering/renderengine.h>
+#include <openspace/scene/scene.h>
 #include <openspace/scripting/scriptengine.h>
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/glm.h>
@@ -49,15 +54,19 @@ namespace openspace::exoplanets::gui {
 
 DataViewer::DataViewer(std::string identifier, std::string guiName)
     : properties::PropertyOwner({ std::move(identifier), std::move(guiName) })
+    , _allPointsIdentifier("AllExoplanets")
+    , _selectedPointsIdentifier("SelectedExoplanets")
 {
     _fullData = _dataLoader.loadData();
 
     // Create points from data (should be a function depending on the indices?)
     ghoul::Dictionary positions;
+
     int counter = 1;
     for (auto item : _fullData) {
         if (item.position.has_value()) {
-            positions.setValue<glm::dvec3>(fmt::format("[{}]", counter), item.position.value());
+            std::string index = fmt::format("[{}]", counter);
+            positions.setValue<glm::dvec3>(index, item.position.value());
             counter++;
         }
         // TODO: will it be a problem that we don't add all points?
@@ -76,12 +85,32 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     renderable.setValue("Positions", positions);
 
     ghoul::Dictionary node;
-    node.setValue("Identifier", "AllExoplanets"s);
+    node.setValue("Identifier", _allPointsIdentifier);
     node.setValue("Renderable", renderable);
     node.setValue("GUI", gui);
 
     openspace::global::scriptEngine->queueScript(
         fmt::format("openspace.addSceneGraphNode({})", ghoul::formatLua(node)),
+        scripting::ScriptEngine::RemoteScripting::Yes
+    );
+
+    ghoul::Dictionary guiSelected;
+    guiSelected.setValue("Name", "Selected Exoplanets"s);
+    guiSelected.setValue("Path", "/ExoplanetsTool"s);
+
+    ghoul::Dictionary renderableSelected;
+    renderableSelected.setValue("Type", "RenderablePointData"s);
+    renderableSelected.setValue("Color", glm::dvec3(0.0, 1.0, 0.8));
+    renderableSelected.setValue("Size", 40.0);
+    renderableSelected.setValue("Positions", ghoul::Dictionary());
+
+    ghoul::Dictionary nodeSelected;
+    nodeSelected.setValue("Identifier", _selectedPointsIdentifier);
+    nodeSelected.setValue("Renderable", renderableSelected);
+    nodeSelected.setValue("GUI", guiSelected);
+
+    openspace::global::scriptEngine->queueScript(
+        fmt::format("openspace.addSceneGraphNode({})", ghoul::formatLua(nodeSelected)),
         scripting::ScriptEngine::RemoteScripting::Yes
     );
 }
@@ -96,7 +125,7 @@ void DataViewer::renderTable() {
         | ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuter
         | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable
         | ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable
-        | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings;
+        | ImGuiTableFlags_RowBg;
 
     enum ColumnID {
         Name,
@@ -130,6 +159,7 @@ void DataViewer::renderTable() {
     // TODO: filter the data based on user inputs
     static std::vector<ExoplanetItem> data = _fullData;
     static ImVector<int> selection;
+    bool selectionChanged = false;
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
@@ -144,10 +174,10 @@ void DataViewer::renderTable() {
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
             if (sortSpecs->SpecsDirty) {
                 auto compare = [&sortSpecs](const ExoplanetItem& lhs,
-                                            const ExoplanetItem& rhs) -> bool
+                    const ExoplanetItem& rhs) -> bool
                 {
                     bool flip = (sortSpecs->Specs->SortDirection
-                                 == ImGuiSortDirection_Descending);
+                        == ImGuiSortDirection_Descending);
 
                     const ExoplanetItem& l = flip ? rhs : lhs;
                     const ExoplanetItem& r = flip ? lhs : rhs;
@@ -180,27 +210,28 @@ void DataViewer::renderTable() {
         // Rows
         for (int row = 0; row < data.size(); row++) {
             const ExoplanetItem& item = data[row];
+            const bool itemIsSelected = selection.contains(row);
 
             ImGuiSelectableFlags selectableFlags = ImGuiSelectableFlags_SpanAllColumns
                 | ImGuiSelectableFlags_AllowItemOverlap;
-
-            const bool itemIsSelected = selection.contains(item.id);
 
             ImGui::TableNextColumn();
 
             if (ImGui::Selectable(item.planetName.c_str(), itemIsSelected, selectableFlags)) {
                 if (ImGui::GetIO().KeyCtrl) {
                     if (itemIsSelected) {
-                        selection.find_erase_unsorted(item.id);
+                        selection.find_erase_unsorted(row);
                     }
                     else {
-                        selection.push_back(item.id);
+                        selection.push_back(row);
                     }
                 }
                 else {
                     selection.clear();
-                    selection.push_back(item.id);
+                    selection.push_back(row);
                 }
+
+                selectionChanged = true;
             }
 
             ImGui::TableNextColumn();
@@ -219,6 +250,28 @@ void DataViewer::renderTable() {
             ImGui::Text("%.0f", item.starEffectiveTemp.value);
         }
         ImGui::EndTable();
+
+        // Update selection renderable
+        if (selectionChanged) {
+            SceneGraphNode* node = sceneGraphNode(_selectedPointsIdentifier);
+            if (!node) {
+                LDEBUG(fmt::format("Renderable with identifier '{}' not yet created", _selectedPointsIdentifier));
+                return;
+            }
+
+            RenderablePointData* r = dynamic_cast<RenderablePointData*>(node->renderable());
+
+            std::vector<glm::dvec3> positions;
+            positions.reserve(selection.size());
+            for (int row : selection) {
+                const ExoplanetItem& item = data[row];
+                if (item.position.has_value()) {
+                    positions.push_back(item.position.value());
+                }
+            }
+
+            r->updateData(positions);
+        }
     }
 }
 

@@ -51,9 +51,16 @@ public:
     void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
 
+
+    /**
+     * Update the points data in this renderable
+     * positions \in Parsec
+     */
+    void updateData(const std::vector<glm::dvec3> positions);
+
     static documentation::Documentation Documentation();
 
-protected:
+private:
     bool _isDirty = true;
 
     std::unique_ptr<ghoul::opengl::ProgramObject> _shaderProgram = nullptr;

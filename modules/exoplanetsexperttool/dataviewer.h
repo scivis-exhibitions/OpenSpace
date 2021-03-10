@@ -45,6 +45,9 @@ private:
 
     DataLoader _dataLoader;
     std::vector<ExoplanetItem> _fullData;
+
+    std::string _allPointsIdentifier;
+    std::string _selectedPointsIdentifier;
 };
 
 } // namespace openspace::exoplanets::gui

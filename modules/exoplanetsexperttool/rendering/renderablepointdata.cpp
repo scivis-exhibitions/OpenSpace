@@ -93,15 +93,7 @@ RenderablePointData::RenderablePointData(const ghoul::Dictionary& dictionary)
     _color.setViewOption(properties::Property::ViewOptions::Color);
     addProperty(_color);
 
-    _pointData.reserve(4 * p.positions.size());
-    for (const glm::dvec3& pos : p.positions) {
-        constexpr double Parsec = distanceconstants::Parsec;
-        _pointData.push_back(pos.x * Parsec);
-        _pointData.push_back(pos.y * Parsec);
-        _pointData.push_back(pos.z * Parsec);
-        _pointData.push_back(1.0);
-    }
-    // TODO: onchange for positions (set a data is dirty flag)
+    updateData(p.positions);
 
     _size = p.size.value_or(_size);
     addProperty(_size);
@@ -137,6 +129,10 @@ void RenderablePointData::deinitializeGL() {
 }
 
 void RenderablePointData::render(const RenderData& data, RendererTasks&) {
+    if (_pointData.empty()) {
+        return;
+    }
+
     _shaderProgram->activate();
 
     glm::dmat4 modelTransform =
@@ -163,7 +159,7 @@ void RenderablePointData::render(const RenderData& data, RendererTasks&) {
     glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex
 
     glBindVertexArray(_vertexArrayObjectID);
-    const GLsizei nPoints = static_cast<GLsizei>(_pointData.size());
+    const GLsizei nPoints = static_cast<GLsizei>(_pointData.size() / 4);
     glDrawArrays(GL_POINTS, 0, nPoints);
 
     glBindVertexArray(0);
@@ -217,6 +213,20 @@ void RenderablePointData::update(const UpdateData&) {
     glBindVertexArray(0);
 
     _isDirty = false;
+}
+
+void RenderablePointData::updateData(const std::vector<glm::dvec3> positions) {
+    _pointData.clear();
+    _pointData.reserve(4 * positions.size());
+    for (const glm::dvec3& pos : positions) {
+        constexpr double Parsec = distanceconstants::Parsec;
+        _pointData.push_back(pos.x * Parsec);
+        _pointData.push_back(pos.y * Parsec);
+        _pointData.push_back(pos.z * Parsec);
+        _pointData.push_back(1.0);
+    }
+
+    _isDirty = true;
 }
 
 } // namespace openspace
