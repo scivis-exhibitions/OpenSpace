@@ -60,11 +60,7 @@ struct ExoplanetItem {
     int nStars;
     int nPlanets;
     int discoveryYear;
-    // TODO:
-    //transmission spectroscopy
-    //thermal spectroscopy
-    //surface gravity
-    // etc....
+    DataPoint surfaceGravity;
     DataPoint starEffectiveTemp; // in Kelvin
     DataPoint starAge; // in Gyr
     DataPoint starRadius; // in Solar radii

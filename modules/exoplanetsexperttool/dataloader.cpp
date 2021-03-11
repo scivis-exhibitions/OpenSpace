@@ -42,6 +42,7 @@ namespace {
     std::string DataPath =
         "D:/Exoplanets Experts Paper/Data/Exoplanets/PSCompPars_2021.03.08_05.14.56_nocomments.csv";
 
+    constexpr const double EarthMass = 5.972e24; // kg
     constexpr const double EarthRadius = 6.3781e6; // meter
 
     // TODO: these should be moved to somewhere more general!
@@ -239,12 +240,12 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
        p.tsm = computeTSM(p);
        p.esm = computeESM(p);
 
-       // For now, only include the planets with TSM values
-       if (std::isnan(p.tsm)) {
-           continue;
+       if (p.radius.hasValue() && p.mass.hasValue()) {
+           constexpr const double G = 6.67430e-11;
+           const double r = p.radius.value * EarthRadius;
+           const double M = p.mass.value * EarthMass;
+           p.surfaceGravity.value = (G * M) / (r * r);
        }
-
-       // @TODO: also compute planet surface gravity?
 
        p.id = idCounter;
        idCounter++;
