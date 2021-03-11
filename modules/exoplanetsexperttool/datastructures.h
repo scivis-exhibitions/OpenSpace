@@ -52,7 +52,7 @@ struct ExoplanetItem {
     DataPoint eqilibriumTemp;  // in Kelvin
     DataPoint eccentricity;
     DataPoint semiMajorAxis; // in AU
-    DataPoint period;
+    DataPoint period; // in days
     DataPoint inclination;
     float tsm = std::numeric_limits<float>::quiet_NaN();
     float esm = std::numeric_limits<float>::quiet_NaN();

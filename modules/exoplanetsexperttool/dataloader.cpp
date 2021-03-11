@@ -148,8 +148,18 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            else if (column == "pl_masse") {
                p.mass.value = parseDoubleData(data);
            }
+           // Orbital properties
            else if (column == "pl_orbsmax") {
                p.semiMajorAxis.value = parseDoubleData(data);
+           }
+           else if (column == "pl_orbeccen") {
+               p.eccentricity.value = parseDoubleData(data);
+           }
+           else if (column == "pl_orbper") {
+               p.period.value = parseDoubleData(data);
+           }
+           else if (column == "pl_orbincl") {
+               p.inclination.value = parseDoubleData(data);
            }
            // Star properties
            else if (column == "st_teff") {
@@ -157,6 +167,9 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            }
            else if (column == "st_rad") {
                p.starRadius.value = parseDoubleData(data);
+           }
+           else if (column == "st_age") {
+               p.starAge.value = parseDoubleData(data);
            }
            else if (column == "sy_jmag") {
                p.magnitudeJ.value = parseDoubleData(data);
@@ -296,6 +309,12 @@ float DataLoader::computeESM(const ExoplanetItem& p) {
     }
 
     const double rPlanet = p.radius.value;
+
+    // Only consider planets in the terrestrial bin (r < 1.5)
+    if (rPlanet > 1.5) {
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+
     const double tempPlanetDay = 1.10 * p.eqilibriumTemp.value;
     const double rStar = p.starRadius.value;
     const double teffStar = p.starEffectiveTemp.value;
