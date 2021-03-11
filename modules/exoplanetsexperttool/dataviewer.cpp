@@ -71,10 +71,16 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     , _selectedPointsIdentifier("SelectedExoplanets")
 {
     _fullData = _dataLoader.loadData();
+}
 
-    // Create points from data (should be a function depending on the indices?)
+void DataViewer::initialize() {
+    initializeRenderables();
+}
+
+void DataViewer::initializeRenderables() {
+    using namespace std::string_literals;
+
     ghoul::Dictionary positions;
-
     int counter = 1;
     for (auto item : _fullData) {
         if (item.position.has_value()) {
@@ -84,8 +90,6 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         }
         // TODO: will it be a problem that we don't add all points?
     }
-
-    using namespace std::string_literals;
 
     ghoul::Dictionary gui;
     gui.setValue("Name", "All Exoplanets"s);

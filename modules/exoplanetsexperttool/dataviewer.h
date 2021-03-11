@@ -38,9 +38,11 @@ class DataViewer : public properties::PropertyOwner {
 public:
     DataViewer(std::string identifier, std::string guiName = "");
 
+    void initialize();
     void render();
 
 private:
+    void initializeRenderables();
     void renderTable();
 
     DataLoader _dataLoader;

@@ -57,7 +57,9 @@ Gui::Gui(std::string identifier, std::string guiName)
 
 Gui::~Gui() {} // NOLINT
 
-void Gui::initialize() {}
+void Gui::initialize() {
+    _dataViewer.initialize();
+}
 
 void Gui::deinitialize() {
     for (ImGuiContext* ctx : _contexts) {
