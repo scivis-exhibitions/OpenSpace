@@ -278,10 +278,11 @@ float DataLoader::computeTSM(const ExoplanetItem& p) {
         else if (planetRadius < 4.0) {
             return 1.28;
         }
-        else { // 4.0 < r  < 10 EarthRadius
+        else {
+            // 4.0 < r  < 10 EarthRadius
+            // but we use the same scale factor for larger planets
             return 1.15;
         }
-        // @TODO: OBS! What about larger planets??
     };
 
     const double rPlanet = p.radius.value;
@@ -310,12 +311,6 @@ float DataLoader::computeESM(const ExoplanetItem& p) {
     }
 
     const double rPlanet = p.radius.value;
-
-    // Only consider planets in the terrestrial bin (r < 1.5)
-    if (rPlanet > 1.5) {
-        return std::numeric_limits<float>::quiet_NaN();
-    }
-
     const double tempPlanetDay = 1.10 * p.eqilibriumTemp.value;
     const double rStar = p.starRadius.value;
     const double teffStar = p.starEffectiveTemp.value;
