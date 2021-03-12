@@ -214,12 +214,16 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
 
            // Mass radius relationship from Chen & Kipping (2017)
            // See eq. (2) in https://arxiv.org/pdf/1805.03671.pdf
-           if (r < 1.23) {
+
+           if (r < 1.23) { // Terran
                p.mass.value = 0.9718 * glm::pow(r, 3.58);
            }
-           else if (r < 14.26) {
+           else if (r < 14.26) { // Neptunian
                p.mass.value = 1.436 * glm::pow(r, 1.70);
            }
+           // TODO: constant for larger planets (Jovian & Stellar)
+           // Use their python package!
+           // Their paper: https://iopscience.iop.org/article/10.3847/1538-4357/834/1/17
        }
 
        // Compute planet equilibrium temperature according to eq. (3) in
