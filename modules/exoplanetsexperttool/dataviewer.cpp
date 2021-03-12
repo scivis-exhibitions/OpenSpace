@@ -70,7 +70,12 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     , _allPointsIdentifier("AllExoplanets")
     , _selectedPointsIdentifier("SelectedExoplanets")
 {
-    _fullData = _dataLoader.loadData();
+    _data = _dataLoader.loadData();
+
+    _tableData.reserve(_data.size());
+    for (int i = 0; i < _data.size(); i++) {
+        _tableData.push_back({ i });
+    }
 }
 
 void DataViewer::initialize() {
@@ -82,7 +87,7 @@ void DataViewer::initializeRenderables() {
 
     ghoul::Dictionary positions;
     int counter = 1;
-    for (auto item : _fullData) {
+    for (auto item : _data) {
         if (item.position.has_value()) {
             std::string index = fmt::format("[{}]", counter);
             positions.setValue<glm::dvec3>(index, item.position.value());
@@ -155,6 +160,7 @@ void DataViewer::renderTable() {
         PlanetRadius,
         PlanetTemperature,
         PlanetMass,
+        SurfaceGravity,
         SemiMajorAxis,
         Eccentricity,
         Period,
@@ -184,6 +190,7 @@ void DataViewer::renderTable() {
         { "Planet radius (Earth radii)", ColumnID::PlanetRadius },
         { "Planet equilibrium temp. (Kelvin)", ColumnID::PlanetTemperature },
         { "Mass", ColumnID::PlanetMass },
+        { "Surface Gravity (m/s^2)", ColumnID::SurfaceGravity },
         // Orbits
         { "Semi-major axis (AU)", ColumnID::SemiMajorAxis },
         { "Eccentricity", ColumnID::Eccentricity },
@@ -197,10 +204,27 @@ void DataViewer::renderTable() {
     };
     const int nColumns = columns.size();
 
-    // TODO: filter the data based on user inputs
-    static std::vector<ExoplanetItem> data = _fullData;
-    static ImVector<int> selection;
-    bool selectionChanged = false;
+    // Filtering
+    bool filterChanged = false;
+    filterChanged |= ImGui::Checkbox("Hide nan TSM", &_hideNanTsm);
+    ImGui::SameLine();
+    filterChanged |= ImGui::Checkbox("Hide nan ESM", &_hideNanEsm);
+    ImGui::SameLine();
+    filterChanged |= ImGui::Checkbox("Only multi-planet", &_showOnlyMultiPlanetSystems);
+
+    if (filterChanged) {
+        for (TableItem& f : _tableData) {
+            const ExoplanetItem& d = _data[f.index];
+
+            // TODO: implement filter per column
+
+            bool filtered = _hideNanTsm && std::isnan(d.esm);
+            filtered |= _hideNanEsm && std::isnan(d.tsm);
+            filtered |= _showOnlyMultiPlanetSystems && !d.multiSystemFlag;
+
+            f.isVisible = !filtered;
+        }
+    }
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
@@ -214,14 +238,14 @@ void DataViewer::renderTable() {
         // Sorting
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
             if (sortSpecs->SpecsDirty) {
-                auto compare = [&sortSpecs](const ExoplanetItem& lhs,
-                                            const ExoplanetItem& rhs) -> bool
+                auto compare = [&sortSpecs, this](const TableItem& lhs,
+                                                  const TableItem& rhs) -> bool
                 {
                     auto sortDir = sortSpecs->Specs->SortDirection;
                     bool flip = (sortDir == ImGuiSortDirection_Descending);
 
-                    const ExoplanetItem& l = flip ? rhs : lhs;
-                    const ExoplanetItem& r = flip ? lhs : rhs;
+                    const ExoplanetItem& l = flip ? _data[rhs.index] : _data[lhs.index];
+                    const ExoplanetItem& r = flip ? _data[lhs.index] : _data[rhs.index];
 
                     switch (sortSpecs->Specs->ColumnUserID) {
                     case ColumnID::Name:
@@ -247,6 +271,11 @@ void DataViewer::renderTable() {
                         );
                     case ColumnID::PlanetMass:
                         return compareValues(l.mass.value, r.mass.value);
+                    case ColumnID::SurfaceGravity:
+                        return compareValues(
+                            l.surfaceGravity.value,
+                            r.surfaceGravity.value
+                        );
                     // Orbits
                     case ColumnID::SemiMajorAxis:
                         return compareValues(
@@ -278,15 +307,23 @@ void DataViewer::renderTable() {
                     }
                 };
 
-                std::sort(data.begin(), data.end(), compare);
+                std::sort(_tableData.begin(), _tableData.end(), compare);
                 sortSpecs->SpecsDirty = false;
             }
         }
 
+        static ImVector<int> selection; // TODO another datatype
+        bool selectionChanged = false;
+
         // Rows
-        for (int row = 0; row < data.size(); row++) {
-            const ExoplanetItem& item = data[row];
-            const bool itemIsSelected = selection.contains(row);
+        for (int row = 0; row < _tableData.size(); row++) {
+            if (!_tableData[row].isVisible) {
+                continue; // filtered
+            }
+
+            const int index = _tableData[row].index;
+            const ExoplanetItem& item = _data[index];
+            const bool itemIsSelected = selection.contains(index);
 
             ImGuiSelectableFlags selectableFlags = ImGuiSelectableFlags_SpanAllColumns
                 | ImGuiSelectableFlags_AllowItemOverlap;
@@ -296,15 +333,15 @@ void DataViewer::renderTable() {
             if (ImGui::Selectable(item.planetName.c_str(), itemIsSelected, selectableFlags)) {
                 if (ImGui::GetIO().KeyCtrl) {
                     if (itemIsSelected) {
-                        selection.find_erase_unsorted(row);
+                        selection.find_erase_unsorted(index);
                     }
                     else {
-                        selection.push_back(row);
+                        selection.push_back(index);
                     }
                 }
                 else {
                     selection.clear();
-                    selection.push_back(row);
+                    selection.push_back(index);
                 }
 
                 selectionChanged = true;
@@ -329,6 +366,8 @@ void DataViewer::renderTable() {
             ImGui::Text("%.0f", item.eqilibriumTemp.value);
             ImGui::TableNextColumn();
             ImGui::Text("%.2f", item.mass.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.surfaceGravity.value);
             // Orbital
             ImGui::TableNextColumn();
             ImGui::Text("%.2f", item.semiMajorAxis.value);
@@ -354,16 +393,21 @@ void DataViewer::renderTable() {
         if (selectionChanged) {
             SceneGraphNode* node = sceneGraphNode(_selectedPointsIdentifier);
             if (!node) {
-                LDEBUG(fmt::format("Renderable with identifier '{}' not yet created", _selectedPointsIdentifier));
+                LDEBUG(fmt::format(
+                    "Renderable with identifier '{}' not yet created",
+                    _selectedPointsIdentifier
+                ));
                 return;
             }
 
             RenderablePointData* r = dynamic_cast<RenderablePointData*>(node->renderable());
 
+            // TODO: make selection account for filtering
+
             std::vector<glm::dvec3> positions;
             positions.reserve(selection.size());
-            for (int row : selection) {
-                const ExoplanetItem& item = data[row];
+            for (int index : selection) {
+                const ExoplanetItem& item = _data[index];
                 if (item.position.has_value()) {
                     positions.push_back(item.position.value());
                 }

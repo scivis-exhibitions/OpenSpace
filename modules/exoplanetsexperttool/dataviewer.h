@@ -46,10 +46,20 @@ private:
     void renderTable();
 
     DataLoader _dataLoader;
-    std::vector<ExoplanetItem> _fullData;
+    std::vector<ExoplanetItem> _data;
+
+    struct TableItem {
+        int index;
+        bool isVisible = true;
+    };
+    std::vector<TableItem> _tableData;
 
     std::string _allPointsIdentifier;
     std::string _selectedPointsIdentifier;
+
+    bool _hideNanTsm = false;
+    bool _hideNanEsm = false;
+    bool _showOnlyMultiPlanetSystems = false;
 };
 
 } // namespace openspace::exoplanets::gui
