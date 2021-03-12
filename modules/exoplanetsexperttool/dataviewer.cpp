@@ -168,7 +168,8 @@ void DataViewer::renderTable() {
         StarTemperature,
         StarRadius,
         MagnitudeJ,
-        MagnitudeK
+        MagnitudeK,
+        Distance
     };
 
     static struct Column {
@@ -188,7 +189,7 @@ void DataViewer::renderTable() {
         { "ESM", ColumnID::ESM },
         { "TSM", ColumnID::TSM },
         { "Planet radius (Earth radii)", ColumnID::PlanetRadius },
-        { "Planet equilibrium temp. (Kelvin)", ColumnID::PlanetTemperature },
+        { "Planet equilibrium temp. (K)", ColumnID::PlanetTemperature },
         { "Mass", ColumnID::PlanetMass },
         { "Surface Gravity (m/s^2)", ColumnID::SurfaceGravity },
         // Orbits
@@ -197,10 +198,11 @@ void DataViewer::renderTable() {
         { "Orbit period", ColumnID::Period },
         { "Inclination", ColumnID::Inclination },
         // Star
-        { "Star effective temp. (Kelvin)", ColumnID::StarTemperature },
+        { "Star effective temp. (K)", ColumnID::StarTemperature },
         { "Star radius (Solar)", ColumnID::StarRadius },
         { "MagJ", ColumnID::MagnitudeJ },
-        { "MagK", ColumnID::MagnitudeK }
+        { "MagK", ColumnID::MagnitudeK },
+        { "Distance (Parsec)", ColumnID::Distance}
     };
     const int nColumns = columns.size();
 
@@ -311,6 +313,8 @@ void DataViewer::renderTable() {
                         return compareValues(l.magnitudeJ.value, r.magnitudeJ.value);
                     case ColumnID::MagnitudeK:
                         return compareValues(l.magnitudeK.value, r.magnitudeK.value);
+                    case ColumnID::Distance:
+                        return compareValues(l.distance.value, r.distance.value);
                     default:
                         LWARNING(fmt::format("Sorting for column {} not defined"));
                         return false;
@@ -396,6 +400,8 @@ void DataViewer::renderTable() {
             ImGui::Text("%.2f", item.magnitudeJ.value);
             ImGui::TableNextColumn();
             ImGui::Text("%.2f", item.magnitudeK.value);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", item.distance.value);
         }
         ImGui::EndTable();
 

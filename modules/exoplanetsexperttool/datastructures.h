@@ -67,6 +67,10 @@ struct ExoplanetItem {
     DataPoint magnitudeJ; // apparent magnitude in the J band (star)
     DataPoint magnitudeK; // apparent magnitude in the K band (star)
 
+    DataPoint ra; // in decimal degrees
+    DataPoint dec; // in decimal degrees
+    DataPoint distance; // in Parsec
+
     // in Parsec
     std::optional<glm::dvec3> position = std::nullopt;
 };

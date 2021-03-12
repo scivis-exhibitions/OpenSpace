@@ -126,10 +126,6 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
        std::string component;
        std::string hostStar;
 
-       float ra = std::numeric_limits<float>::quiet_NaN();
-       float dec = std::numeric_limits<float>::quiet_NaN();
-       double distInParsec = std::numeric_limits<double>::quiet_NaN();
-
        for (int col = 0; col < columns.size(); col++) {
            const std::string& column = columns[col];
            const std::string& data = csvContent[row][col];
@@ -190,22 +186,22 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            }
            // Position
            else if (column == "ra") {
-               ra = parseFloatData(data);
+               p.ra.value = parseFloatData(data);
            }
            else if (column == "dec") {
-               dec = parseFloatData(data);
+               p.dec.value = parseFloatData(data);
            }
            else if (column == "sy_dist") {
-               distInParsec = parseDoubleData(data);
+               p.distance.value = parseDoubleData(data);
            }
        }
 
        p.multiSystemFlag = (p.nPlanets > 1);
 
        // Compute galactic position of system
-       bool hasPos = !(std::isnan(ra) || std::isnan(dec) || std::isnan(distInParsec));
+       bool hasPos = p.ra.hasValue() && p.dec.hasValue() && p.distance.hasValue();
        if (hasPos) {
-           p.position = icrsToGalacticCartesian(ra, dec, distInParsec);
+           p.position = icrsToGalacticCartesian(p.ra.value, p.dec.value, p.distance.value);
        }
 
        // If uknown, compute planet mass
