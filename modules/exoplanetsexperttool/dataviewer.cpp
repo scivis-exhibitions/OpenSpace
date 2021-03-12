@@ -212,6 +212,15 @@ void DataViewer::renderTable() {
     ImGui::SameLine();
     filterChanged |= ImGui::Checkbox("Only multi-planet", &_showOnlyMultiPlanetSystems);
 
+    static ImGuiTextFilter filter;
+    filterChanged |= filter.Draw();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) {
+        filter.Clear();
+        filterChanged = true;
+    }
+
     if (filterChanged) {
         for (TableItem& f : _tableData) {
             const ExoplanetItem& d = _data[f.index];
@@ -221,6 +230,7 @@ void DataViewer::renderTable() {
             bool filtered = _hideNanTsm && std::isnan(d.esm);
             filtered |= _hideNanEsm && std::isnan(d.tsm);
             filtered |= _showOnlyMultiPlanetSystems && !d.multiSystemFlag;
+            filtered |= !(filter.PassFilter(d.planetName.c_str()));
 
             f.isVisible = !filtered;
         }
