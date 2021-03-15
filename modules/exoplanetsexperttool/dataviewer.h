@@ -33,7 +33,6 @@
 
 namespace openspace::exoplanets::gui {
 
-// @TODO give it a less generic name
 class DataViewer : public properties::PropertyOwner {
 public:
     DataViewer(std::string identifier, std::string guiName = "");
@@ -49,10 +48,12 @@ private:
     std::vector<ExoplanetItem> _data;
 
     struct TableItem {
-        int index;
+        size_t index;
         bool isVisible = true;
     };
     std::vector<TableItem> _tableData;
+
+    std::vector<size_t> _selection;
 
     std::string _allPointsIdentifier;
     std::string _selectedPointsIdentifier;

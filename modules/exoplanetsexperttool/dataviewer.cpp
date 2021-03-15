@@ -73,7 +73,7 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     _data = _dataLoader.loadData();
 
     _tableData.reserve(_data.size());
-    for (int i = 0; i < _data.size(); i++) {
+    for (size_t i = 0; i < _data.size(); i++) {
         _tableData.push_back({ i });
     }
 }
@@ -149,6 +149,8 @@ void DataViewer::renderTable() {
         | ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable
         | ImGuiTableFlags_RowBg;
 
+    const ImGuiTableColumnFlags hide = ImGuiTableColumnFlags_DefaultHide;
+
     enum ColumnID {
         Name,
         Host,
@@ -172,13 +174,11 @@ void DataViewer::renderTable() {
         Distance
     };
 
-    static struct Column {
+    struct Column {
         const char* name;
         ColumnID id;
         ImGuiTableColumnFlags flags = 0;
     };
-
-    const ImGuiTableColumnFlags hide = ImGuiTableColumnFlags_DefaultHide;
 
     const std::vector<Column> columns = {
         { "Name", ColumnID::Name, ImGuiTableColumnFlags_DefaultSort },
@@ -204,10 +204,12 @@ void DataViewer::renderTable() {
         { "MagK", ColumnID::MagnitudeK },
         { "Distance (Parsec)", ColumnID::Distance}
     };
-    const int nColumns = columns.size();
+    const int nColumns = static_cast<int>(columns.size());
+
+    bool selectionChanged = false;
+    bool filterChanged = false;
 
     // Filtering
-    bool filterChanged = false;
     filterChanged |= ImGui::Checkbox("Hide nan TSM", &_hideNanTsm);
     ImGui::SameLine();
     filterChanged |= ImGui::Checkbox("Hide nan ESM", &_hideNanEsm);
@@ -235,6 +237,17 @@ void DataViewer::renderTable() {
             filtered |= !(filter.PassFilter(d.planetName.c_str()));
 
             f.isVisible = !filtered;
+
+            // If a filtered item is selected, remove it from selection
+            if (filtered) {
+                auto found = std::find(_selection.begin(), _selection.end(), f.index);
+                const bool itemIsSelected = found != _selection.end();
+
+                if (itemIsSelected) {
+                    _selection.erase(found);
+                    selectionChanged = true;
+                }
+            }
         }
     }
 
@@ -253,7 +266,7 @@ void DataViewer::renderTable() {
                 auto compare = [&sortSpecs, this](const TableItem& lhs,
                                                   const TableItem& rhs) -> bool
                 {
-                    auto sortDir = sortSpecs->Specs->SortDirection;
+                    ImGuiSortDirection sortDir = sortSpecs->Specs->SortDirection;
                     bool flip = (sortDir == ImGuiSortDirection_Descending);
 
                     const ExoplanetItem& l = flip ? _data[rhs.index] : _data[lhs.index];
@@ -326,18 +339,17 @@ void DataViewer::renderTable() {
             }
         }
 
-        static ImVector<int> selection; // TODO another datatype
-        bool selectionChanged = false;
-
         // Rows
-        for (int row = 0; row < _tableData.size(); row++) {
+        for (size_t row = 0; row < _tableData.size(); row++) {
             if (!_tableData[row].isVisible) {
                 continue; // filtered
             }
 
-            const int index = _tableData[row].index;
+            const size_t index = _tableData[row].index;
             const ExoplanetItem& item = _data[index];
-            const bool itemIsSelected = selection.contains(index);
+
+            auto found = std::find(_selection.begin(), _selection.end(), index);
+            const bool itemIsSelected = found != _selection.end();
 
             ImGuiSelectableFlags selectableFlags = ImGuiSelectableFlags_SpanAllColumns
                 | ImGuiSelectableFlags_AllowItemOverlap;
@@ -347,15 +359,15 @@ void DataViewer::renderTable() {
             if (ImGui::Selectable(item.planetName.c_str(), itemIsSelected, selectableFlags)) {
                 if (ImGui::GetIO().KeyCtrl) {
                     if (itemIsSelected) {
-                        selection.find_erase_unsorted(index);
+                        _selection.erase(found);
                     }
                     else {
-                        selection.push_back(index);
+                        _selection.push_back(index);
                     }
                 }
                 else {
-                    selection.clear();
-                    selection.push_back(index);
+                    _selection.clear();
+                    _selection.push_back(index);
                 }
 
                 selectionChanged = true;
@@ -418,11 +430,9 @@ void DataViewer::renderTable() {
 
             RenderablePointData* r = dynamic_cast<RenderablePointData*>(node->renderable());
 
-            // TODO: make selection account for filtering
-
             std::vector<glm::dvec3> positions;
-            positions.reserve(selection.size());
-            for (int index : selection) {
+            positions.reserve(_selection.size());
+            for (size_t index : _selection) {
                 const ExoplanetItem& item = _data[index];
                 if (item.position.has_value()) {
                     positions.push_back(item.position.value());
