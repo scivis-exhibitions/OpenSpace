@@ -70,7 +70,7 @@ private:
     properties::FloatProperty _size;
     properties::Vec3Property _color;
 
-    std::vector<GLfloat> _pointData;
+    std::vector<float> _pointData;
 
     GLuint _vertexArrayObjectID = 0;
     GLuint _vertexBufferObjectID = 0;

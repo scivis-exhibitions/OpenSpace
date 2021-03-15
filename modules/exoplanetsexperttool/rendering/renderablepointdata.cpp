@@ -159,7 +159,7 @@ void RenderablePointData::render(const RenderData& data, RendererTasks&) {
     glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex
 
     glBindVertexArray(_vertexArrayObjectID);
-    const GLsizei nPoints = static_cast<GLsizei>(_pointData.size() / 4);
+    const GLsizei nPoints = static_cast<GLsizei>(_pointData.size() / 3);
     glDrawArrays(GL_POINTS, 0, nPoints);
 
     glBindVertexArray(0);
@@ -193,7 +193,7 @@ void RenderablePointData::update(const UpdateData&) {
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBufferObjectID);
     glBufferData(
         GL_ARRAY_BUFFER,
-        _pointData.size() * sizeof(GLfloat),
+        _pointData.size() * sizeof(float),
         _pointData.data(),
         GL_STATIC_DRAW
     );
@@ -203,7 +203,7 @@ void RenderablePointData::update(const UpdateData&) {
     glEnableVertexAttribArray(positionAttribute);
     glVertexAttribPointer(
         positionAttribute,
-        4,
+        3,
         GL_FLOAT,
         GL_FALSE,
         0,
@@ -217,13 +217,12 @@ void RenderablePointData::update(const UpdateData&) {
 
 void RenderablePointData::updateData(const std::vector<glm::dvec3> positions) {
     _pointData.clear();
-    _pointData.reserve(4 * positions.size());
+    _pointData.reserve(3 * positions.size());
     for (const glm::dvec3& pos : positions) {
         constexpr double Parsec = distanceconstants::Parsec;
         _pointData.push_back(pos.x * Parsec);
         _pointData.push_back(pos.y * Parsec);
         _pointData.push_back(pos.z * Parsec);
-        _pointData.push_back(1.0);
     }
 
     _isDirty = true;
