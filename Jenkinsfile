@@ -78,9 +78,6 @@ def moduleCMakeFlags() {
 // Pipeline start
 //
 
-import jenkins.model.Jenkins;
-echo "User:: " + Jenkins.authentication;
-
 parallel tools: {
   node('tools') {
     stage('tools/scm') {
