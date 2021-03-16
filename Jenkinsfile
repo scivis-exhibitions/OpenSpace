@@ -106,7 +106,7 @@ linux_gcc_make: {
     node('linux' && 'gcc') {
       stage('Test environment first') {
         sh(
-          script: 'whoami'
+          script: 'whoami',
           label: 'WhoAmI_check'
         )
       }
