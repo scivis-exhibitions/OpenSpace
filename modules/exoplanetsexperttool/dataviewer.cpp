@@ -44,7 +44,7 @@ namespace {
     constexpr const char _loggerCat[] = "ExoplanetsDataViewer";
 
     bool caseInsensitiveLessThan(const char* lhs, const char* rhs) {
-        int res = stricmp(lhs, rhs);
+        int res = _stricmp(lhs, rhs);
         return res < 0;
     }
 
@@ -345,7 +345,13 @@ void DataViewer::renderColumnValue(ColumnID column, const char* format,
         ImGui::Text(format, std::get<int>(value));
     }
     else if (std::holds_alternative<double>(value)) {
-        ImGui::Text(format, std::get<double>(value));
+        double v = std::get<double>(value);
+        if (std::isnan(v)) {
+            ImGui::TextUnformatted("");
+        }
+        else {
+            ImGui::Text(format, std::get<double>(value));
+        }
     }
     else if (std::holds_alternative<const char*>(value)) {
         ImGui::Text(format, std::get<const char*>(value));
