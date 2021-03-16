@@ -105,7 +105,10 @@ linux_gcc_make: {
   if (env.USE_BUILD_OS_LINUX == 'true') {
     node('linux' && 'gcc') {
       stage('Test environment first') {
-        sh 'whoami'
+        sh(
+          script: 'whoami'
+          label: 'WhoAmI_check'
+        )
       }
       stage('linux-gcc-make/scm') {
         deleteDir();
