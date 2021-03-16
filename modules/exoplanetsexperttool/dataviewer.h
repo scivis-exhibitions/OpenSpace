@@ -29,9 +29,33 @@
 
 #include <modules/exoplanetsexperttool/dataloader.h>
 #include <modules/exoplanetsexperttool/datastructures.h>
+#include <variant>
 #include <vector>
 
 namespace openspace::exoplanets::gui {
+
+enum ColumnID {
+    Name,
+    Host,
+    DiscoveryYear,
+    NPlanets,
+    NStars,
+    ESM,
+    TSM,
+    PlanetRadius,
+    PlanetTemperature,
+    PlanetMass,
+    SurfaceGravity,
+    SemiMajorAxis,
+    Eccentricity,
+    Period,
+    Inclination,
+    StarTemperature,
+    StarRadius,
+    MagnitudeJ,
+    MagnitudeK,
+    Distance
+};
 
 class DataViewer : public properties::PropertyOwner {
 public:
@@ -43,6 +67,15 @@ public:
 private:
     void initializeRenderables();
     void renderTable();
+
+    void renderColumnValue(ColumnID column, const char* format,
+        const ExoplanetItem& item);
+
+    std::variant<const char*, double, int> valueFromColumn(ColumnID column,
+        const ExoplanetItem& item);
+
+    bool compareColumnValues(ColumnID column, const ExoplanetItem& left,
+        const ExoplanetItem& right);
 
     DataLoader _dataLoader;
     std::vector<ExoplanetItem> _data;
