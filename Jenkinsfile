@@ -102,7 +102,8 @@ linux_gcc_make: {
   if (env.USE_BUILD_OS_LINUX == 'true') {
     node('linux' && 'gcc') {
       stage('Test environment first') {
-        sh 'hostname'
+        sh 'pwd'
+        sh 'echo $(pwd) > /home/openspace/Desktop/latestBuild.txt'
       }
       stage('linux-gcc-make/scm') {
         deleteDir();
