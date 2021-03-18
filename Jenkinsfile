@@ -102,9 +102,9 @@ linux_gcc_make: {
   if (env.USE_BUILD_OS_LINUX == 'true') {
     node('linux' && 'gcc') {
       stage('Test environment first') {
-        //sh 'echo $(pwd) > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
-        sh 'rm ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
-        //sh 'cd ${IMAGE_TESTING_BASE_PATH}/OpenSpaceVisualTesting/OpenSpaceVisualTesting; python3 AssetTester.py'
+        sh 'echo $(pwd) > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
+        //sh 'rm ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
+        sh '${IMAGE_TESTING_BASE_PATH}/OpenSpaceVisualTesting/OpenSpaceVisualTesting/testRun.sh'
       }
       stage('linux-gcc-make/scm') {
         deleteDir();
