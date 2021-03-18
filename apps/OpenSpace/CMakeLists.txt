@@ -163,6 +163,15 @@ if (MSVC)
   # This library is used for being able to output the callstack if an exception escapes
   target_link_libraries(OpenSpace PRIVATE Dbghelp.lib)
   end_header()
+
+  #copy qt dlls
+  # Run winddeployqt if it can be found
+  find_program(WINDEPLOYQT_EXECUTABLE NAMES windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES bin)
+  add_custom_command(
+    TARGET OpenSpace POST_BUILD
+    COMMAND ${WINDEPLOYQT_EXECUTABLE} $<TARGET_FILE:OpenSpace>
+  )
+
 endif ()
 
 if (OPENSPACE_NVTOOLS_ENABLED)
