@@ -104,7 +104,7 @@ linux_gcc_make: {
       stage('Test environment first') {
         sh 'echo $(pwd) > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
         //sh 'rm ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
-        sh '${IMAGE_TESTING_BASE_PATH}/OpenSpaceVisualTesting/OpenSpaceVisualTesting/testRun.sh'
+        sh 'gnome-terminal -x /home/openspace/Desktop/OpenSpaceVisualTesting/OpenSpaceVisualTesting/testRun.sh'
       }
       stage('linux-gcc-make/scm') {
         deleteDir();
