@@ -113,7 +113,7 @@ linux_gcc_make: {
       //    compileHelper.recordCompileIssues(compileHelper.Gcc());
       //}
       stage('linux-gcc-make/img-compare') {
-        sh 'if [ -l ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild ]; then rm ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild; fi'
+        sh 'rm ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild'
         sh 'ln -s $(pwd) ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild'
         sh 'echo jenkinsRecentBuild > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
       }
