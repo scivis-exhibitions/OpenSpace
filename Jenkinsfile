@@ -101,10 +101,9 @@ parallel tools: {
 linux_gcc_make: {
   if (env.USE_BUILD_OS_LINUX == 'true') {
     node('linux' && 'gcc') {
-      stage('Test environment first') {
+      stage('Implement new link method to trigger image comparison test') {
+        sh 'ln -s $(pwd) ${IMAGE_TESTING_BASE_PATH}/'
         sh 'echo $(pwd) > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
-        //sh 'rm ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
-        sh 'gnome-terminal -x /home/openspace/Desktop/OpenSpaceVisualTesting/OpenSpaceVisualTesting/testRun.sh'
       }
       stage('linux-gcc-make/scm') {
         deleteDir();
