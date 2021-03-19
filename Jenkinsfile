@@ -116,12 +116,13 @@ linux_gcc_make: {
         sh 'shortcut=${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild; if [ -d ${shortcut} ]; then rm ${shortcut}; fi'
         sh 'ln -s $(pwd) ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild'
         sh 'echo jenkinsRecentBuild > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
+        sh 'while [ 1 ]; do sleep 30; if [ "$(cat ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild)" = "" ]; then break; fi; done'
       }
       stage('linux-gcc-make/test') {
         // testHelper.runUnitTests('build/OpenSpaceTest');
         // testHelper.runUnitTests('bin/codegentest')
       }
-      //cleanWs()
+      cleanWs()
     } // node('linux')
   }
 }
