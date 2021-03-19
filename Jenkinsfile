@@ -105,13 +105,13 @@ linux_gcc_make: {
         deleteDir();
         gitHelper.checkoutGit(url, branch);
       }
-      stage('linux-gcc-make/build') {
-          def cmakeCompileOptions = moduleCMakeFlags();
-          cmakeCompileOptions += ' -DMAKE_BUILD_TYPE=Release';
-          // Not sure why the linking of OpenSpaceTest takes so long
-          compileHelper.build(compileHelper.Make(), compileHelper.Gcc(), cmakeCompileOptions, 'OpenSpace', 'build-make');
-          compileHelper.recordCompileIssues(compileHelper.Gcc());
-      }
+      //stage('linux-gcc-make/build') {
+      //    def cmakeCompileOptions = moduleCMakeFlags();
+      //    cmakeCompileOptions += ' -DMAKE_BUILD_TYPE=Release';
+      //    // Not sure why the linking of OpenSpaceTest takes so long
+      //    compileHelper.build(compileHelper.Make(), compileHelper.Gcc(), cmakeCompileOptions, 'OpenSpace', 'build-make');
+      //    compileHelper.recordCompileIssues(compileHelper.Gcc());
+      //}
       stage('linux-gcc-make/img-compare') {
         sh 'if [ -l ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild ]; then rm ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild; done'
         sh 'ln -s $(pwd) ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild'
