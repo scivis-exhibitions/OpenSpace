@@ -101,9 +101,9 @@ parallel tools: {
 linux_gcc_make: {
   if (env.USE_BUILD_OS_LINUX == 'true') {
     node('linux' && 'gcc') {
-      stage('Implement new link method to trigger image comparison test') {
-        sh 'ln -s $(pwd) ${IMAGE_TESTING_BASE_PATH}/'
-        sh 'echo $(pwd) > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
+      stage('Link dir and flag') {
+        sh 'ln -s $(pwd) ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild'
+        sh 'echo jenkinsRecentBuild > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
       }
       stage('linux-gcc-make/scm') {
         deleteDir();
