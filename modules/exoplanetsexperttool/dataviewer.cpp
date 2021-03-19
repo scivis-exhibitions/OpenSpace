@@ -208,8 +208,8 @@ void DataViewer::renderTable() {
 
             // TODO: implement filter per column
 
-            bool filtered = _hideNanTsm && std::isnan(d.esm);
-            filtered |= _hideNanEsm && std::isnan(d.tsm);
+            bool filtered = _hideNanTsm && std::isnan(d.tsm);
+            filtered |= _hideNanEsm && std::isnan(d.esm);
             filtered |= _showOnlyMultiPlanetSystems && !d.multiSystemFlag;
             filtered |= !(filter.PassFilter(d.planetName.c_str()));
 
