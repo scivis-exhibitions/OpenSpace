@@ -121,7 +121,7 @@ linux_gcc_make: {
         // testHelper.runUnitTests('build/OpenSpaceTest');
         // testHelper.runUnitTests('bin/codegentest')
       }
-      cleanWs()
+      //cleanWs()
     } // node('linux')
   }
 }
