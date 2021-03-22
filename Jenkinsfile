@@ -113,8 +113,6 @@ linux_gcc_make: {
           compileHelper.recordCompileIssues(compileHelper.Gcc());
       }
       stage('linux-gcc-make/img-compare') {
-        sh 'shortcut=${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild; if [ -d ${shortcut} ]; then rm ${shortcut}; fi'
-        sh 'ln -s $(pwd) ${IMAGE_TESTING_BASE_PATH}/jenkinsRecentBuild'
         sh 'echo $(pwd) > ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt'
         sh 'while [ 1 ]; do sleep 30; if [ "$(cat ${IMAGE_TESTING_BASE_PATH}/latestBuild.txt)" = "" ]; then break; fi; done'
       }
