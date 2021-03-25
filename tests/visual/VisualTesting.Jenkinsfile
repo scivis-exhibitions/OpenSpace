@@ -39,6 +39,7 @@ def moduleCMakeFlags() {
 //
 // Pipeline start
 //
+//hi micah
 parallel linux_gcc_make: {
   if (env.USE_BUILD_OS_LINUX == 'true') {
     node('linux-visual' && 'gcc') {
