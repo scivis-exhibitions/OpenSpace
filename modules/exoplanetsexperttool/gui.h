@@ -39,6 +39,7 @@
 #define SHOW_IMGUI_HELPERS
 
 struct ImGuiContext;
+struct ImPlotContext;
 
 namespace ghoul::opengl {
     class ProgramObject;
@@ -71,6 +72,15 @@ public:
     void render();
 
 private:
+    struct Context {
+        ImGuiContext* imgui;
+        ImPlotContext* implot;
+    };
+
+    Context createContext();
+    void destroyContext(const Context& ctx);
+    void setCurrectContext(const Context& ctx);
+
     GLuint vao = 0;
     GLuint vbo = 0;
     GLuint vboElements = 0;
@@ -78,7 +88,7 @@ private:
     UniformCache(tex, ortho) _uniformCache;
     std::unique_ptr<ghoul::opengl::Texture> _fontTexture;
 
-    std::vector<ImGuiContext*> _contexts;
+    std::vector<Context> _contexts;
 
     DataViewer _dataViewer;
 

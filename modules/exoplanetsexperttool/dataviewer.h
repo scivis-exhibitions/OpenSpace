@@ -66,6 +66,7 @@ public:
 
 private:
     void initializeRenderables();
+    void renderScatterPlot();
     void renderTable();
 
     void renderColumnValue(ColumnID column, const char* format,

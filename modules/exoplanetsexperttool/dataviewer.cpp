@@ -40,6 +40,8 @@
 #include <algorithm>
 #include <fstream>
 
+#include <implot.h>
+
 namespace {
     constexpr const char _loggerCat[] = "ExoplanetsDataViewer";
 
@@ -138,9 +140,36 @@ void DataViewer::initializeRenderables() {
 
 void DataViewer::render() {
     renderTable();
+    renderScatterPlot();
+}
+
+void DataViewer::renderScatterPlot() {
+    const int nPoints = _data.size(); // TODO: should be the filtered data, and only stars
+
+    static const ImVec2 size = { 400, 300 };
+    auto plotFlags = ImPlotFlags_NoLegend;
+    auto axisFlags = ImPlotAxisFlags_AutoFit;
+
+    // TODO: Currently there are artifacts when rendering over 3200-ish points.
+    // This fixed limit should be removed once I have figured out the rendering problems, or at
+    // least only render the stars (which are about 3000)
+    static int nPointsToRender = 3000;
+    ImGui::InputInt("nPoints", &nPointsToRender);
+    if (nPointsToRender > nPoints) {
+        nPointsToRender = nPoints;
+    }
+
+    ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
+    ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 2);
+    if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", size, plotFlags, axisFlags)) {
+        ImPlot::PlotScatter("Data", &_data[0].ra.value, &_data[0].dec.value, nPointsToRender, 0, sizeof(ExoplanetItem));
+        ImPlot::EndPlot();
+    }
 }
 
 void DataViewer::renderTable() {
+    static const ImVec2 size = { 0, 400 };
+
     static ImGuiTableFlags flags =
         ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY
         | ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuter
@@ -228,7 +257,7 @@ void DataViewer::renderTable() {
         }
     }
 
-    if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
+    if (ImGui::BeginTable("exoplanets_table", nColumns, flags, size)) {
         // Header
         for (auto c : columns) {
             auto colFlags = c.flags | ImGuiTableColumnFlags_PreferSortDescending;

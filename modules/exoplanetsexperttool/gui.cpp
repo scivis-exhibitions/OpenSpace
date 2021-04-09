@@ -37,6 +37,7 @@
 #include <ghoul/opengl/programobject.h>
 #include <ghoul/opengl/texture.h>
 #include <ghoul/opengl/textureunit.h>
+#include <implot.h>
 
 namespace {
     constexpr const char* _loggerCat = "ExoplanetsModuleGUI";
@@ -62,9 +63,8 @@ void Gui::initialize() {
 }
 
 void Gui::deinitialize() {
-    for (ImGuiContext* ctx : _contexts) {
-        ImGui::Shutdown(ctx);
-        ImGui::DestroyContext(ctx);
+    for (const Context& ctx : _contexts) {
+        destroyContext(ctx);
     }
 }
 
@@ -75,8 +75,8 @@ void Gui::initializeGL() {
     // TODO: maybe set up .ini file?
 
     for (int i = 0; i < nWindows; ++i) {
-        _contexts[i] = ImGui::CreateContext();
-        ImGui::SetCurrentContext(_contexts[i]);
+        _contexts[i] = createContext();
+        setCurrectContext(_contexts[i]);
 
         ImGuiIO& io = ImGui::GetIO();
         io.DeltaTime = 1.f / 60.f;
@@ -116,7 +116,7 @@ void Gui::initializeGL() {
         unsigned char* texData;
         glm::ivec2 texSize = glm::ivec2(0);
         for (int i = 0; i < nWindows; ++i) {
-            ImGui::SetCurrentContext(_contexts[i]);
+            setCurrectContext(_contexts[i]);
 
             ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&texData, &texSize.x, &texSize.y);
         }
@@ -130,7 +130,7 @@ void Gui::initializeGL() {
     }
     for (int i = 0; i < nWindows; ++i) {
         uintptr_t texture = static_cast<GLuint>(*_fontTexture);
-        ImGui::SetCurrentContext(_contexts[i]);
+        setCurrectContext(_contexts[i]);
         ImGui::GetIO().Fonts->TexID = reinterpret_cast<void*>(texture);
     }
 
@@ -192,7 +192,8 @@ void Gui::startFrame(float deltaTime, const glm::vec2& windowSize,
                      uint32_t mouseButtonsPressed)
 {
     const int iWindow = global::windowDelegate->currentWindowId();
-    ImGui::SetCurrentContext(_contexts[iWindow]);
+    ImGui::SetCurrentContext(_contexts[iWindow].imgui);
+    ImPlot::SetCurrentContext(_contexts[iWindow].implot);
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(windowSize.x, windowSize.y);
@@ -400,10 +401,28 @@ void Gui::render() {
 
         ImGui::ShowDemoWindow();
         ImGui::ShowMetricsWindow();
+        ImPlot::ShowDemoWindow();
     }
 #endif
 
     ImGui::End();
+}
+
+Gui::Context Gui::createContext() {
+    Context c;
+    c.imgui = ImGui::CreateContext();
+    c.implot = ImPlot::CreateContext();
+    return std::move(c);
+}
+
+void Gui::destroyContext(const Context& ctx) {
+    ImPlot::DestroyContext(ctx.implot);
+    ImGui::DestroyContext(ctx.imgui);
+}
+
+void Gui::setCurrectContext(const Context& ctx) {
+    ImGui::SetCurrentContext(ctx.imgui);
+    ImPlot::SetCurrentContext(ctx.implot);
 }
 
 } // namespace openspace::gui
