@@ -347,7 +347,8 @@ public:
     * \return A list of quantized times between \p start and \end
     */
     std::vector<std::string> quantized(Time& start, Time& end);
-
+    //double myresolution = _resolution;
+    std::string myResolution; 
 private:
     void verifyStartTimeRestrictions();
     void verifyResolutionRestrictions(const int value, const char unit);

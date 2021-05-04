@@ -45,6 +45,7 @@ namespace ghoul::fontrendering {
 } // namespace ghoul::fontrendering
 
 namespace openspace { class PixelBuffer; }
+namespace ghoul::opengl { class ProgramObject; }
 
 namespace openspace::globebrowsing {
     class AsyncTileDataProvider;
@@ -62,7 +63,8 @@ enum class Type {
     TemporalTileProvider,
     TileIndexTileProvider,
     ByIndexTileProvider,
-    ByLevelTileProvider
+    ByLevelTileProvider,
+    InterpolateTileProvider
 };
 
 
@@ -78,6 +80,7 @@ struct TileProvider : public properties::PropertyOwner {
 
     uint16_t uniqueIdentifier = 0;
     bool isInitialized = false;
+
 };
 
 struct DefaultTileProvider : public TileProvider {
@@ -101,6 +104,24 @@ struct SingleImageProvider : public TileProvider {
     Tile tile;
 
     properties::StringProperty filePath;
+};
+struct InterpolateTileProvider : public TileProvider {
+    InterpolateTileProvider(const ghoul::Dictionary&);
+    virtual ~InterpolateTileProvider();
+
+    Tile calculateTile(const TileIndex&);
+    //ghoul::Dictionary initDict;
+   // properties::StringProperty filePath;
+   // bool successfulInitialization = false;
+    TileProvider* t1;
+    TileProvider* t2;
+    double timeT1;
+    double timeT2;
+    double factor;
+    GLuint fbo = 0;
+    //std::unique_ptr<ghoul::opengl::ProgramObject> _renderDMProgram;
+    cache::MemoryAwareTileCache* tileCache;
+
 };
 
 struct TextTileProvider : public TileProvider {
@@ -178,12 +199,16 @@ struct TemporalTileProvider : public TileProvider {
 
     std::unordered_map<TimeKey, std::unique_ptr<TileProvider>> tileProviderMap;
 
+    bool interpolation = false; 
+
     TileProvider* currentTileProvider = nullptr;
 
     TimeFormatType timeFormat;
     TimeQuantizer timeQuantizer;
 
     bool successfulInitialization = false;
+    InterpolateTileProvider* interpolateTileProvider = nullptr;
+
 };
 
 
