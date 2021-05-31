@@ -295,10 +295,7 @@ void mainInitFunc(GLFWwindow*) {
         w.windowId = i;
 
         const Window::StereoMode sm = window.stereoMode();
-        const bool hasStereo = (sm != Window::StereoMode::NoStereo) &&
-                               (sm < Window::StereoMode::SideBySide);
-
-        if (hasStereo) {
+        if (sm != Window::StereoMode::NoStereo) {
             SpoutWindow::SpoutData& left = w.leftOrMain;
             left.handle = GetSpout();
             left.initialized = left.handle->CreateSender(
@@ -764,24 +761,11 @@ void setSgctDelegateFunctions() {
                 currentWindow->resolution().y * viewport.size().y
             );
         }
-        switch (currentWindow->stereoMode()) {
-            case Window::StereoMode::SideBySide:
-            case Window::StereoMode::SideBySideInverted:
-                return glm::ivec2(
-                    currentWindow->resolution().x / 2,
-                    currentWindow->resolution().y
-                );
-            case Window::StereoMode::TopBottom:
-            case Window::StereoMode::TopBottomInverted:
-                return glm::ivec2(
-                    currentWindow->resolution().x,
-                    currentWindow->resolution().y / 2
-                );
-            default:
-                return glm::ivec2(
-                    currentWindow->resolution().x,
-                    currentWindow->resolution().y
-                );
+        else {
+            return glm::ivec2(
+                currentWindow->resolution().x,
+                currentWindow->resolution().y
+            );
         }
     };
     sgctDelegate.currentDrawBufferResolution = []() {
