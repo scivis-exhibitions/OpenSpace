@@ -86,7 +86,7 @@ namespace {
 
 namespace openspace::exoplanets {
 
-DataLoader::DataLoader() : _inExoplanetsCsvPath(absPath(DataPath)) {}
+DataLoader::DataLoader() : _inExoplanetsCsvPath(absPath(DataPath).string()) {}
 
 std::vector<ExoplanetItem> DataLoader::loadData() {
     std::ifstream exoplanetsCsvFile(_inExoplanetsCsvPath);
@@ -113,7 +113,7 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
     // Write exoplanet records to file
    std::vector<std::string> columns = csvContent[0];
 
-   const int nRows = csvContent.size();
+   const int nRows = static_cast<int>(csvContent.size());
 
    std::vector<ExoplanetItem> planets;
    planets.reserve(nRows);
@@ -201,7 +201,9 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
        // Compute galactic position of system
        bool hasPos = p.ra.hasValue() && p.dec.hasValue() && p.distance.hasValue();
        if (hasPos) {
-           p.position = icrsToGalacticCartesian(p.ra.value, p.dec.value, p.distance.value);
+           const float ra = static_cast<float>(p.ra.value);
+           const float dec = static_cast<float>(p.dec.value);
+           p.position = icrsToGalacticCartesian(ra, dec, p.distance.value);
        }
 
        // If uknown, compute planet mass

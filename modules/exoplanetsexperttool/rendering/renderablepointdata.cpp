@@ -77,9 +77,7 @@ namespace {
 namespace openspace {
 
 documentation::Documentation RenderablePointData::Documentation() {
-    documentation::Documentation doc = codegen::doc<Parameters>();
-    doc.id = "exoplanetsexperttool_renderable_pointdata";
-    return doc;
+    return codegen::doc<Parameters>("exoplanetsexperttool_renderable_pointdata");
 }
 
 RenderablePointData::RenderablePointData(const ghoul::Dictionary& dictionary)
