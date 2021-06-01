@@ -162,16 +162,14 @@ namespace {
 namespace openspace {
 
 documentation::Documentation RenderableSphere::Documentation() {
-    documentation::Documentation doc = codegen::doc<Parameters>();
-    doc.id = "base_renderable_sphere";
-    return doc;
+    return codegen::doc<Parameters>("base_renderable_sphere");
 }
 
 RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
     , _texturePath(TextureInfo)
     , _orientation(OrientationInfo, properties::OptionProperty::DisplayType::Dropdown)
-    , _size(SizeInfo, 1.f, 0.f, 1e35f)
+    , _size(SizeInfo, 1.f, 0.f, 1e25f)
     , _segments(SegmentsInfo, 8, 4, 1000)
     , _mirrorTexture(MirrorTextureInfo, false)
     , _useAdditiveBlending(UseAdditiveBlendingInfo, false)
@@ -215,8 +213,12 @@ RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
     }
     addProperty(_orientation);
 
+    _size.setExponent(15.f);
+    _size.onChange([this]() {
+        setBoundingSphere(_size);
+        _sphereIsDirty = true;
+    });
     addProperty(_size);
-    _size.onChange([this]() { _sphereIsDirty = true; });
 
     addProperty(_segments);
     _segments.onChange([this]() { _sphereIsDirty = true; });
@@ -257,6 +259,7 @@ RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
         setRenderBin(Renderable::RenderBin::Background);
     }
 
+    setBoundingSphere(_size);
     setRenderBinFromOpacity();
 }
 

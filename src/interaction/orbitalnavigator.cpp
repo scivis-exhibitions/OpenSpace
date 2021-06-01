@@ -254,7 +254,12 @@ OrbitalNavigator::OrbitalNavigator()
     , _joystickSensitivity(JoystickSensitivityInfo, 10.f, 1.0f, 50.f)
     , _websocketSensitivity(WebsocketSensitivityInfo, 5.f, 1.0f, 50.f)
     , _useAdaptiveStereoscopicDepth(UseAdaptiveStereoscopicDepthInfo, true)
-    , _stereoscopicDepthOfFocusSurface(StereoscopicDepthOfFocusSurfaceInfo, 8, 0.25, 100)
+    , _stereoscopicDepthOfFocusSurface(
+        StereoscopicDepthOfFocusSurfaceInfo,
+        200000,
+        0.25,
+        500000
+    )
     , _staticViewScaleExponent(StaticViewScaleExponentInfo, 0.f, -30, 10)
     , _retargetInterpolationTime(RetargetInterpolationTimeInfo, 2.0, 0.0, 10.0)
     , _stereoInterpolationTime(StereoInterpolationTimeInfo, 8.0, 0.0, 10.0)
@@ -386,6 +391,7 @@ OrbitalNavigator::OrbitalNavigator()
 
     addProperty(_useAdaptiveStereoscopicDepth);
     addProperty(_staticViewScaleExponent);
+    _stereoscopicDepthOfFocusSurface.setExponent(10.f);
     addProperty(_stereoscopicDepthOfFocusSurface);
 
     addProperty(_retargetInterpolationTime);
@@ -459,8 +465,8 @@ void OrbitalNavigator::updateCameraStateFromStates(double deltaTime) {
     if (_applyLinearFlight) {
         // Calculate a position handle based on the camera position in world space
         glm::dvec3 camPosToAnchorPosDiff = prevCameraPosition - anchorPos;
-        // Use the boundingsphere to get an approximate distance to the node surface
-        double nodeRadius = static_cast<double>(_anchorNode->boundingSphere());
+        // Use the interaction sphere to get an approximate distance to the node surface
+        double nodeRadius = static_cast<double>(_anchorNode->interactionSphere());
         double distFromCameraToFocus =
             glm::distance(prevCameraPosition, anchorPos) - nodeRadius;
 
