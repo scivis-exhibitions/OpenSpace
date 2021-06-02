@@ -156,6 +156,21 @@ void DataViewer::renderScatterPlot() {
         ImPlot::PlotScatter("Data", &_data[0].ra.value, &_data[0].dec.value, nPointsToRender, 0, sizeof(ExoplanetItem));
         ImPlot::EndPlot();
     }
+
+    // TEST:
+    srand(0);
+    static float ra[5000], dec[5000];
+    for (int i = 0; i < 4000; ++i) {
+        ra[i] = 360.f * ((float)rand() / (float)RAND_MAX);
+        dec[i] = -90.f + 180.f * ((float)rand() / (float)RAND_MAX);
+    }
+
+    ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
+    ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 2);
+    if (ImPlot::BeginPlot("Random Ra Dec", "Ra", "Dec", size, plotFlags, axisFlags)) {
+        ImPlot::PlotScatter("Test", ra, dec, nPointsToRender);
+        ImPlot::EndPlot();
+    }
 }
 
 void DataViewer::renderTable() {
