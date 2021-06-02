@@ -269,7 +269,7 @@ void DataViewer::renderTable() {
 
         // Sorting
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
-            if (sortSpecs->SpecsDirty) {
+            if (sortSpecs->SpecsDirty || filterChanged) {
                 auto compare = [&sortSpecs, this](const size_t& lhs,
                                                   const size_t& rhs) -> bool
                 {
@@ -292,7 +292,7 @@ void DataViewer::renderTable() {
         // Rows
         for (size_t row = 0; row < _filteredData.size(); row++) {
             if (row > 1000) {
-                // TODO: show a hint about the number of renderedrows somewhere in the UI
+                // TODO: show a hint about the number of rendered rows somewhere in the UI
                 break; // cap the maximum number of rows we render
             }
 
