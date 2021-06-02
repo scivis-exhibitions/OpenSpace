@@ -73,6 +73,7 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     _data = _dataLoader.loadData();
 
     _tableData.reserve(_data.size());
+    _filteredData.reserve(_data.size());
     _positions.reserve(_data.size());
 
     int counter = 0;
@@ -86,6 +87,8 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
             counter++;
         }
         _tableData.push_back(item);
+
+        _filteredData.push_back(i);
     }
     _positions.shrink_to_fit();
 }
@@ -132,7 +135,7 @@ void DataViewer::render() {
 }
 
 void DataViewer::renderScatterPlot() {
-    const int nPoints = static_cast<int>(_data.size()); // TODO: should be the filtered data, and only stars
+    const int nPoints = static_cast<int>(_data.size()); // TODO: should be the filteredOut data, and only stars
 
     static const ImVec2 size = { 400, 300 };
     auto plotFlags = ImPlotFlags_NoLegend;
@@ -220,20 +223,25 @@ void DataViewer::renderTable() {
     }
 
     if (filterChanged) {
+        _filteredData.clear();
+        _filteredData.reserve(_tableData.size());
+
         for (TableItem& f : _tableData) {
             const ExoplanetItem& d = _data[f.index];
 
             // TODO: implement filter per column
 
-            bool filtered = _hideNanTsm && std::isnan(d.tsm);
-            filtered |= _hideNanEsm && std::isnan(d.esm);
-            filtered |= _showOnlyMultiPlanetSystems && !d.multiSystemFlag;
-            filtered |= !(filter.PassFilter(d.planetName.c_str()));
+            bool filteredOut = _hideNanTsm && std::isnan(d.tsm);
+            filteredOut |= _hideNanEsm && std::isnan(d.esm);
+            filteredOut |= _showOnlyMultiPlanetSystems && !d.multiSystemFlag;
+            filteredOut |= !(filter.PassFilter(d.planetName.c_str()));
 
-            f.isVisible = !filtered;
+            if (!filteredOut) {
+                _filteredData.push_back(f.index);
+            }
 
-            // If a filtered item is selected, remove it from selection
-            if (filtered) {
+            // If a filteredOut item is selected, remove it from selection
+            if (filteredOut) {
                 auto found = std::find(_selection.begin(), _selection.end(), f.index);
                 const bool itemIsSelected = found != _selection.end();
 
@@ -243,6 +251,7 @@ void DataViewer::renderTable() {
                 }
             }
         }
+        _filteredData.shrink_to_fit();
     }
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags, size)) {
@@ -257,32 +266,33 @@ void DataViewer::renderTable() {
         // Sorting
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
             if (sortSpecs->SpecsDirty) {
-                auto compare = [&sortSpecs, this](const TableItem& lhs,
-                                                  const TableItem& rhs) -> bool
+                auto compare = [&sortSpecs, this](const size_t& lhs,
+                                                  const size_t& rhs) -> bool
                 {
                     ImGuiSortDirection sortDir = sortSpecs->Specs->SortDirection;
                     bool flip = (sortDir == ImGuiSortDirection_Descending);
 
-                    const ExoplanetItem& l = flip ? _data[rhs.index] : _data[lhs.index];
-                    const ExoplanetItem& r = flip ? _data[lhs.index] : _data[rhs.index];
+                    const ExoplanetItem& l = flip ? _data[rhs] : _data[lhs];
+                    const ExoplanetItem& r = flip ? _data[lhs] : _data[rhs];
 
                     ColumnID col = static_cast<ColumnID>(sortSpecs->Specs->ColumnUserID);
 
                     return compareColumnValues(col, l, r);
                 };
 
-                std::sort(_tableData.begin(), _tableData.end(), compare);
+                std::sort(_filteredData.begin(), _filteredData.end(), compare);
                 sortSpecs->SpecsDirty = false;
             }
         }
 
         // Rows
-        for (size_t row = 0; row < _tableData.size(); row++) {
-            if (!_tableData[row].isVisible) {
-                continue; // filtered
+        for (size_t row = 0; row < _filteredData.size(); row++) {
+            if (row > 1000) {
+                // TODO: show a hint about the number of renderedrows somewhere in the UI
+                break; // cap the maximum number of rows we render
             }
 
-            const size_t index = _tableData[row].index;
+            const size_t index = _filteredData[row];
             const ExoplanetItem& item = _data[index];
 
             ImGuiSelectableFlags selectableFlags = ImGuiSelectableFlags_SpanAllColumns
@@ -325,24 +335,25 @@ void DataViewer::renderTable() {
         }
         ImGui::EndTable();
 
+        if (filterChanged) {
+            const std::string positionIndices = composePositionIndexList(_filteredData);
+            const std::string uri =
+                fmt::format("Scene.{}.Renderable.Filtered", _pointsIdentifier);
+
+            openspace::global::scriptEngine->queueScript(
+                "openspace.setPropertyValueSingle('" + uri + "', { " + positionIndices + " })",
+                scripting::ScriptEngine::RemoteScripting::Yes
+            );
+        }
+
         // Update selection renderable
         if (selectionChanged) {
-            std::string indicesList;
-            for (size_t s : _selection) {
-                if (_tableData[s].positionIndex.has_value()) {
-                    const size_t posIndex = _tableData[s].positionIndex.value();
-                    indicesList += std::to_string(posIndex) + ',';
-                }
-            }
-            if (!indicesList.empty()) {
-                indicesList.pop_back();
-            }
-
+            const std::string positionIndices = composePositionIndexList(_selection);
             const std::string uri =
                 fmt::format("Scene.{}.Renderable.Selection", _pointsIdentifier);
 
             openspace::global::scriptEngine->queueScript(
-                "openspace.setPropertyValueSingle('" + uri + "', { " + indicesList + " })",
+                "openspace.setPropertyValueSingle('" + uri + "', { " + positionIndices + " })",
                 scripting::ScriptEngine::RemoteScripting::Yes
             );
         }
@@ -451,6 +462,21 @@ std::variant<const char*, double, int> DataViewer::valueFromColumn(ColumnID colu
         LERROR("Undefined column");
         return "undefined";
     }
+}
+
+std::string DataViewer::composePositionIndexList(const std::vector<size_t>& dataIndices)
+{
+    std::string result;
+    for (size_t s : dataIndices) {
+        if (_tableData[s].positionIndex.has_value()) {
+            const size_t posIndex = _tableData[s].positionIndex.value();
+            result += std::to_string(posIndex) + ',';
+        }
+    }
+    if (!result.empty()) {
+        result.pop_back();
+    }
+    return result;
 }
 
 } // namespace openspace::gui

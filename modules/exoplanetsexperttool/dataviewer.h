@@ -78,18 +78,19 @@ private:
     bool compareColumnValues(ColumnID column, const ExoplanetItem& left,
         const ExoplanetItem& right);
 
+    std::string composePositionIndexList(const std::vector<size_t>& dataIndices);
+
     DataLoader _dataLoader;
     std::vector<ExoplanetItem> _data;
+    std::vector<glm::dvec3> _positions; // TODO: change into star data (with name as well)
 
     struct TableItem {
         size_t index;
-        bool isVisible = true;
         std::optional<size_t> positionIndex = std::nullopt;
     };
     std::vector<TableItem> _tableData;
-    std::vector<glm::dvec3> _positions;
-
-    std::vector<size_t> _selection;
+    std::vector<size_t> _filteredData;  // The indices of the items which will be rendered
+    std::vector<size_t> _selection;     // Indices of selected data points
 
     std::string _pointsIdentifier;
 

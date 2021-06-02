@@ -76,7 +76,13 @@ namespace {
     constexpr openspace::properties::Property::PropertyInfo SelectionInfo = {
         "Selection",
         "Selection",
-        "A list of indices of selected points."
+        "A list of indices of selected points to be highlighted."
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo FilteredInfo = {
+        "Filtered", // @TODO: a less vague name
+        "Filtered Indices",
+        "A list of indices of filtered points. These are the points that will be rendered."
     };
 
     struct [[codegen::Dictionary(RenderablePointData)]] Parameters {
@@ -97,6 +103,9 @@ namespace {
 
         // [[codegen::verbatim(SelectionInfo.description)]]
         std::optional<std::vector<int>> selection;
+
+        // [[codegen::verbatim(FilteredInfo.description)]]
+        std::optional<std::vector<int>> filtered;
     };
 #include "renderablepointdata_codegen.cpp"
 } // namespace
@@ -114,6 +123,7 @@ RenderablePointData::RenderablePointData(const ghoul::Dictionary& dictionary)
     , _size(SizeInfo, 1.f, 0.f, 150.f)
     , _selectedSizeScale(SelectedSizeScaleInfo, 2.f, 1.f, 5.f)
     , _selectedIndices(SelectionInfo)
+    , _filteredIndices(FilteredInfo)
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
 
@@ -137,6 +147,11 @@ RenderablePointData::RenderablePointData(const ghoul::Dictionary& dictionary)
     _selectedIndices.onChange([this]() { _selectionChanged = true; });
     //_selectedIndices.setReadOnly(true);
     addProperty(_selectedIndices);
+
+    _filteredIndices = p.filtered.value_or(_filteredIndices);
+    _filteredIndices.onChange([this]() { _isDirty = true; });
+    _filteredIndices.setReadOnly(true);
+    addProperty(_filteredIndices);
 
     initializeData(p.positions);
 }
@@ -175,7 +190,7 @@ void RenderablePointData::deinitializeGL() {
 }
 
 void RenderablePointData::render(const RenderData& data, RendererTasks&) {
-    if (_pointData.empty()) {
+    if (_fullPointData.empty()) {
         return;
     }
 
@@ -205,7 +220,7 @@ void RenderablePointData::render(const RenderData& data, RendererTasks&) {
     glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex shader
 
     glBindVertexArray(_primaryPointsVAO);
-    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_pointData.size()));
+    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_filteredPointData.size()));
 
     const size_t nSelected = _selectedIndices.value().size();
 
@@ -214,7 +229,7 @@ void RenderablePointData::render(const RenderData& data, RendererTasks&) {
         _shaderProgram->setUniform(_uniformCache.size, _selectedSizeScale * _size);
 
         glBindVertexArray(_selectedPointsVAO);
-        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_selectedIndices.value().size()));
+        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(nSelected));
     }
 
     glBindVertexArray(0);
@@ -246,12 +261,25 @@ void RenderablePointData::update(const UpdateData&) {
                 "Generating Vertex Buffer Object id '{}'", _primaryPointsVBO
             ));
         }
+
+        // Filter data
+        if (_filteredIndices.value().size() > 0) {
+            _filteredPointData.clear();
+            _filteredPointData.reserve(_filteredIndices.value().size());
+            for (int i : _filteredIndices.value()) {
+                _filteredPointData.push_back(_fullPointData.at(i));
+            }
+        }
+        else {
+            _filteredPointData = _fullPointData;
+        }
+
         glBindVertexArray(_primaryPointsVAO);
         glBindBuffer(GL_ARRAY_BUFFER, _primaryPointsVBO);
         glBufferData(
             GL_ARRAY_BUFFER,
-            _pointData.size() * _nValuesPerPoint * sizeof(float),
-            _pointData.data(),
+            _filteredPointData.size() * _nValuesPerPoint * sizeof(float),
+            _filteredPointData.data(),
             GL_STATIC_DRAW
         );
 
@@ -287,8 +315,8 @@ void RenderablePointData::update(const UpdateData&) {
         selectedPoints.reserve(nSelected);
 
         for (int i : _selectedIndices.value()) {
-            if (i >= 0 && i < _pointData.size()) {
-                selectedPoints.push_back(_pointData.at(i));
+            if (i >= 0 && i < _fullPointData.size()) {
+                selectedPoints.push_back(_fullPointData.at(i));
             }
             else {
                 LINFO(fmt::format("Ignoring invalid index '{}' in new selection", i));
@@ -326,11 +354,11 @@ void RenderablePointData::update(const UpdateData&) {
 }
 
 void RenderablePointData::initializeData(const std::vector<glm::dvec3> positions) {
-    _pointData.clear();
-    _pointData.reserve(3 * positions.size());
+    _fullPointData.clear();
+    _fullPointData.reserve(3 * positions.size());
     for (const glm::dvec3& pos : positions) {
         const glm::vec3 scaledPos = glm::vec3(pos * distanceconstants::Parsec);
-        _pointData.push_back({ scaledPos.x, scaledPos.y, scaledPos.z });
+        _fullPointData.push_back({ scaledPos.x, scaledPos.y, scaledPos.z });
     }
 
     _isDirty = true;

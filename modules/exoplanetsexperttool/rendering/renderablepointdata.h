@@ -73,13 +73,15 @@ private:
     properties::FloatProperty _size;
     properties::FloatProperty _selectedSizeScale;
     properties::IntListProperty _selectedIndices;
+    properties::IntListProperty _filteredIndices;
 
     struct Point {
         float xyz[3];
     };
     const unsigned int _nValuesPerPoint = 3;
 
-    std::vector<Point> _pointData;
+    std::vector<Point> _fullPointData;
+    std::vector<Point> _filteredPointData;
 
     GLuint _primaryPointsVAO = 0;
     GLuint _primaryPointsVBO = 0;
