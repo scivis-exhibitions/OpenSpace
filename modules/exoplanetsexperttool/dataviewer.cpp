@@ -52,7 +52,7 @@ namespace {
 
     bool compareValues(double lhs, double rhs) {
         if (std::isnan(lhs)) {
-            // also includes rhs is nan, in which case the roder does no matter
+            // also includes rhs is nan, in which case the order does not matter
             return true;
         }
 
@@ -62,6 +62,9 @@ namespace {
         }
         return lhs < rhs;
     }
+
+    constexpr const glm::dvec3 DefaultPointColor = { 0.9, 1.0, 0.5 };
+    constexpr const glm::dvec3 DefaultSelectedColor = { 0.2, 0.8, 1.0 };
 }
 
 namespace openspace::exoplanets::gui {
@@ -113,8 +116,8 @@ void DataViewer::initializeRenderables() {
 
     ghoul::Dictionary renderable;
     renderable.setValue("Type", "RenderablePointData"s);
-    renderable.setValue("Color", glm::dvec3(0.9, 1.0, 0.5));
-    renderable.setValue("HighlightColor", glm::dvec3(0.0, 1.0, 0.8));
+    renderable.setValue("Color", DefaultPointColor);
+    renderable.setValue("HighlightColor", DefaultSelectedColor);
     renderable.setValue("Size", 10.0);
     renderable.setValue("Positions", positions);
 
@@ -175,12 +178,26 @@ void DataViewer::renderScatterPlot() {
         }
     }
 
+    auto pointColor = ImVec4(DefaultPointColor.x, DefaultPointColor.y, DefaultPointColor.z, 1.0);
+    auto selectedColor = ImVec4(DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.0);
+
     ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
     if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", size, plotFlags, axisFlags)) {
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 2);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 1);
+        ImPlot::PushStyleColor(ImPlotCol_MarkerFill, pointColor);
+        ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, pointColor);
         ImPlot::PlotScatter("Data", ra.data(), dec.data(), nPoints);
+        ImPlot::PopStyleColor();
+        ImPlot::PopStyleColor();
+        ImPlot::PopStyleVar();
+
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 4);
+        ImPlot::PushStyleColor(ImPlotCol_MarkerFill, selectedColor);
+        ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, selectedColor);
         ImPlot::PlotScatter("Selected", ra_selected.data(), dec_selected.data(), ra_selected.size());
+        ImPlot::PopStyleColor();
+        ImPlot::PopStyleColor();
+        ImPlot::PopStyleVar();
         ImPlot::EndPlot();
     }
 
