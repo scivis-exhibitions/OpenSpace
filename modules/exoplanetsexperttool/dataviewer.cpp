@@ -135,40 +135,75 @@ void DataViewer::render() {
 }
 
 void DataViewer::renderScatterPlot() {
-    const int nPoints = static_cast<int>(_data.size()); // TODO: should be the filteredOut data, and only stars
+    int nPoints = static_cast<int>(_filteredData.size());
 
     static const ImVec2 size = { 400, 300 };
     auto plotFlags = ImPlotFlags_NoLegend;
-    auto axisFlags = ImPlotAxisFlags_AutoFit;
+    auto axisFlags = ImPlotAxisFlags_None;
 
     // TODO: Currently there are artifacts when rendering over 3200-ish points.
     // This fixed limit should be removed once I have figured out the rendering problems, or at
     // least only render the stars (which are about 3000)
-    static int nPointsToRender = 3000;
-    ImGui::InputInt("nPoints", &nPointsToRender);
-    if (nPointsToRender > nPoints) {
-        nPointsToRender = nPoints;
+    static const int maxPoints = 3225;
+    if (nPoints > maxPoints) {
+        nPoints = maxPoints;
+    }
+
+    // TODO: make static varaibles and only update data if filter and/or selection changed
+
+    std::vector<double> ra, dec;
+    ra.reserve(_filteredData.size());
+    dec.reserve(_filteredData.size());
+
+    for (int i : _filteredData) {
+        const ExoplanetItem& item = _data[i];
+        if (item.ra.hasValue() && item.ra.hasValue()) {
+            ra.push_back(item.ra.value);
+            dec.push_back(item.dec.value);
+        }
+    }
+
+    std::vector<double> ra_selected, dec_selected;
+    ra_selected.reserve(_selection.size());
+    dec_selected.reserve(_selection.size());
+
+    for (int i : _selection) {
+        const ExoplanetItem& item = _data[i];
+        if (item.ra.hasValue() && item.ra.hasValue()) {
+            ra_selected.push_back(item.ra.value);
+            dec_selected.push_back(item.dec.value);
+        }
     }
 
     ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
-    ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 2);
     if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", size, plotFlags, axisFlags)) {
-        ImPlot::PlotScatter("Data", &_data[0].ra.value, &_data[0].dec.value, nPointsToRender, 0, sizeof(ExoplanetItem));
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 2);
+        ImPlot::PlotScatter("Data", ra.data(), dec.data(), nPoints);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 4);
+        ImPlot::PlotScatter("Selected", ra_selected.data(), dec_selected.data(), ra_selected.size());
         ImPlot::EndPlot();
     }
 
-    // TEST:
+    // TEST: to illustrate rendering issues
     srand(0);
-    static float ra[5000], dec[5000];
-    for (int i = 0; i < 4000; ++i) {
-        ra[i] = 360.f * ((float)rand() / (float)RAND_MAX);
-        dec[i] = -90.f + 180.f * ((float)rand() / (float)RAND_MAX);
+    static const int nTestPoints = 5000;
+    static int nPointsToRender = 5000;
+    ImGui::InputInt("nPoints", &nPointsToRender);
+
+    static float randRa[nTestPoints], randDec[nTestPoints];
+    for (int i = 0; i < nTestPoints; ++i) {
+        randRa[i] = 360.f * ((float)rand() / (float)RAND_MAX);
+        randDec[i] = -90.f + 180.f * ((float)rand() / (float)RAND_MAX);
+    }
+
+    if (nPointsToRender > nTestPoints) {
+        nPointsToRender = nTestPoints;
     }
 
     ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
     ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 2);
     if (ImPlot::BeginPlot("Random Ra Dec", "Ra", "Dec", size, plotFlags, axisFlags)) {
-        ImPlot::PlotScatter("Test", ra, dec, nPointsToRender);
+        ImPlot::PlotScatter("Test", randRa, randDec, nPointsToRender);
         ImPlot::EndPlot();
     }
 }
