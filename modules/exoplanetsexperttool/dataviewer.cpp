@@ -206,12 +206,16 @@ void DataViewer::renderTable() {
     bool selectionChanged = false;
     bool filterChanged = false;
 
+    static bool hideNanTsm = false;
+    static bool hideNanEsm = false;
+    static bool showOnlyMultiPlanetSystems = false;
+
     // Filtering
-    filterChanged |= ImGui::Checkbox("Hide nan TSM", &_hideNanTsm);
+    filterChanged |= ImGui::Checkbox("Hide nan TSM", &hideNanTsm);
     ImGui::SameLine();
-    filterChanged |= ImGui::Checkbox("Hide nan ESM", &_hideNanEsm);
+    filterChanged |= ImGui::Checkbox("Hide nan ESM", &hideNanEsm);
     ImGui::SameLine();
-    filterChanged |= ImGui::Checkbox("Only multi-planet", &_showOnlyMultiPlanetSystems);
+    filterChanged |= ImGui::Checkbox("Only multi-planet", &showOnlyMultiPlanetSystems);
 
     static ImGuiTextFilter filter;
     filterChanged |= filter.Draw();
@@ -231,9 +235,9 @@ void DataViewer::renderTable() {
 
             // TODO: implement filter per column
 
-            bool filteredOut = _hideNanTsm && std::isnan(d.tsm);
-            filteredOut |= _hideNanEsm && std::isnan(d.esm);
-            filteredOut |= _showOnlyMultiPlanetSystems && !d.multiSystemFlag;
+            bool filteredOut = hideNanTsm && std::isnan(d.tsm);
+            filteredOut |= hideNanEsm && std::isnan(d.esm);
+            filteredOut |= showOnlyMultiPlanetSystems && !d.multiSystemFlag;
             filteredOut |= !(filter.PassFilter(d.planetName.c_str()));
 
             if (!filteredOut) {

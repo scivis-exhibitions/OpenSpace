@@ -93,10 +93,6 @@ private:
     std::vector<size_t> _selection;     // Indices of selected data points
 
     std::string _pointsIdentifier;
-
-    bool _hideNanTsm = false;
-    bool _hideNanEsm = false;
-    bool _showOnlyMultiPlanetSystems = false;
 };
 
 } // namespace openspace::exoplanets::gui
