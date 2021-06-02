@@ -84,13 +84,14 @@ private:
     struct TableItem {
         size_t index;
         bool isVisible = true;
+        std::optional<size_t> positionIndex = std::nullopt;
     };
     std::vector<TableItem> _tableData;
+    std::vector<glm::dvec3> _positions;
 
     std::vector<size_t> _selection;
 
-    std::string _allPointsIdentifier;
-    std::string _selectedPointsIdentifier;
+    std::string _pointsIdentifier;
 
     bool _hideNanTsm = false;
     bool _hideNanEsm = false;

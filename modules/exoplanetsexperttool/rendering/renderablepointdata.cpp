@@ -49,10 +49,22 @@ namespace {
         "The color of the points."
     };
 
+    constexpr openspace::properties::Property::PropertyInfo HighlightColorInfo = {
+        "HighlightColor",
+        "Highlight Color",
+        "The color of the highlighted/selected points."
+    };
+
     constexpr openspace::properties::Property::PropertyInfo SizeInfo = {
         "Size",
         "Size",
         "The size of the points."
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo SelectedSizeScaleInfo = {
+        "SelectedSizeScale",
+        "Selected Size Scale Factor",
+        "The scaling factor applied to the size of the higlighted/selected points."
     };
 
     constexpr openspace::properties::Property::PropertyInfo PositionsInfo = {
@@ -61,15 +73,30 @@ namespace {
         "Data to use for the positions of the points, given in Parsec."
     };
 
+    constexpr openspace::properties::Property::PropertyInfo SelectionInfo = {
+        "Selection",
+        "Selection",
+        "A list of indices of selected points."
+    };
+
     struct [[codegen::Dictionary(RenderablePointData)]] Parameters {
         // [[codegen::verbatim(ColorInfo.description)]]
         std::optional<glm::vec3> color [[codegen::color()]];
 
+        // [[codegen::verbatim(HighlightColorInfo.description)]]
+        std::optional<glm::vec3> highlightColor [[codegen::color()]];
+
         // [[codegen::verbatim(SizeInfo.description)]]
         std::optional<float> size;
 
+        // [[codegen::verbatim(SelectedSizeScaleInfo.description)]]
+        std::optional<float> selectedSizeScale;
+
         // [[codegen::verbatim(PositionsInfo.description)]]
         std::vector<glm::dvec3> positions;
+
+        // [[codegen::verbatim(SelectionInfo.description)]]
+        std::optional<std::vector<int>> selection;
     };
 #include "renderablepointdata_codegen.cpp"
 } // namespace
@@ -83,7 +110,10 @@ documentation::Documentation RenderablePointData::Documentation() {
 RenderablePointData::RenderablePointData(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
     , _color(ColorInfo, glm::vec3(0.5f), glm::vec3(0.f), glm::vec3(1.f))
+    , _highlightColor(HighlightColorInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(1.f))
     , _size(SizeInfo, 1.f, 0.f, 150.f)
+    , _selectedSizeScale(SelectedSizeScaleInfo, 2.f, 1.f, 5.f)
+    , _selectedIndices(SelectionInfo)
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
 
@@ -91,12 +121,24 @@ RenderablePointData::RenderablePointData(const ghoul::Dictionary& dictionary)
     _color.setViewOption(properties::Property::ViewOptions::Color);
     addProperty(_color);
 
-    updateData(p.positions);
+    _highlightColor = p.highlightColor.value_or(_highlightColor);
+    _highlightColor.setViewOption(properties::Property::ViewOptions::Color);
+    addProperty(_highlightColor);
 
     _size = p.size.value_or(_size);
     addProperty(_size);
 
+    _selectedSizeScale = p.selectedSizeScale.value_or(_selectedSizeScale);
+    addProperty(_selectedSizeScale);
+
     addProperty(_opacity);
+
+    _selectedIndices = p.selection.value_or(_selectedIndices);
+    _selectedIndices.onChange([this]() { _selectionChanged = true; });
+    //_selectedIndices.setReadOnly(true);
+    addProperty(_selectedIndices);
+
+    initializeData(p.positions);
 }
 
 bool RenderablePointData::isReady() const {
@@ -114,11 +156,17 @@ void RenderablePointData::initializeGL() {
 }
 
 void RenderablePointData::deinitializeGL() {
-    glDeleteVertexArrays(1, &_vertexArrayObjectID);
-    _vertexArrayObjectID = 0;
+    glDeleteVertexArrays(1, &_primaryPointsVAO);
+    _primaryPointsVAO = 0;
 
-    glDeleteBuffers(1, &_vertexBufferObjectID);
-    _vertexBufferObjectID = 0;
+    glDeleteBuffers(1, &_primaryPointsVBO);
+    _primaryPointsVBO = 0;
+
+    glDeleteVertexArrays(1, &_selectedPointsVAO);
+    _selectedPointsVAO = 0;
+
+    glDeleteBuffers(1, &_selectedPointsVBO);
+    _selectedPointsVBO = 0;
 
     if (_shaderProgram) {
         global::renderEngine->removeRenderProgram(_shaderProgram.get());
@@ -154,11 +202,20 @@ void RenderablePointData::render(const RenderData& data, RendererTasks&) {
     glEnablei(GL_BLEND, 0);
     glDepthMask(false);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex
+    glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex shader
 
-    glBindVertexArray(_vertexArrayObjectID);
-    const GLsizei nPoints = static_cast<GLsizei>(_pointData.size() / 3);
-    glDrawArrays(GL_POINTS, 0, nPoints);
+    glBindVertexArray(_primaryPointsVAO);
+    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_pointData.size()));
+
+    const size_t nSelected = _selectedIndices.value().size();
+
+    if (nSelected > 0) {
+        _shaderProgram->setUniform(_uniformCache.color, _highlightColor);
+        _shaderProgram->setUniform(_uniformCache.size, _selectedSizeScale * _size);
+
+        glBindVertexArray(_selectedPointsVAO);
+        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_selectedIndices.value().size()));
+    }
 
     glBindVertexArray(0);
     _shaderProgram->deactivate();
@@ -171,56 +228,109 @@ void RenderablePointData::render(const RenderData& data, RendererTasks&) {
 void RenderablePointData::update(const UpdateData&) {
     if (_shaderProgram->isDirty()) {
         _shaderProgram->rebuildFromFile();
-        ghoul::opengl::updateUniformLocations(*_shaderProgram, _uniformCache, UniformNames);
+        ghoul::opengl::updateUniformLocations(
+            *_shaderProgram,
+            _uniformCache,
+            UniformNames
+        );
     }
 
-    if (!_isDirty) {
-        return;
+    if (_isDirty) {
+        if (_primaryPointsVAO == 0) {
+            glGenVertexArrays(1, &_primaryPointsVAO);
+            LDEBUG(fmt::format("Generating Vertex Array id '{}'", _primaryPointsVAO));
+        }
+        if (_primaryPointsVBO == 0) {
+            glGenBuffers(1, &_primaryPointsVBO);
+            LDEBUG(fmt::format(
+                "Generating Vertex Buffer Object id '{}'", _primaryPointsVBO
+            ));
+        }
+        glBindVertexArray(_primaryPointsVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, _primaryPointsVBO);
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            _pointData.size() * _nValuesPerPoint * sizeof(float),
+            _pointData.data(),
+            GL_STATIC_DRAW
+        );
+
+        GLint positionAttribute = _shaderProgram->attributeLocation("in_position");
+
+        glEnableVertexAttribArray(positionAttribute);
+        glVertexAttribPointer(
+            positionAttribute,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            0,
+            nullptr
+        );
+
+        glBindVertexArray(0);
     }
 
-    if (_vertexArrayObjectID == 0) {
-        glGenVertexArrays(1, &_vertexArrayObjectID);
-        LDEBUG(fmt::format("Generating Vertex Array id '{}'", _vertexArrayObjectID));
+    if (_selectionChanged) {
+        if (_selectedPointsVAO == 0) {
+            glGenVertexArrays(1, &_selectedPointsVAO);
+            LDEBUG(fmt::format("Generating Vertex Array id '{}'", _selectedPointsVAO));
+        }
+        if (_selectedPointsVBO == 0) {
+            glGenBuffers(1, &_selectedPointsVBO);
+            LDEBUG(fmt::format(
+                "Generating Vertex Buffer Object id '{}'", _selectedPointsVBO
+            ));
+        }
+
+        const int nSelected = _selectedIndices.value().size();
+        std::vector<Point> selectedPoints;
+        selectedPoints.reserve(nSelected);
+
+        for (int i : _selectedIndices.value()) {
+            if (i >= 0 && i < _pointData.size()) {
+                selectedPoints.push_back(_pointData.at(i));
+            }
+            else {
+                LINFO(fmt::format("Ignoring invalid index '{}' in new selection", i));
+            }
+        }
+
+        if (selectedPoints.size() > 0) {
+            glBindVertexArray(_selectedPointsVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, _selectedPointsVBO);
+            glBufferData(
+                GL_ARRAY_BUFFER,
+                selectedPoints.size() * _nValuesPerPoint * sizeof(float),
+                selectedPoints.data(),
+                GL_STATIC_DRAW
+            );
+
+            GLint positionAttribute = _shaderProgram->attributeLocation("in_position");
+
+            glEnableVertexAttribArray(positionAttribute);
+            glVertexAttribPointer(
+                positionAttribute,
+                3,
+                GL_FLOAT,
+                GL_FALSE,
+                0,
+                nullptr
+            );
+
+            glBindVertexArray(0);
+        }
     }
-    if (_vertexBufferObjectID == 0) {
-        glGenBuffers(1, &_vertexBufferObjectID);
-        LDEBUG(fmt::format("Generating Vertex Buffer Object id '{}'", _vertexBufferObjectID));
-    }
-
-    glBindVertexArray(_vertexArrayObjectID);
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBufferObjectID);
-    glBufferData(
-        GL_ARRAY_BUFFER,
-        _pointData.size() * sizeof(float),
-        _pointData.data(),
-        GL_STATIC_DRAW
-    );
-
-    GLint positionAttribute = _shaderProgram->attributeLocation("in_position");
-
-    glEnableVertexAttribArray(positionAttribute);
-    glVertexAttribPointer(
-        positionAttribute,
-        3,
-        GL_FLOAT,
-        GL_FALSE,
-        0,
-        nullptr
-    );
-
-    glBindVertexArray(0);
 
     _isDirty = false;
+    _selectionChanged = false;
 }
 
-void RenderablePointData::updateData(const std::vector<glm::dvec3> positions) {
+void RenderablePointData::initializeData(const std::vector<glm::dvec3> positions) {
     _pointData.clear();
     _pointData.reserve(3 * positions.size());
     for (const glm::dvec3& pos : positions) {
-        constexpr double Parsec = distanceconstants::Parsec;
-        _pointData.push_back(pos.x * Parsec);
-        _pointData.push_back(pos.y * Parsec);
-        _pointData.push_back(pos.z * Parsec);
+        const glm::vec3 scaledPos = glm::vec3(pos * distanceconstants::Parsec);
+        _pointData.push_back({ scaledPos.x, scaledPos.y, scaledPos.z });
     }
 
     _isDirty = true;

@@ -68,15 +68,26 @@ namespace openspace::exoplanets::gui {
 
 DataViewer::DataViewer(std::string identifier, std::string guiName)
     : properties::PropertyOwner({ std::move(identifier), std::move(guiName) })
-    , _allPointsIdentifier("AllExoplanets")
-    , _selectedPointsIdentifier("SelectedExoplanets")
+    , _pointsIdentifier("ExoplanetDataPoints")
 {
     _data = _dataLoader.loadData();
 
     _tableData.reserve(_data.size());
+    _positions.reserve(_data.size());
+
+    int counter = 0;
     for (size_t i = 0; i < _data.size(); i++) {
-        _tableData.push_back({ i });
+        TableItem item;
+        item.index = i;
+
+        if (_data[i].position.has_value()) {
+            _positions.push_back(_data[i].position.value());
+            item.positionIndex = counter;
+            counter++;
+        }
+        _tableData.push_back(item);
     }
+    _positions.shrink_to_fit();
 }
 
 void DataViewer::initialize() {
@@ -88,13 +99,9 @@ void DataViewer::initializeRenderables() {
 
     ghoul::Dictionary positions;
     int counter = 1;
-    for (auto item : _data) {
-        if (item.position.has_value()) {
-            std::string index = fmt::format("[{}]", counter);
-            positions.setValue<glm::dvec3>(index, item.position.value());
-            counter++;
-        }
-        // TODO: will it be a problem that we don't add all points?
+    for (int i = 0; i < _positions.size(); ++i) {
+        std::string index = fmt::format("[{}]", i + 1);
+        positions.setValue<glm::dvec3>(index, _positions[i]);
     }
 
     ghoul::Dictionary gui;
@@ -104,36 +111,17 @@ void DataViewer::initializeRenderables() {
     ghoul::Dictionary renderable;
     renderable.setValue("Type", "RenderablePointData"s);
     renderable.setValue("Color", glm::dvec3(0.9, 1.0, 0.5));
+    renderable.setValue("HighlightColor", glm::dvec3(0.0, 1.0, 0.8));
     renderable.setValue("Size", 10.0);
     renderable.setValue("Positions", positions);
 
     ghoul::Dictionary node;
-    node.setValue("Identifier", _allPointsIdentifier);
+    node.setValue("Identifier", _pointsIdentifier);
     node.setValue("Renderable", renderable);
     node.setValue("GUI", gui);
 
     openspace::global::scriptEngine->queueScript(
         fmt::format("openspace.addSceneGraphNode({})", ghoul::formatLua(node)),
-        scripting::ScriptEngine::RemoteScripting::Yes
-    );
-
-    ghoul::Dictionary guiSelected;
-    guiSelected.setValue("Name", "Selected Exoplanets"s);
-    guiSelected.setValue("Path", "/ExoplanetsTool"s);
-
-    ghoul::Dictionary renderableSelected;
-    renderableSelected.setValue("Type", "RenderablePointData"s);
-    renderableSelected.setValue("Color", glm::dvec3(0.0, 1.0, 0.8));
-    renderableSelected.setValue("Size", 40.0);
-    renderableSelected.setValue("Positions", ghoul::Dictionary());
-
-    ghoul::Dictionary nodeSelected;
-    nodeSelected.setValue("Identifier", _selectedPointsIdentifier);
-    nodeSelected.setValue("Renderable", renderableSelected);
-    nodeSelected.setValue("GUI", guiSelected);
-
-    openspace::global::scriptEngine->queueScript(
-        fmt::format("openspace.addSceneGraphNode({})", ghoul::formatLua(nodeSelected)),
         scripting::ScriptEngine::RemoteScripting::Yes
     );
 }
@@ -144,7 +132,7 @@ void DataViewer::render() {
 }
 
 void DataViewer::renderScatterPlot() {
-    const int nPoints = _data.size(); // TODO: should be the filtered data, and only stars
+    const int nPoints = static_cast<int>(_data.size()); // TODO: should be the filtered data, and only stars
 
     static const ImVec2 size = { 400, 300 };
     auto plotFlags = ImPlotFlags_NoLegend;
@@ -339,27 +327,24 @@ void DataViewer::renderTable() {
 
         // Update selection renderable
         if (selectionChanged) {
-            //SceneGraphNode* node = sceneGraphNode(_selectedPointsIdentifier);
-            //if (!node) {
-            //    LDEBUG(fmt::format(
-            //        "Renderable with identifier '{}' not yet created",
-            //        _selectedPointsIdentifier
-            //    ));
-            //    return;
-            //}
+            std::string indicesList;
+            for (size_t s : _selection) {
+                if (_tableData[s].positionIndex.has_value()) {
+                    const size_t posIndex = _tableData[s].positionIndex.value();
+                    indicesList += std::to_string(posIndex) + ',';
+                }
+            }
+            if (!indicesList.empty()) {
+                indicesList.pop_back();
+            }
 
-            //RenderablePointData* r = dynamic_cast<RenderablePointData*>(node->renderable());
+            const std::string uri =
+                fmt::format("Scene.{}.Renderable.Selection", _pointsIdentifier);
 
-            //std::vector<glm::dvec3> positions;
-            //positions.reserve(_selection.size());
-            //for (size_t index : _selection) {
-            //    const ExoplanetItem& item = _data[index];
-            //    if (item.position.has_value()) {
-            //        positions.push_back(item.position.value());
-            //    }
-            //}
-
-            ////r->updateData(positions);
+            openspace::global::scriptEngine->queueScript(
+                "openspace.setPropertyValueSingle('" + uri + "', { " + indicesList + " })",
+                scripting::ScriptEngine::RemoteScripting::Yes
+            );
         }
     }
 }

@@ -27,6 +27,7 @@
 
 #include <openspace/rendering/renderable.h>
 
+#include <openspace/properties/list/intlistproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/vector/vec3property.h>
 #include <ghoul/opengl/ghoul_gl.h>
@@ -51,29 +52,40 @@ public:
     void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
 
-
     /**
      * Update the points data in this renderable
      * positions \in Parsec
      */
-    void updateData(const std::vector<glm::dvec3> positions);
+    void initializeData(const std::vector<glm::dvec3> positions);
 
     static documentation::Documentation Documentation();
 
 private:
     bool _isDirty = true;
+    bool _selectionChanged = true;
 
     std::unique_ptr<ghoul::opengl::ProgramObject> _shaderProgram = nullptr;
     UniformCache(modelViewTransform, modelViewProjectionTransform,
         color, opacity, size) _uniformCache;
 
-    properties::FloatProperty _size;
     properties::Vec3Property _color;
+    properties::Vec3Property _highlightColor;
+    properties::FloatProperty _size;
+    properties::FloatProperty _selectedSizeScale;
+    properties::IntListProperty _selectedIndices;
 
-    std::vector<float> _pointData;
+    struct Point {
+        float xyz[3];
+    };
+    const unsigned int _nValuesPerPoint = 3;
 
-    GLuint _vertexArrayObjectID = 0;
-    GLuint _vertexBufferObjectID = 0;
+    std::vector<Point> _pointData;
+
+    GLuint _primaryPointsVAO = 0;
+    GLuint _primaryPointsVBO = 0;
+
+    GLuint _selectedPointsVAO = 0;
+    GLuint _selectedPointsVBO = 0;
 };
 
 }// namespace openspace
