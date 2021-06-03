@@ -144,14 +144,6 @@ void DataViewer::renderScatterPlot() {
     auto plotFlags = ImPlotFlags_NoLegend;
     auto axisFlags = ImPlotAxisFlags_None;
 
-    // TODO: Currently there are artifacts when rendering over 3200-ish points.
-    // This fixed limit should be removed once I have figured out the rendering problems, or at
-    // least only render the stars (which are about 3000)
-    static const int maxPoints = 3225;
-    if (nPoints > maxPoints) {
-        nPoints = maxPoints;
-    }
-
     // TODO: make static varaibles and only update data if filter and/or selection changed
 
     std::vector<double> ra, dec;
@@ -198,29 +190,6 @@ void DataViewer::renderScatterPlot() {
         ImPlot::PopStyleColor();
         ImPlot::PopStyleColor();
         ImPlot::PopStyleVar();
-        ImPlot::EndPlot();
-    }
-
-    // TEST: to illustrate rendering issues
-    srand(0);
-    static const int nTestPoints = 5000;
-    static int nPointsToRender = 5000;
-    ImGui::InputInt("nPoints", &nPointsToRender);
-
-    static float randRa[nTestPoints], randDec[nTestPoints];
-    for (int i = 0; i < nTestPoints; ++i) {
-        randRa[i] = 360.f * ((float)rand() / (float)RAND_MAX);
-        randDec[i] = -90.f + 180.f * ((float)rand() / (float)RAND_MAX);
-    }
-
-    if (nPointsToRender > nTestPoints) {
-        nPointsToRender = nTestPoints;
-    }
-
-    ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
-    ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 2);
-    if (ImPlot::BeginPlot("Random Ra Dec", "Ra", "Dec", size, plotFlags, axisFlags)) {
-        ImPlot::PlotScatter("Test", randRa, randDec, nPointsToRender);
         ImPlot::EndPlot();
     }
 }
