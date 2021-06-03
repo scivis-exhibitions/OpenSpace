@@ -25,8 +25,8 @@
 #ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
 #define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
 
-#include<optional>
-#include<string>
+#include <optional>
+#include <string>
 
 // @TODO: separate namespace
 namespace openspace::exoplanets {
