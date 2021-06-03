@@ -30,7 +30,7 @@
 #include <openspace/util/spicemanager.h>
 #include <openspace/util/updatestructures.h>
 #include <optional>
-
+#include <iostream>
 // This class creates the entire trajectory at once and keeps it in memory the entire
 // time. This means that there is no need for updating the trail at runtime, but also that
 // the whole trail has to fit in memory.
@@ -262,6 +262,7 @@ void RenderableTrailTrajectory::update(const UpdateData& data) {
 
         // And get the current location of the object
         const glm::dvec3 p = _translation->position(data);
+
         const glm::dvec3 v1 = { p.x, p.y, p.z };
 
         // Comptue the difference between the points in double precision

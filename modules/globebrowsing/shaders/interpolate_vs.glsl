@@ -24,28 +24,12 @@
 
 #version __CONTEXT__
 
+layout (location = 0) in vec2 in_position;
+layout (location = 1) in vec2 in_texCoords;
+
 out vec2 texCoord;
 
-const vec3 posData[6] = vec3[] (
-    vec3(1.0, -0.5, 0.0),
-    vec3(0.5, -0.5, 0.0),
-    vec3(0.5, -1.0, 0.0),
-    vec3(1.0, -1.0, 0.0),
-    vec3(1.0, -0.5, 0.0),
-    vec3(0.5, -1.0, 0.0)
-);
-
-const vec2 texData[6] = vec2[] (
-    vec2(1.0, 1.0),
-    vec2(0.0, 1.0),
-    vec2(0.0, 0.0),
-    vec2(1.0, 0.0),
-    vec2(1.0, 1.0),
-    vec2(0.0, 0.0)
-
-);
-
 void main() {
-    texCoord = texData[gl_VertexID];
-    gl_Position = vec4(posData[gl_VertexID], 1.0);
+    texCoord = in_texCoords;
+    gl_Position = vec4(in_position, 0.0, 1.0);
 }

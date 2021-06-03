@@ -6,6 +6,7 @@ local waterMasksPath = "./layers/watermasks"
 
 -- Color layers
 local colorLayer = asset.require(colorLayersPath .. "/esri_viirs_combo")
+local colorLayer = asset.require("../../../../../../../OpenSpaceData/Earth/Climate/colorlayers/temperature_land_highres")
 asset.require(colorLayersPath .. "/esri_world_imagery") 
 asset.require(colorLayersPath .. "/esri_imagery_world_2D")
 asset.require(colorLayersPath .. "/viirs_snpp_temporal")

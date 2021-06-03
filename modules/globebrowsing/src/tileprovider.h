@@ -26,7 +26,6 @@
 #define __OPENSPACE_MODULE_GLOBEBROWSING___TILE_PROVIDER___H__
 
 #include <openspace/properties/propertyowner.h>
-
 #include <modules/globebrowsing/src/basictypes.h>
 #include <modules/globebrowsing/src/ellipsoid.h>
 #include <modules/globebrowsing/src/layergroupid.h>
@@ -110,18 +109,25 @@ struct InterpolateTileProvider : public TileProvider {
     virtual ~InterpolateTileProvider();
 
     Tile calculateTile(const TileIndex&);
-    //ghoul::Dictionary initDict;
-   // properties::StringProperty filePath;
-   // bool successfulInitialization = false;
+
     TileProvider* t1;
     TileProvider* t2;
     double timeT1;
     double timeT2;
-    double factor;
+    float factor;
+    GLuint vaoQuad = 0;
+    GLuint vboQuad = 0;
     GLuint fbo = 0;
-    //std::unique_ptr<ghoul::opengl::ProgramObject> _renderDMProgram;
-    cache::MemoryAwareTileCache* tileCache;
+    float debugfactor = 1.0;
+    long long debughkey = 31;
+    int renderEverySpecificIteration = 500;
+    std::unordered_map<long long, int> renderIterations;
+    std::unordered_map<long long, ghoul::opengl::Texture*> writeTileTextures;
+ 
 
+    std::unique_ptr<ghoul::opengl::ProgramObject> shaderProgram;
+
+    cache::MemoryAwareTileCache* tileCache;
 };
 
 struct TextTileProvider : public TileProvider {
@@ -207,8 +213,7 @@ struct TemporalTileProvider : public TileProvider {
     TimeQuantizer timeQuantizer;
 
     bool successfulInitialization = false;
-    InterpolateTileProvider* interpolateTileProvider = nullptr;
-
+    InterpolateTileProvider* interpolateTileProvider;
 };
 
 

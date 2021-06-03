@@ -121,7 +121,6 @@ void HorizonsTranslation::loadData() {
         file,
         ghoul::filesystem::CacheManager::Persistent::Yes
     );
-
     bool hasCachedFile = FileSys.fileExists(cachedFile);
     if (hasCachedFile) {
         LINFO(fmt::format(
@@ -151,7 +150,7 @@ void HorizonsTranslation::loadData() {
 
 void HorizonsTranslation::readHorizonsTextFile() {
     std::ifstream fileStream(_horizonsTextFile);
-
+    std::cout << "filename " << _horizonsTextFile << std::endl;
     if (!fileStream.good()) {
         LERROR(fmt::format(
             "Failed to open Horizons text file '{}'", _horizonsTextFile

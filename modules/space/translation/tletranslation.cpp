@@ -31,7 +31,7 @@
 #include <fstream>
 #include <optional>
 #include <vector>
-
+#include <iostream>
 namespace {
     // The list of leap years only goes until 2056 as we need to touch this file then
     // again anyway ;)
@@ -255,7 +255,7 @@ void TLETranslation::readTLEFile(const std::string& filename, int lineNum) {
         double meanMotion = 0.0;
         double epoch = 0.0;
     } keplerElements;
-
+    std::cout << "keplerElements.inclination " << keplerElements.inclination << " filename " << filename<<std::endl;
     std::string line;
     // Loop through and throw out lines until getting to the linNum of interest
     for (int i = 1; i < lineNum; ++i) {
@@ -310,6 +310,7 @@ void TLETranslation::readTLEFile(const std::string& filename, int lineNum) {
         // Get inclination
         stream.str(line.substr(8, 8));
         stream >> keplerElements.inclination;
+
         stream.clear();
 
         // Get Right ascension of the ascending node

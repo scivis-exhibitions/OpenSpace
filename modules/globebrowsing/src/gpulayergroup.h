@@ -66,6 +66,11 @@ public:
         const LayerGroup& layerGroup, const std::string& nameBase, int category);
 
     /**
+    * Unbinds all textures.
+    */
+    void unbind(const LayerGroup& layerGroup, const TileIndex& tileIndex);
+
+    /**
     * Deactivates any <code>TextureUnit</code>s assigned by this object.
     * This method should be called after the OpenGL draw call.
     */

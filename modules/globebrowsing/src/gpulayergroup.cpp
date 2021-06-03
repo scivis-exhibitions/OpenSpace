@@ -187,6 +187,34 @@ void GPULayerGroup::bind(ghoul::opengl::ProgramObject& p,
     }
 }
 
+void GPULayerGroup::unbind(const LayerGroup& layerGroup, const TileIndex& tileIndex) {
+    ghoul_assert(
+        layerGroup.activeLayers().size() == _gpuActiveLayers.size(),
+        "GPU and CPU active layers must have same size!"
+    );
+
+    const std::vector<Layer*>& activeLayers = layerGroup.activeLayers();
+    for (unsigned int i = 0; i < activeLayers.size(); ++i) {
+        const GPULayer& gal = _gpuActiveLayers[i];
+        const Layer& al = *activeLayers[i];
+
+        const ChunkTilePile& ctp = al.chunkTilePile(
+            tileIndex,
+            layerGroup.pileSize()
+        );
+        for (size_t j = 0; j < _gpuActiveLayers[i].gpuChunkTiles.size(); ++j) {
+            GPULayer::GPUChunkTile& t = _gpuActiveLayers[i].gpuChunkTiles[j];
+            ghoul_assert(ctp[j].has_value(), "Wrong ChunkTiles number in pile");
+            const ChunkTile& ct = *ctp[j];
+
+            t.texUnit.setZeroUnit();
+            if (ct.tile.texture) {
+                ct.tile.texture->bind();
+            }
+        }
+    }
+}
+
 void GPULayerGroup::deactivate() {
     for (GPULayer& gal : _gpuActiveLayers) {
         for (GPULayer::GPUChunkTile& t : gal.gpuChunkTiles) {

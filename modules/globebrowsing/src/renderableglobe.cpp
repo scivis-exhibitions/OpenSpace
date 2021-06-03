@@ -1341,6 +1341,10 @@ void RenderableGlobe::renderChunkGlobally(const Chunk& chunk, const RenderData& 
     for (GPULayerGroup& l : _globalRenderer.gpuLayerGroups) {
         l.deactivate();
     }
+
+    for (size_t i = 0; i < layerGroups.size(); ++i) {
+        _globalRenderer.gpuLayerGroups[i].unbind(*layerGroups[i], tileIndex);
+    }
 }
 
 void RenderableGlobe::renderChunkLocally(const Chunk& chunk, const RenderData& data,

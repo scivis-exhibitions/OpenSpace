@@ -1,6 +1,7 @@
 ----------------------------------------
 -- Configuration options for this asset
 local CreateFocusNodes = false
+local AddEarthLayers = true
 local AddMarsLayers = true
 local AddMoonLayers = true
 local AddMercuryLayers = true
@@ -15,7 +16,9 @@ local AddMercuryLayers = true
 --      sequences
 -- For example:  C:/OpenSpace   or  C:\\OpenSpace    rather than C:\OpenSpace
 local vrt_folders = {
-    Mars = {
+	Earth = {
+    },
+	Mars = {
         -- Add folders here whose contents will be automatically added to the Mars globe
         -- If multiple folders are added, the results will be added sequentially, meaning that
         -- if areas overlap (for example CTX and HiRISE) and CTX is specified *after* HiRISE,
@@ -53,9 +56,20 @@ local vrt_folders = {
         ''
     }
 }
+local custom_layers = {
+    Earth = {
+			openspace.absPath('${BASE}/../OpenSpaceData/Earth/Climate/custom_layers.asset'),
+    },
+}
 
 -- Add require statements for assets exporting the neccessary globes
--- here we add Mars, Moon and Mercury:
+-- here we add Earth, Mars, Moon and Mercury:
+if AddEarthLayers then
+    asset.require('../scene/solarsystem/planets/earth/earth')
+else
+    vrt_folders['Earth'] = nil
+	custom_layers['Earth'] = nil
+end
 if AddMarsLayers then
     asset.require('../scene/solarsystem/planets/mars/mars')
 else
@@ -78,11 +92,18 @@ asset.onInitialize(function ()
         for _, dir in pairs(list) do
             if (dir ~= '') then
                 openspace.globebrowsing.addBlendingLayersFromDirectory(dir, obj)
-
                 if CreateFocusNodes then
                     openspace.globebrowsing.addFocusNodesFromDirectory(dir, obj)
                 end
             end
         end
     end
+
+	for obj, list in pairs(custom_layers) do
+        for _, assetfile in pairs(list) do
+            if (assetfile ~= '') then		
+				openspace.asset.add(assetfile)
+            end
+        end
+	end
 end)

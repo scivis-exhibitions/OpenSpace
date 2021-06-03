@@ -40,3 +40,16 @@ customization.lua
 # The COMMIT info is generated everytime CMake is run
 COMMIT.md
 *_codegen.cpp
+data/assets/scene/solarsystem/interstellar/fifth_balloon_20200416_12.asset
+data/assets/scene/solarsystem/interstellar/fifth_balloon_20200419_12.asset
+data/assets/scene/solarsystem/interstellar/first_balloon_20200416_12.asset
+data/assets/scene/solarsystem/interstellar/first_balloon_20200419_12.asset
+data/assets/scene/solarsystem/interstellar/fourth_balloon_20200416_12.asset
+data/assets/scene/solarsystem/interstellar/fourth_balloon_20200419_12.asset
+data/assets/scene/solarsystem/interstellar/second_balloon_20200416_12.asset
+data/assets/scene/solarsystem/interstellar/second_balloon_20200419_12.asset
+data/assets/scene/solarsystem/interstellar/sixth_balloon_20200416_12.asset
+data/assets/scene/solarsystem/interstellar/sixth_balloon_20200419_12.asset
+data/assets/scene/solarsystem/interstellar/third_balloon_20200416_12.asset
+data/assets/scene/solarsystem/interstellar/third_balloon_20200419_12.asset
+data/assets/base.asset
