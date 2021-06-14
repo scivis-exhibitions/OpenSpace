@@ -1095,10 +1095,7 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
             TileTextureInitData::PadTiles::No,
             TileTextureInitData::ShouldAllocateDataOnCPU::No
         );
-        if (debughkey == 31) {
-            debughkey = hkey;
-        }
-        if (debughkey == hkey) {
+
             bool tileExists = tileCache->exist(key);
 
             if (tileExists) {
@@ -1106,6 +1103,7 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
                 auto rIt = renderIterations.find(hkey);
 
                 int renderIteration = rIt->second;
+
                 if (renderIteration == (renderEverySpecificIteration / 2)) { //iteration half of max
                     rIt->second = renderIteration + 1;
                     writeTexture = writeTileTextures.at(hkey);
@@ -1118,7 +1116,8 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
                     readTexture = writeTileTextures.at(hkey);
 
                     writeTexture = ourTile.texture;
-                    rIt->second = (renderEverySpecificIteration / 2) + 1;
+                   // rIt->second = (renderEverySpecificIteration / 2) + 1;
+                    rIt->second = 0;
                     writeTileTextures.erase(hkey);
                     writeTileTextures.insert(std::make_pair(hkey, writeTexture));
 
@@ -1144,7 +1143,6 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
                 writeTexture = readTexture;
 
             }
-
             //The glitch is most likely due to the parallell use of the same OpenGL context
             //Need own context for this rendering below
 
@@ -1178,33 +1176,44 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
             glViewport(0, 0, w, h);
             glClearColor(0.f, 0.f, 0.f, 0.f);
             glClear(GL_COLOR_BUFFER_BIT);
+            GLint id;
+            GLint id2;
+            GLint id3;
+            glGetIntegerv(GL_CURRENT_PROGRAM, &id);
 
+            std::cout <<"1 "<< id << std::endl;
             //Activate shader and bind uniforms
             shaderProgram->activate();
 
-            /*  ghoul::opengl::TextureUnit prevUnit;
+              ghoul::opengl::TextureUnit prevUnit;
               prevUnit.activate();
               prev.texture->bind();
 
               ghoul::opengl::TextureUnit nextUnit;
               nextUnit.activate();
               next.texture->bind();
-            */
-             shaderProgram->setUniform("blendFactor", debugfactor);
-            /*
+            
+            glGetIntegerv(GL_CURRENT_PROGRAM, &id2);
+
+            std::cout << "2 " << id2 << std::endl;
+            shaderProgram->setUniform("blendFactor", factor);
+            
             shaderProgram->setUniform("prevTexture", prevUnit);
             shaderProgram->setUniform("nextTexture", nextUnit);
-            */
+            
             //Render to the texture
             glBindVertexArray(vaoQuad);
             glDrawArrays(GL_TRIANGLES, 0, 6); // 2 triangles
-            glFlush();
+            //glFlush();
 
-            glBindVertexArray(0);
+            //glBindVertexArray(0);
 
             // Deactivate shader program (when rendering is completed(
             shaderProgram->deactivate();
+            glUseProgram(id);
+            glGetIntegerv(GL_CURRENT_PROGRAM, &id3);
 
+            std::cout << "3 "<< id3 << std::endl;
             // Restores system state
             glBindFramebuffer(GL_FRAMEBUFFER, currentFBO);
             glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -1222,7 +1231,6 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
             else {
                 debugfactor = 1;
             }
-        }
         return ourTile;
     }
     return Tile{ nullptr, std::nullopt, Tile::Status::Unavailable };
