@@ -63,20 +63,6 @@ asset.require('scene/digitaluniverse/supernovaremnants')
 asset.require('scene/digitaluniverse/tully')
 asset.require('scene/digitaluniverse/voids')
 
-asset.require('scene/solarsystem/interstellar/first_balloon_20200419_12')
-asset.require('scene/solarsystem/interstellar/second_balloon_20200419_12')
-asset.require('scene/solarsystem/interstellar/third_balloon_20200419_12')
-asset.require('scene/solarsystem/interstellar/fourth_balloon_20200419_12')
-asset.require('scene/solarsystem/interstellar/fifth_balloon_20200419_12')
-asset.require('scene/solarsystem/interstellar/sixth_balloon_20200419_12')
-
-asset.require('scene/solarsystem/interstellar/first_balloon_20200416_12')
-asset.require('scene/solarsystem/interstellar/second_balloon_20200416_12')
-asset.require('scene/solarsystem/interstellar/third_balloon_20200416_12')
-asset.require('scene/solarsystem/interstellar/fourth_balloon_20200416_12')
-asset.require('scene/solarsystem/interstellar/fifth_balloon_20200416_12')
-asset.require('scene/solarsystem/interstellar/sixth_balloon_20200416_12')
-
 asset.require('customization/globebrowsing')
 
 asset.onInitialize(function ()

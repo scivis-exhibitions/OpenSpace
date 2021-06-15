@@ -110,8 +110,10 @@ struct InterpolateTileProvider : public TileProvider {
 
     Tile calculateTile(const TileIndex&);
 
+    TileProvider* before;
     TileProvider* t1;
     TileProvider* t2;
+    TileProvider* future;
     double timeT1;
     double timeT2;
     float factor;

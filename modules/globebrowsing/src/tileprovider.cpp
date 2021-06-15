@@ -379,10 +379,14 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
     Time tCopy(time);
     Time simulationTime(time);
     Time nextTile; 
+    Time nextnextTile;
+    Time prevTile;
     if (t.interpolation) {
         InterpolateTileProvider* currentInterpolateTileProvider = t.interpolateTileProvider;
         if (t.timeQuantizer.quantize(tCopy, true)) {
             char Buffer[22];
+            char Buffer1[22];
+            char Buffer2[22];
             const int Size = timeStringify(t.timeFormat, tCopy, Buffer);
             try {
                 currentInterpolateTileProvider->timeT1 = tCopy.j2000Seconds();
@@ -396,16 +400,38 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
             }
             if (t.timeQuantizer.myResolution == "1M") {
                 nextTile.setTime(tCopy.j2000Seconds() + 32 * 60 * 60 * 24);
+                nextnextTile.setTime(tCopy.j2000Seconds() + 64 * 60 * 60 * 24);
+                prevTile.setTime(tCopy.j2000Seconds() - 30 * 60 * 60 * 24);
                 std::string timeString{ nextTile.ISO8601() };
+                
                 timeString[8] = '0';
                 timeString[9] = '1';
                 nextTile.setTime(timeString);
+
+                std::string timeString1{ nextnextTile.ISO8601() };
+                timeString1[8] = '0';
+                timeString1[9] = '1';
+                nextnextTile.setTime(timeString1);
+
+                std::string timeString2{ prevTile.ISO8601() };
+                timeString2[8] = '0';
+                timeString2[9] = '1';
+                prevTile.setTime(timeString2);
+
             }
             const int Size2 = timeStringify(t.timeFormat, nextTile, Buffer);
+            const int Size3 = timeStringify(t.timeFormat, nextnextTile, Buffer1);
+            const int Size4 = timeStringify(t.timeFormat, prevTile, Buffer2);
             try {
                 currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer, Size2));
+                currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer1, Size3));
+                currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer2, Size4));
+
                 currentInterpolateTileProvider->timeT2 = nextTile.j2000Seconds();
                 currentInterpolateTileProvider->factor = (simulationTime.j2000Seconds() - tCopy.j2000Seconds()) / (nextTile.j2000Seconds() - tCopy.j2000Seconds());
+
+                if (currentInterpolateTileProvider->factor > 1)
+                    currentInterpolateTileProvider->factor = 1;
                 return  currentInterpolateTileProvider;
             }
             catch (const ghoul::RuntimeError& e) {
@@ -1076,6 +1102,8 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
 
     Tile prev = tile(*t1, tileIndex);
     Tile next = tile(*t2, tileIndex);
+    Tile prevprev = tile(*before, tileIndex);
+    Tile nextnext = tile(*future, tileIndex);
     cache::ProviderTileKey key = { tileIndex, uniqueIdentifier };
 
     
@@ -1084,6 +1112,14 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
         ghoul::opengl::Texture* readTexture;
         ghoul::opengl::Texture* writeTexture;
         ghoul::opengl::Texture* tempTexture;
+        if (prevprev.texture)
+        {
+            ghoul::opengl::Texture* load1Texture = prevprev.texture;
+        }
+        if (nextnext.texture)
+        {
+            ghoul::opengl::Texture* load2Texture = nextnext.texture;
+        }
 
         cache::ProviderTileHasher hashKey;
         long long hkey = hashKey(key);
@@ -1177,11 +1213,9 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
             glClearColor(0.f, 0.f, 0.f, 0.f);
             glClear(GL_COLOR_BUFFER_BIT);
             GLint id;
-            GLint id2;
-            GLint id3;
+
             glGetIntegerv(GL_CURRENT_PROGRAM, &id);
 
-            std::cout <<"1 "<< id << std::endl;
             //Activate shader and bind uniforms
             shaderProgram->activate();
 
@@ -1193,9 +1227,7 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
               nextUnit.activate();
               next.texture->bind();
             
-            glGetIntegerv(GL_CURRENT_PROGRAM, &id2);
 
-            std::cout << "2 " << id2 << std::endl;
             shaderProgram->setUniform("blendFactor", factor);
             
             shaderProgram->setUniform("prevTexture", prevUnit);
@@ -1211,9 +1243,7 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
             // Deactivate shader program (when rendering is completed(
             shaderProgram->deactivate();
             glUseProgram(id);
-            glGetIntegerv(GL_CURRENT_PROGRAM, &id3);
 
-            std::cout << "3 "<< id3 << std::endl;
             // Restores system state
             glBindFramebuffer(GL_FRAMEBUFFER, currentFBO);
             glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -1536,6 +1566,8 @@ int update(TileProvider& tp) {
             InterpolateTileProvider& t = static_cast<InterpolateTileProvider&>(tp);
             update(*t.t1);
             update(*t.t2);
+            update(*t.before);
+            update(*t.future);
             break;
         }
         case Type::TemporalTileProvider: {
@@ -1637,6 +1669,8 @@ void reset(TileProvider& tp) {
             InterpolateTileProvider& t = static_cast<InterpolateTileProvider&>(tp);
             reset(*t.t1);
             reset(*t.t2);
+            reset(*t.before);
+            reset(*t.future);
             break;
         }
         case Type::TemporalTileProvider: {
