@@ -123,8 +123,26 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Distance (pc)", ColumnID::Distance, "%.2f" }
     };
 
+    // Must match names in implot
+    _colormaps = {
+        "Viridis",
+        "Plasma",
+        "Hot",
+        "Cool",
+        "Jet",
+        "Twilight",
+        "RdBu",
+        "BrBG",
+        "PiYG",
+        "Spectral",
+        "Deep",
+        "Dark",
+        "Paired"
+    };
+
     // TODO: make sure that settings are preserved between sessions?
     _columnForColormap = 5; // ESM
+    _currentColormapIndex = 0;
 }
 
 void DataViewer::initialize() {
@@ -223,8 +241,14 @@ void DataViewer::renderScatterPlotAndColormap() {
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200);
-    if (ImPlot::ShowColormapSelector("Colormap")) {
-        // TODO: update color map for rendered points
+    if (ImGui::BeginCombo("Colormap", _colormaps[_currentColormapIndex])) {
+        for (int i = 0; i < _colormaps.size(); ++i) {
+            const char* name = _colormaps[i];
+            if (ImGui::Selectable(name, _currentColormapIndex == i)) {
+                _currentColormapIndex = i;
+            }
+        }
+        ImGui::EndCombo();
     }
 
     static float colorScaleMin = DefaultColorScaleMinValue;
@@ -269,7 +293,7 @@ void DataViewer::renderScatterPlotAndColormap() {
     ImVec4 nanColor = { NanPointColor.x, NanPointColor.y, NanPointColor.z, 1.0 };
 
     static float pointSize = 1.5f;
-
+    ImPlot::PushColormap(_colormaps[_currentColormapIndex]);
     ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
     if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", size, plotFlags, axisFlags)) {
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, pointSize);
@@ -331,6 +355,8 @@ void DataViewer::renderScatterPlotAndColormap() {
 
         ImGui::SetNextItemWidth(70);
         ImGui::DragFloat("Point size", &pointSize, 0.1f, 0.f, 5.f);
+
+        ImPlot::PopColormap();
     }
 }
 

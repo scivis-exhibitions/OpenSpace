@@ -102,7 +102,8 @@ private:
     std::string _pointsIdentifier;
 
     std::vector<Column> _columns;
-
+    std::vector<const char*> _colormaps;
+    int _currentColormapIndex;
     int _columnForColormap; // index
 };
 
