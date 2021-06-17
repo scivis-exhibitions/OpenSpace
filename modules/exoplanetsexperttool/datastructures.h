@@ -33,7 +33,7 @@ namespace openspace::exoplanets {
 
 // Represent a data point with upper and lower uncertainty values
 struct DataPoint {
-    double value = std::numeric_limits<double>::quiet_NaN();
+    float value = std::numeric_limits<float>::quiet_NaN();
     float errorUpper = 0.f;
     float errorLower = 0.f;
 

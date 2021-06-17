@@ -102,8 +102,8 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Name", ColumnID::Name },
         { "Host", ColumnID::Host },
         { "Year of discovery", ColumnID::DiscoveryYear, "%.0f" },
-        { "N_Planets", ColumnID::NPlanets, "%.0f" },
-        { "N_Stars ", ColumnID::NStars, "%.0f" },
+        { "Planets", ColumnID::NPlanets, "%.0f" },
+        { "Stars ", ColumnID::NStars, "%.0f" },
         { "ESM", ColumnID::ESM, "%.2f" },
         { "TSM", ColumnID::TSM, "%.2f" },
         { "Planet radius (Earth radii)", ColumnID::PlanetRadius, "%.2f" },
@@ -120,7 +120,7 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Star radius (Solar)", ColumnID::StarRadius, "%.2f" },
         { "MagJ", ColumnID::MagnitudeJ, "%.2f" },
         { "MagK", ColumnID::MagnitudeK, "%.2f" },
-        { "Distance (Parsec)", ColumnID::Distance, "%.2f" }
+        { "Distance (pc)", ColumnID::Distance, "%.2f" }
     };
 
     // TODO: make sure that settings are preserved between sessions?
@@ -165,6 +165,7 @@ void DataViewer::initializeRenderables() {
 
 void DataViewer::render() {
     renderTable();
+    ImGui::Spacing();
     renderScatterPlotAndColormap();
 }
 
@@ -200,9 +201,6 @@ void DataViewer::renderScatterPlotAndColormap() {
             dec_selected.push_back(item.dec.value);
         }
     }
-
-    ImVec4 selectedColor = ImVec4(DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.0);
-    ImVec4 nanColor = ImVec4(NanPointColor.x, NanPointColor.y, NanPointColor.z, 1.0);
 
     // Colormap
     ImGui::Text("Colormap Settings");
@@ -264,11 +262,17 @@ void DataViewer::renderScatterPlotAndColormap() {
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200);
-    ImGui::DragFloatRange2("Min / Max", &colorScaleMin, &colorScaleMax, 0.01f, -2000, 2000);
+    ImGui::DragFloatRange2("Min / Max", &colorScaleMin, &colorScaleMax, 1.f);
+
+    ImVec4 selectedColor =
+        { DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.0 };
+    ImVec4 nanColor = { NanPointColor.x, NanPointColor.y, NanPointColor.z, 1.0 };
+
+    static float pointSize = 1.5f;
 
     ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
     if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", size, plotFlags, axisFlags)) {
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 1);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, pointSize);
 
         for (int i : _filteredData) {
             const ExoplanetItem& item = _data[i];
@@ -303,17 +307,30 @@ void DataViewer::renderScatterPlotAndColormap() {
         }
         ImPlot::PopStyleVar();
 
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 4);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 3.f * pointSize);
         ImPlot::PushStyleColor(ImPlotCol_MarkerFill, selectedColor);
         ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, selectedColor);
-        ImPlot::PlotScatter("Selected", ra_selected.data(), dec_selected.data(), ra_selected.size());
+        ImPlot::PlotScatter(
+            "Selected",
+            ra_selected.data(),
+            dec_selected.data(),
+            ra_selected.size()
+        );
         ImPlot::PopStyleColor();
         ImPlot::PopStyleColor();
         ImPlot::PopStyleVar();
         ImPlot::EndPlot();
 
         ImGui::SameLine();
-        ImPlot::ColormapScale("##ColorScale", colorScaleMin, colorScaleMax, ImVec2(60, size.y));
+        ImPlot::ColormapScale(
+            "##ColorScale",
+            colorScaleMin,
+            colorScaleMax,
+            ImVec2(60, size.y)
+        );
+
+        ImGui::SetNextItemWidth(70);
+        ImGui::DragFloat("Point size", &pointSize, 0.1f, 0.f, 5.f);
     }
 }
 
@@ -471,24 +488,24 @@ void DataViewer::renderTable() {
         ImGui::EndTable();
 
         if (filterChanged) {
-            const std::string positionIndices = composePositionIndexList(_filteredData);
+            const std::string indices = composePositionIndexList(_filteredData);
             const std::string uri =
                 fmt::format("Scene.{}.Renderable.Filtered", _pointsIdentifier);
 
             openspace::global::scriptEngine->queueScript(
-                "openspace.setPropertyValueSingle('" + uri + "', { " + positionIndices + " })",
+                "openspace.setPropertyValueSingle('" + uri + "', { " + indices + " })",
                 scripting::ScriptEngine::RemoteScripting::Yes
             );
         }
 
         // Update selection renderable
         if (selectionChanged) {
-            const std::string positionIndices = composePositionIndexList(_selection);
+            const std::string indices = composePositionIndexList(_selection);
             const std::string uri =
                 fmt::format("Scene.{}.Renderable.Selection", _pointsIdentifier);
 
             openspace::global::scriptEngine->queueScript(
-                "openspace.setPropertyValueSingle('" + uri + "', { " + positionIndices + " })",
+                "openspace.setPropertyValueSingle('" + uri + "', { " + indices + " })",
                 scripting::ScriptEngine::RemoteScripting::Yes
             );
         }
@@ -517,11 +534,8 @@ void DataViewer::renderColumnValue(ColumnID column, const char* format,
 bool DataViewer::compareColumnValues(ColumnID column, const ExoplanetItem& left,
                                      const ExoplanetItem& right)
 {
-    std::variant<const char*, float> leftValue =
-        valueFromColumn(column, left);
-
-    std::variant<const char*, float> rightValue =
-        valueFromColumn(column, right);
+    std::variant<const char*, float> leftValue = valueFromColumn(column, left);
+    std::variant<const char*, float> rightValue = valueFromColumn(column, right);
 
     // TODO: make sure they are the same type
 
@@ -559,45 +573,44 @@ std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
         case ColumnID::TSM:
             return item.tsm;
         case ColumnID::PlanetRadius:
-            return static_cast<float>(item.radius.value);
+            return item.radius.value;
         case ColumnID::PlanetTemperature:
-            return static_cast<float>(item.eqilibriumTemp.value);
+            return item.eqilibriumTemp.value;
         case ColumnID::PlanetMass:
-            return static_cast<float>(item.mass.value);
+            return item.mass.value;
         case ColumnID::SurfaceGravity:
-            return static_cast<float>(item.surfaceGravity.value);
+            return item.surfaceGravity.value;
         // Orbits
         case ColumnID::SemiMajorAxis:
-            return static_cast<float>(item.semiMajorAxis.value);
+            return item.semiMajorAxis.value;
         case ColumnID::Eccentricity:
-            return static_cast<float>(item.eccentricity.value);
+            return item.eccentricity.value;
         case ColumnID::Period:
-            return static_cast<float>(item.period.value);
+            return item.period.value;
         case ColumnID::Inclination:
-            return static_cast<float>(item.inclination.value);
+            return item.inclination.value;
         // Star
         case ColumnID::StarTemperature:
-            return static_cast<float>(item.starEffectiveTemp.value);
+            return item.starEffectiveTemp.value;
         case ColumnID::StarRadius:
-            return static_cast<float>(item.starRadius.value);
+            return item.starRadius.value;
         case ColumnID::MagnitudeJ:
-            return static_cast<float>(item.magnitudeJ.value);
+            return item.magnitudeJ.value;
         case ColumnID::MagnitudeK:
-            return static_cast<float>(item.magnitudeK.value);
+            return item.magnitudeK.value;
         case ColumnID::Distance:
-            return static_cast<float>(item.distance.value);
+            return item.distance.value;
         default:
-            LERROR("Undefined column");
-            return "undefined";
+            throw ghoul::MissingCaseException();
     }
 }
 
 std::string DataViewer::composePositionIndexList(const std::vector<size_t>& dataIndices)
 {
     std::string result;
-    for (size_t s : dataIndices) {
-        if (_tableData[s].positionIndex.has_value()) {
-            const size_t posIndex = _tableData[s].positionIndex.value();
+    for (size_t i : dataIndices) {
+        if (_tableData[i].positionIndex.has_value()) {
+            const size_t posIndex = _tableData[i].positionIndex.value();
             result += std::to_string(posIndex) + ',';
         }
     }

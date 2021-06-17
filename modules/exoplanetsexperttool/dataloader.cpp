@@ -140,49 +140,49 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            }
            // Planet properties
            else if (column == "pl_rade") {
-               p.radius.value = parseDoubleData(data);
+               p.radius.value = parseFloatData(data);
            }
            else if (column == "pl_masse") {
-               p.mass.value = parseDoubleData(data);
+               p.mass.value = parseFloatData(data);
            }
            // Orbital properties
            else if (column == "pl_orbsmax") {
-               p.semiMajorAxis.value = parseDoubleData(data);
+               p.semiMajorAxis.value = parseFloatData(data);
            }
            else if (column == "pl_orbeccen") {
-               p.eccentricity.value = parseDoubleData(data);
+               p.eccentricity.value = parseFloatData(data);
            }
            else if (column == "pl_orbper") {
-               p.period.value = parseDoubleData(data);
+               p.period.value = parseFloatData(data);
            }
            else if (column == "pl_orbincl") {
-               p.inclination.value = parseDoubleData(data);
+               p.inclination.value = parseFloatData(data);
            }
            // Star properties
            else if (column == "st_teff") {
-               p.starEffectiveTemp.value = parseDoubleData(data);
+               p.starEffectiveTemp.value = parseFloatData(data);
            }
            else if (column == "st_rad") {
-               p.starRadius.value = parseDoubleData(data);
+               p.starRadius.value = parseFloatData(data);
            }
            else if (column == "st_age") {
-               p.starAge.value = parseDoubleData(data);
+               p.starAge.value = parseFloatData(data);
            }
            else if (column == "sy_jmag") {
-               p.magnitudeJ.value = parseDoubleData(data);
+               p.magnitudeJ.value = parseFloatData(data);
            }
            else if (column == "sy_kmag") {
-               p.magnitudeK.value = parseDoubleData(data);
+               p.magnitudeK.value = parseFloatData(data);
            }
            // System properties
            else if (column == "sy_snum") {
-               p.nStars = parseIntegerData(data);
+               p.nStars = parseFloatData(data);
            }
            else if (column == "sy_pnum") {
-               p.nPlanets = parseIntegerData(data);
+               p.nPlanets = parseFloatData(data);
            }
            else if (column == "disc_year") {
-               p.discoveryYear = parseIntegerData(data);
+               p.discoveryYear = parseFloatData(data);
            }
            // Position
            else if (column == "ra") {
@@ -192,7 +192,7 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
                p.dec.value = parseFloatData(data);
            }
            else if (column == "sy_dist") {
-               p.distance.value = parseDoubleData(data);
+               p.distance.value = parseFloatData(data);
            }
        }
 
@@ -201,23 +201,23 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
        // Compute galactic position of system
        bool hasPos = p.ra.hasValue() && p.dec.hasValue() && p.distance.hasValue();
        if (hasPos) {
-           const float ra = static_cast<float>(p.ra.value);
-           const float dec = static_cast<float>(p.dec.value);
+           const float ra = p.ra.value;
+           const float dec = p.dec.value;
            p.position = icrsToGalacticCartesian(ra, dec, p.distance.value);
        }
 
        // If uknown, compute planet mass
        if ((!p.mass.hasValue()) && p.radius.hasValue()) {
-           double r = p.radius.value;
+           float r = p.radius.value;
 
            // Mass radius relationship from Chen & Kipping (2017)
            // See eq. (2) in https://arxiv.org/pdf/1805.03671.pdf
 
-           if (r < 1.23) { // Terran
-               p.mass.value = 0.9718 * glm::pow(r, 3.58);
+           if (r < 1.23f) { // Terran
+               p.mass.value = 0.9718f * glm::pow(r, 3.58f);
            }
            else if (r < 14.26) { // Neptunian
-               p.mass.value = 1.436 * glm::pow(r, 1.70);
+               p.mass.value = 1.436f * glm::pow(r, 1.70f);
            }
            // TODO: constant for larger planets (Jovian & Stellar)
            // Use their python package!
@@ -228,12 +228,12 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
        // https://arxiv.org/pdf/1805.03671.pdf
        bool hasStarTempInfo = p.starEffectiveTemp.hasValue() && p.starRadius.hasValue();
        if (hasStarTempInfo && p.semiMajorAxis.hasValue()) {
-           double tempStar = p.starEffectiveTemp.value;
-           double rStar = p.starRadius.value;
-           double a = p.semiMajorAxis.value;
-           a *= 214.93946938362; // convert to Solar radii (same as star)
+           float tempStar = p.starEffectiveTemp.value;
+           float rStar = p.starRadius.value;
+           float a = p.semiMajorAxis.value;
+           a *= 214.93946938362f; // convert to Solar radii (same as star)
 
-           const double c = glm::pow(0.25, 0.25);
+           const float c = glm::pow(0.25, 0.25);
            p.eqilibriumTemp.value = c * tempStar * glm::sqrt((rStar / a));
        }
 
@@ -244,9 +244,9 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
 
        if (p.radius.hasValue() && p.mass.hasValue()) {
            constexpr const double G = 6.67430e-11;
-           const double r = p.radius.value * EarthRadius;
-           const double M = p.mass.value * EarthMass;
-           p.surfaceGravity.value = (G * M) / (r * r);
+           const double r = static_cast<double>(p.radius.value) * EarthRadius;
+           const double M = static_cast<double>(p.mass.value) * EarthMass;
+           p.surfaceGravity.value = static_cast<float>((G * M) / (r * r));
        }
 
        p.id = idCounter;
@@ -287,11 +287,11 @@ float DataLoader::computeTSM(const ExoplanetItem& p) {
         }
     };
 
-    const double rPlanet = p.radius.value;
-    const double mass = p.mass.value;
-    const double temp = p.eqilibriumTemp.value;
-    const double rStar = p.starRadius.value;
-    const double mJ = p.magnitudeJ.value;
+    const double rPlanet = static_cast<double>(p.radius.value);
+    const double mass = static_cast<double>(p.mass.value);
+    const double temp = static_cast<double>(p.eqilibriumTemp.value);
+    const double rStar = static_cast<double>(p.starRadius.value);
+    const double mJ = static_cast<double>(p.magnitudeJ.value);
 
     const double rPlanet3 = rPlanet * rPlanet * rPlanet;
     const double rStar2 = rStar * rStar;
@@ -312,11 +312,11 @@ float DataLoader::computeESM(const ExoplanetItem& p) {
         return std::numeric_limits<float>::quiet_NaN();
     }
 
-    const double rPlanet = p.radius.value;
-    const double tempPlanetDay = 1.10 * p.eqilibriumTemp.value;
-    const double rStar = p.starRadius.value;
-    const double teffStar = p.starEffectiveTemp.value;
-    const double mK = p.magnitudeK.value;
+    const double rPlanet = static_cast<double>(p.radius.value);
+    const double tempPlanetDay = 1.10 * static_cast<double>(p.eqilibriumTemp.value);
+    const double rStar = static_cast<double>(p.starRadius.value);
+    const double teffStar = static_cast<double>(p.starEffectiveTemp.value);
+    const double mK = static_cast<double>(p.magnitudeK.value);
 
     constexpr const double earthToSolar = 0.0091577;
     const double normalizedPlanetRadius = (rPlanet * earthToSolar) / rStar;
