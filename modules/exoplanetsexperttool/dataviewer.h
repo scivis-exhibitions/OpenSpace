@@ -79,7 +79,7 @@ private:
     void renderColumnValue(ColumnID column, const char* format,
         const ExoplanetItem& item);
 
-    std::variant<const char*, double, int> valueFromColumn(ColumnID column,
+    std::variant<const char*, float> valueFromColumn(ColumnID column,
         const ExoplanetItem& item);
 
     bool compareColumnValues(ColumnID column, const ExoplanetItem& left,

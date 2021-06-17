@@ -94,17 +94,16 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
             counter++;
         }
         _tableData.push_back(item);
-
         _filteredData.push_back(i);
     }
     _positions.shrink_to_fit();
 
     _columns = {
-        { "Name", ColumnID::Name, "%s" },
+        { "Name", ColumnID::Name },
         { "Host", ColumnID::Host },
-        { "Year of discovery", ColumnID::DiscoveryYear, "%d" },
-        { "Num. planets", ColumnID::NPlanets, "%d" },
-        { "Num. stars ", ColumnID::NStars, "%d" },
+        { "Year of discovery", ColumnID::DiscoveryYear, "%.0f" },
+        { "N_Planets", ColumnID::NPlanets, "%.0f" },
+        { "N_Stars ", ColumnID::NStars, "%.0f" },
         { "ESM", ColumnID::ESM, "%.2f" },
         { "TSM", ColumnID::TSM, "%.2f" },
         { "Planet radius (Earth radii)", ColumnID::PlanetRadius, "%.2f" },
@@ -212,7 +211,7 @@ void DataViewer::renderScatterPlotAndColormap() {
         for (int i = 0; i < _columns.size(); ++i) {
             // Ignore non-numeric columns
             auto aValue = valueFromColumn(_columns[i].id, _data.front());
-            if (!std::holds_alternative<double>(aValue)) {
+            if (!std::holds_alternative<float>(aValue)) {
                 continue;
             }
 
@@ -241,15 +240,16 @@ void DataViewer::renderScatterPlotAndColormap() {
 
         for (const ExoplanetItem& item : _data) {
             auto value = valueFromColumn(colormapColumn, item);
-            if (auto val = std::get_if<double>(&value)) {
-                if (std::isnan(*val)) {
+            if (std::holds_alternative<float>(value)) {
+                float val = std::get<float>(value);
+                if (std::isnan(val)) {
                     continue;
                 }
-                if (*val > newMax) {
-                    newMax = static_cast<float>(*val);
+                if (val > newMax) {
+                    newMax = static_cast<float>(val);
                 }
-                if (*val < newMin) {
-                    newMin = static_cast<float>(*val);
+                if (val < newMin) {
+                    newMin = static_cast<float>(val);
                 }
             }
             else {
@@ -279,11 +279,8 @@ void DataViewer::renderScatterPlotAndColormap() {
 
             auto value = valueFromColumn(colormapColumn, item);
             float fValue = 0.0;
-            if (std::holds_alternative<int>(value)) {
-                fValue = static_cast<float>(std::get<int>(value));
-            }
-            if (std::holds_alternative<double>(value)) {
-                fValue = static_cast<float>(std::get<double>(value));
+            if (std::holds_alternative<float>(value)) {
+                fValue = std::get<float>(value);
             }
 
             ImVec4 pointColor;
@@ -501,19 +498,15 @@ void DataViewer::renderTable() {
 void DataViewer::renderColumnValue(ColumnID column, const char* format,
                                    const ExoplanetItem& item)
 {
-    std::variant<const char*, double, int> value =
-        valueFromColumn(column, item);
+    std::variant<const char*, float> value = valueFromColumn(column, item);
 
-    if (std::holds_alternative<int>(value)) {
-        ImGui::Text(format, std::get<int>(value));
-    }
-    else if (std::holds_alternative<double>(value)) {
-        double v = std::get<double>(value);
+    if (std::holds_alternative<float>(value)) {
+        float v = std::get<float>(value);
         if (std::isnan(v)) {
             ImGui::TextUnformatted("");
         }
         else {
-            ImGui::Text(format, std::get<double>(value));
+            ImGui::Text(format, std::get<float>(value));
         }
     }
     else if (std::holds_alternative<const char*>(value)) {
@@ -524,10 +517,10 @@ void DataViewer::renderColumnValue(ColumnID column, const char* format,
 bool DataViewer::compareColumnValues(ColumnID column, const ExoplanetItem& left,
                                      const ExoplanetItem& right)
 {
-    std::variant<const char*, double, int> leftValue =
+    std::variant<const char*, float> leftValue =
         valueFromColumn(column, left);
 
-    std::variant<const char*, double, int> rightValue =
+    std::variant<const char*, float> rightValue =
         valueFromColumn(column, right);
 
     // TODO: make sure they are the same type
@@ -538,11 +531,8 @@ bool DataViewer::compareColumnValues(ColumnID column, const ExoplanetItem& left,
             std::get<const char*>(rightValue)
         );
     }
-    else if (std::holds_alternative<double>(leftValue)) {
-        return compareValues(std::get<double>(leftValue), std::get<double>(rightValue));
-    }
-    else if (std::holds_alternative<int>(leftValue)) {
-        return std::get<int>(leftValue) < std::get<int>(rightValue);
+    else if (std::holds_alternative<float>(leftValue)) {
+        return compareValues(std::get<float>(leftValue), std::get<float>(rightValue));
     }
     else {
         LERROR("Trying to compare undefined column types");
@@ -550,8 +540,8 @@ bool DataViewer::compareColumnValues(ColumnID column, const ExoplanetItem& left,
     }
 }
 
-std::variant<const char*, double, int> DataViewer::valueFromColumn(ColumnID column,
-                                                               const ExoplanetItem& item)
+std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
+                                                             const ExoplanetItem& item)
 {
     switch (column) {
         case ColumnID::Name:
@@ -559,43 +549,43 @@ std::variant<const char*, double, int> DataViewer::valueFromColumn(ColumnID colu
         case ColumnID::Host:
             return item.hostName.c_str();
         case ColumnID::DiscoveryYear:
-            return item.discoveryYear;
+            return static_cast<float>(item.discoveryYear);
         case ColumnID::NPlanets:
-            return item.nPlanets;
+            return static_cast<float>(item.nPlanets);
         case ColumnID::NStars:
-            return item.nStars;
+            return static_cast<float>(item.nStars);
         case ColumnID::ESM:
             return item.esm;
         case ColumnID::TSM:
             return item.tsm;
         case ColumnID::PlanetRadius:
-            return item.radius.value;
+            return static_cast<float>(item.radius.value);
         case ColumnID::PlanetTemperature:
-            return item.eqilibriumTemp.value;
+            return static_cast<float>(item.eqilibriumTemp.value);
         case ColumnID::PlanetMass:
-            return item.mass.value;
+            return static_cast<float>(item.mass.value);
         case ColumnID::SurfaceGravity:
-            return item.surfaceGravity.value;
+            return static_cast<float>(item.surfaceGravity.value);
         // Orbits
         case ColumnID::SemiMajorAxis:
-            return item.semiMajorAxis.value;
+            return static_cast<float>(item.semiMajorAxis.value);
         case ColumnID::Eccentricity:
-            return item.eccentricity.value;
+            return static_cast<float>(item.eccentricity.value);
         case ColumnID::Period:
-            return item.period.value;
+            return static_cast<float>(item.period.value);
         case ColumnID::Inclination:
-            return item.inclination.value;
+            return static_cast<float>(item.inclination.value);
         // Star
         case ColumnID::StarTemperature:
-            return item.starEffectiveTemp.value;
+            return static_cast<float>(item.starEffectiveTemp.value);
         case ColumnID::StarRadius:
-            return item.starRadius.value;
+            return static_cast<float>(item.starRadius.value);
         case ColumnID::MagnitudeJ:
-            return item.magnitudeJ.value;
+            return static_cast<float>(item.magnitudeJ.value);
         case ColumnID::MagnitudeK:
-            return item.magnitudeK.value;
+            return static_cast<float>(item.magnitudeK.value);
         case ColumnID::Distance:
-            return item.distance.value;
+            return static_cast<float>(item.distance.value);
         default:
             LERROR("Undefined column");
             return "undefined";
