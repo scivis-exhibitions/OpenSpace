@@ -29,6 +29,7 @@
 
 #include <modules/exoplanetsexperttool/dataloader.h>
 #include <modules/exoplanetsexperttool/datastructures.h>
+#include <openspace/properties/optionproperty.h>
 #include <variant>
 #include <vector>
 
@@ -57,6 +58,12 @@ enum ColumnID {
     Distance
 };
 
+struct Column {
+    const char* name;
+    ColumnID id;
+    const char* format = "%s";
+};
+
 class DataViewer : public properties::PropertyOwner {
 public:
     DataViewer(std::string identifier, std::string guiName = "");
@@ -66,7 +73,7 @@ public:
 
 private:
     void initializeRenderables();
-    void renderScatterPlot();
+    void renderScatterPlotAndColormap();
     void renderTable();
 
     void renderColumnValue(ColumnID column, const char* format,
@@ -93,6 +100,10 @@ private:
     std::vector<size_t> _selection;     // Indices of selected data points
 
     std::string _pointsIdentifier;
+
+    std::vector<Column> _columns;
+
+    int _columnForColormap; // index
 };
 
 } // namespace openspace::exoplanets::gui

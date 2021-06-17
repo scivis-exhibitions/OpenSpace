@@ -65,6 +65,10 @@ namespace {
 
     constexpr const glm::dvec3 DefaultPointColor = { 0.9, 1.0, 0.5 };
     constexpr const glm::dvec3 DefaultSelectedColor = { 0.2, 0.8, 1.0 };
+    constexpr const glm::dvec3 NanPointColor = { 0.3, 0.3, 0.3 };
+
+    constexpr const float DefaultColorScaleMinValue = 0.f;
+    constexpr const float DefaultColorScaleMaxValue = 1000.f;
 }
 
 namespace openspace::exoplanets::gui {
@@ -94,6 +98,34 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         _filteredData.push_back(i);
     }
     _positions.shrink_to_fit();
+
+    _columns = {
+        { "Name", ColumnID::Name, "%s" },
+        { "Host", ColumnID::Host },
+        { "Year of discovery", ColumnID::DiscoveryYear, "%d" },
+        { "Num. planets", ColumnID::NPlanets, "%d" },
+        { "Num. stars ", ColumnID::NStars, "%d" },
+        { "ESM", ColumnID::ESM, "%.2f" },
+        { "TSM", ColumnID::TSM, "%.2f" },
+        { "Planet radius (Earth radii)", ColumnID::PlanetRadius, "%.2f" },
+        { "Planet equilibrium temp. (K)", ColumnID::PlanetTemperature, "%.0f" },
+        { "Mass", ColumnID::PlanetMass, "%.2f" },
+        { "Surface Gravity (m/s^2)", ColumnID::SurfaceGravity, "%.2f" },
+        // Orbits
+        { "Semi-major axis (AU)", ColumnID::SemiMajorAxis, "%.2f" },
+        { "Eccentricity", ColumnID::Eccentricity, "%.2f" },
+        { "Orbit period", ColumnID::Period, "%.2f" },
+        { "Inclination", ColumnID::Inclination, "%.2f" },
+        // Star
+        { "Star effective temp. (K)", ColumnID::StarTemperature, "%.0f" },
+        { "Star radius (Solar)", ColumnID::StarRadius, "%.2f" },
+        { "MagJ", ColumnID::MagnitudeJ, "%.2f" },
+        { "MagK", ColumnID::MagnitudeK, "%.2f" },
+        { "Distance (Parsec)", ColumnID::Distance, "%.2f" }
+    };
+
+    // TODO: make sure that settings are preserved between sessions?
+    _columnForColormap = 5; // ESM
 }
 
 void DataViewer::initialize() {
@@ -134,10 +166,10 @@ void DataViewer::initializeRenderables() {
 
 void DataViewer::render() {
     renderTable();
-    renderScatterPlot();
+    renderScatterPlotAndColormap();
 }
 
-void DataViewer::renderScatterPlot() {
+void DataViewer::renderScatterPlotAndColormap() {
     int nPoints = static_cast<int>(_filteredData.size());
 
     static const ImVec2 size = { 400, 300 };
@@ -170,17 +202,108 @@ void DataViewer::renderScatterPlot() {
         }
     }
 
-    auto pointColor = ImVec4(DefaultPointColor.x, DefaultPointColor.y, DefaultPointColor.z, 1.0);
-    auto selectedColor = ImVec4(DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.0);
+    ImVec4 selectedColor = ImVec4(DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.0);
+    ImVec4 nanColor = ImVec4(NanPointColor.x, NanPointColor.y, NanPointColor.z, 1.0);
+
+    // Colormap
+    ImGui::Text("Colormap Settings");
+    ImGui::SetNextItemWidth(100);
+    if (ImGui::BeginCombo("Column", _columns[_columnForColormap].name)) {
+        for (int i = 0; i < _columns.size(); ++i) {
+            // Ignore non-numeric columns
+            auto aValue = valueFromColumn(_columns[i].id, _data.front());
+            if (!std::holds_alternative<double>(aValue)) {
+                continue;
+            }
+
+            const char* name = _columns[i].name;
+            if (ImGui::Selectable(name, _columnForColormap == i)) {
+                _columnForColormap = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200);
+    if (ImPlot::ShowColormapSelector("Colormap")) {
+        // TODO: update color map for rendered points
+    }
+
+    static float colorScaleMin = DefaultColorScaleMinValue;
+    static float colorScaleMax = DefaultColorScaleMaxValue;
+
+    const ColumnID colormapColumn = _columns[_columnForColormap].id;
+
+    if (ImGui::Button("Set range from data")) {
+        float newMin = std::numeric_limits<float>::max();
+        float newMax = std::numeric_limits<float>::lowest();
+
+        for (const ExoplanetItem& item : _data) {
+            auto value = valueFromColumn(colormapColumn, item);
+            if (auto val = std::get_if<double>(&value)) {
+                if (std::isnan(*val)) {
+                    continue;
+                }
+                if (*val > newMax) {
+                    newMax = static_cast<float>(*val);
+                }
+                if (*val < newMin) {
+                    newMin = static_cast<float>(*val);
+                }
+            }
+            else {
+                // Shouldn't be possible to try to use non numbers
+                throw;
+            }
+        }
+
+        colorScaleMin = newMin;
+        colorScaleMax = newMax;
+    };
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200);
+    ImGui::DragFloatRange2("Min / Max", &colorScaleMin, &colorScaleMax, 0.01f, -2000, 2000);
 
     ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
     if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", size, plotFlags, axisFlags)) {
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 1);
-        ImPlot::PushStyleColor(ImPlotCol_MarkerFill, pointColor);
-        ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, pointColor);
-        ImPlot::PlotScatter("Data", ra.data(), dec.data(), nPoints);
-        ImPlot::PopStyleColor();
-        ImPlot::PopStyleColor();
+
+        for (int i : _filteredData) {
+            const ExoplanetItem& item = _data[i];
+
+            if (!item.ra.hasValue() || !item.dec.hasValue()) {
+                continue;
+            }
+
+            auto value = valueFromColumn(colormapColumn, item);
+            float fValue = 0.0;
+            if (std::holds_alternative<int>(value)) {
+                fValue = static_cast<float>(std::get<int>(value));
+            }
+            if (std::holds_alternative<double>(value)) {
+                fValue = static_cast<float>(std::get<double>(value));
+            }
+
+            ImVec4 pointColor;
+            if (std::isnan(fValue)) {
+                pointColor = nanColor;
+            }
+            else {
+                float t = (fValue - colorScaleMin) / (colorScaleMax - colorScaleMin);
+                t = std::clamp(t, 0.f, 1.f);
+                pointColor = ImPlot::SampleColormap(t);
+            }
+
+            ImPlotPoint point = { item.ra.value, item.dec.value };
+            const char* label = "Data " + i;
+            ImPlot::PushStyleColor(ImPlotCol_MarkerFill, pointColor);
+            ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, pointColor);
+            ImPlot::PlotScatter(label, &point.x, &point.y, 1);
+            ImPlot::PopStyleColor();
+            ImPlot::PopStyleColor();
+        }
         ImPlot::PopStyleVar();
 
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 4);
@@ -191,6 +314,9 @@ void DataViewer::renderScatterPlot() {
         ImPlot::PopStyleColor();
         ImPlot::PopStyleVar();
         ImPlot::EndPlot();
+
+        ImGui::SameLine();
+        ImPlot::ColormapScale("##ColorScale", colorScaleMin, colorScaleMax, ImVec2(60, size.y));
     }
 }
 
@@ -206,38 +332,7 @@ void DataViewer::renderTable() {
 
     const ImGuiTableColumnFlags hide = ImGuiTableColumnFlags_DefaultHide;
 
-    struct Column {
-        const char* name;
-        ColumnID id;
-        const char* format = "%s";
-        ImGuiTableColumnFlags flags = 0;
-    };
-
-    const std::vector<Column> columns = {
-        { "Name", ColumnID::Name, "%s", ImGuiTableColumnFlags_DefaultSort },
-        { "Host", ColumnID::Host },
-        { "Year of discovery", ColumnID::DiscoveryYear, "%d" },
-        { "Num. planets", ColumnID::NPlanets, "%d" },
-        { "Num. stars ", ColumnID::NStars, "%d" },
-        { "ESM", ColumnID::ESM, "%.2f" },
-        { "TSM", ColumnID::TSM, "%.2f" },
-        { "Planet radius (Earth radii)", ColumnID::PlanetRadius, "%.2f" },
-        { "Planet equilibrium temp. (K)", ColumnID::PlanetTemperature, "%.0f" },
-        { "Mass", ColumnID::PlanetMass, "%.2f" },
-        { "Surface Gravity (m/s^2)", ColumnID::SurfaceGravity, "%.2f" },
-        // Orbits
-        { "Semi-major axis (AU)", ColumnID::SemiMajorAxis, "%.2f" },
-        { "Eccentricity", ColumnID::Eccentricity, "%.2f" },
-        { "Orbit period", ColumnID::Period, "%.2f" },
-        { "Inclination", ColumnID::Inclination, "%.2f" },
-        // Star
-        { "Star effective temp. (K)", ColumnID::StarTemperature, "%.0f" },
-        { "Star radius (Solar)", ColumnID::StarRadius, "%.2f" },
-        { "MagJ", ColumnID::MagnitudeJ, "%.2f" },
-        { "MagK", ColumnID::MagnitudeK, "%.2f" },
-        { "Distance (Parsec)", ColumnID::Distance, "%.2f" }
-    };
-    const int nColumns = static_cast<int>(columns.size());
+    const int nColumns = static_cast<int>(_columns.size());
 
     bool selectionChanged = false;
     bool filterChanged = false;
@@ -296,8 +391,11 @@ void DataViewer::renderTable() {
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags, size)) {
         // Header
-        for (auto c : columns) {
-            auto colFlags = c.flags | ImGuiTableColumnFlags_PreferSortDescending;
+        for (auto c : _columns) {
+            ImGuiTableColumnFlags colFlags = ImGuiTableColumnFlags_PreferSortDescending;
+            if (c.id == ColumnID::Name) {
+                colFlags |= ImGuiTableColumnFlags_DefaultSort;
+            }
             ImGui::TableSetupColumn(c.name, colFlags, 0.f, c.id);
         }
         ImGui::TableSetupScrollFreeze(0, 1); // Make header always visible
@@ -341,7 +439,7 @@ void DataViewer::renderTable() {
             auto found = std::find(_selection.begin(), _selection.end(), index);
             const bool itemIsSelected = found != _selection.end();
 
-            for (const Column col : columns) {
+            for (const Column col : _columns) {
                 ImGui::TableNextColumn();
 
                 if (col.id == ColumnID::Name) {
@@ -456,51 +554,51 @@ std::variant<const char*, double, int> DataViewer::valueFromColumn(ColumnID colu
                                                                const ExoplanetItem& item)
 {
     switch (column) {
-    case ColumnID::Name:
-        return item.planetName.c_str();
-    case ColumnID::Host:
-        return item.hostName.c_str();
-    case ColumnID::DiscoveryYear:
-        return item.discoveryYear;
-    case ColumnID::NPlanets:
-        return item.nPlanets;
-    case ColumnID::NStars:
-        return item.nStars;
-    case ColumnID::ESM:
-        return item.esm;
-    case ColumnID::TSM:
-        return item.tsm;
-    case ColumnID::PlanetRadius:
-        return item.radius.value;
-    case ColumnID::PlanetTemperature:
-        return item.eqilibriumTemp.value;
-    case ColumnID::PlanetMass:
-        return item.mass.value;
-    case ColumnID::SurfaceGravity:
-        return item.surfaceGravity.value;
-    // Orbits
-    case ColumnID::SemiMajorAxis:
-        return item.semiMajorAxis.value;
-    case ColumnID::Eccentricity:
-        return item.eccentricity.value;
-    case ColumnID::Period:
-        return item.period.value;
-    case ColumnID::Inclination:
-        return item.inclination.value;
-    // Star
-    case ColumnID::StarTemperature:
-        return item.starEffectiveTemp.value;
-    case ColumnID::StarRadius:
-        return item.starRadius.value;
-    case ColumnID::MagnitudeJ:
-        return item.magnitudeJ.value;
-    case ColumnID::MagnitudeK:
-        return item.magnitudeK.value;
-    case ColumnID::Distance:
-        return item.distance.value;
-    default:
-        LERROR("Undefined column");
-        return "undefined";
+        case ColumnID::Name:
+            return item.planetName.c_str();
+        case ColumnID::Host:
+            return item.hostName.c_str();
+        case ColumnID::DiscoveryYear:
+            return item.discoveryYear;
+        case ColumnID::NPlanets:
+            return item.nPlanets;
+        case ColumnID::NStars:
+            return item.nStars;
+        case ColumnID::ESM:
+            return item.esm;
+        case ColumnID::TSM:
+            return item.tsm;
+        case ColumnID::PlanetRadius:
+            return item.radius.value;
+        case ColumnID::PlanetTemperature:
+            return item.eqilibriumTemp.value;
+        case ColumnID::PlanetMass:
+            return item.mass.value;
+        case ColumnID::SurfaceGravity:
+            return item.surfaceGravity.value;
+        // Orbits
+        case ColumnID::SemiMajorAxis:
+            return item.semiMajorAxis.value;
+        case ColumnID::Eccentricity:
+            return item.eccentricity.value;
+        case ColumnID::Period:
+            return item.period.value;
+        case ColumnID::Inclination:
+            return item.inclination.value;
+        // Star
+        case ColumnID::StarTemperature:
+            return item.starEffectiveTemp.value;
+        case ColumnID::StarRadius:
+            return item.starRadius.value;
+        case ColumnID::MagnitudeJ:
+            return item.magnitudeJ.value;
+        case ColumnID::MagnitudeK:
+            return item.magnitudeK.value;
+        case ColumnID::Distance:
+            return item.distance.value;
+        default:
+            LERROR("Undefined column");
+            return "undefined";
     }
 }
 
