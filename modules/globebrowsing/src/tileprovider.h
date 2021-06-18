@@ -107,7 +107,7 @@ struct SingleImageProvider : public TileProvider {
 struct InterpolateTileProvider : public TileProvider {
     InterpolateTileProvider(const ghoul::Dictionary&);
     virtual ~InterpolateTileProvider();
-
+    
     Tile calculateTile(const TileIndex&);
 
     TileProvider* before;
@@ -125,10 +125,10 @@ struct InterpolateTileProvider : public TileProvider {
     int renderEverySpecificIteration = 2 ;
     std::unordered_map<long long, int> renderIterations;
     std::unordered_map<long long, ghoul::opengl::Texture*> writeTileTextures;
- 
 
+    std::string colormap; 
     std::unique_ptr<ghoul::opengl::ProgramObject> shaderProgram;
-
+    SingleImageProvider* singleImageProvider;
     cache::MemoryAwareTileCache* tileCache;
 };
 
@@ -213,6 +213,7 @@ struct TemporalTileProvider : public TileProvider {
 
     TimeFormatType timeFormat;
     TimeQuantizer timeQuantizer;
+    std::string colormap;
 
     bool successfulInitialization = false;
     InterpolateTileProvider* interpolateTileProvider;

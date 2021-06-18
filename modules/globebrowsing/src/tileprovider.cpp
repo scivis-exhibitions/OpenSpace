@@ -48,6 +48,7 @@
 #include <ghoul/opengl/texture.h>
 #include <fstream>
 #include "cpl_minixml.h"
+#include <openspace/rendering/transferfunction.h>
 
 //#include "stb_image.h"
 namespace ghoul {
@@ -146,6 +147,7 @@ namespace temporal {
     constexpr const char* TimeResolution = "OpenSpaceTimeResolution";
     constexpr const char* TimeFormat = "OpenSpaceTimeIdFormat";
     constexpr const char* TimeInterpolation = "OpenSpaceTimeInterpolation";
+    constexpr const char* TransferFunction = "OpenSpaceTransferFunction";
     constexpr openspace::properties::Property::PropertyInfo FilePathInfo = {
         "FilePath",
         "File Path",
@@ -343,16 +345,19 @@ std::unique_ptr<TileProvider> initTileProvider(TemporalTileProvider& t,
 
 
     std::string xmlTemplate(t.gdalXmlTemplate);
+
     const size_t pos = xmlTemplate.find(temporal::UrlTimePlaceholder);
     const size_t numChars = strlen(temporal::UrlTimePlaceholder);
     // @FRAGILE:  This will only find the first instance. Dangerous if that instance is
     // commented out ---abock
     const std::string timeSpecifiedXml = xmlTemplate.replace(pos, numChars, timekey);
+
     std::string gdalDatasetXml = timeSpecifiedXml;
 
     FileSys.expandPathTokens(gdalDatasetXml, IgnoredTokens);
 
     t.initDict.setValue(KeyFilePath, gdalDatasetXml);
+
     return std::make_unique<DefaultTileProvider>(t.initDict);
 }
 
@@ -510,6 +515,14 @@ std::string consumeTemporalMetaData(TemporalTileProvider& t, const std::string& 
     else {
         timeInterpolation = "none";
     }
+
+
+    if (xml.find("<OpenSpaceTransferFunction>") != std::string::npos) {
+        t.colormap = xmlValue(t, node, temporal::TransferFunction, "none");
+        std::cout << t.colormap << std::endl;
+        //timeInterpolation = "linear";
+    }
+
     Time start;
     start.setTime(std::move(timeStart));
     Time end(Time::now());
@@ -572,7 +585,6 @@ bool readFilePath(TemporalTileProvider& t) {
         // Assume that it is already an xml
         xml = t.filePath;
     }
-
     // File path was not a path to a file but a GDAL config or empty
     ghoul::filesystem::File f(t.filePath);
     if (FileSys.fileExists(f)) {
@@ -706,12 +718,17 @@ SingleImageProvider::SingleImageProvider(const ghoul::Dictionary& dictionary)
     : filePath(singleimageprovider::FilePathInfo)
 {
     ZoneScoped
-
+    
     type = Type::SingleImageTileProvider;
-
+    std::vector<std::string_view> keys = dictionary.keys();
+    for (size_t i = 0; i < 1; ++i) {
+        const std::string_view& k = keys[i];
+        std::cout << " K är " << k << " KeyFilePath är " << KeyFilePath << std::endl;
+    }
     filePath = dictionary.value<std::string>(KeyFilePath);
+    std::cout << "filePath " << filePath << std::endl;
     addProperty(filePath);
-
+    
     reset(*this);
 }
 
@@ -929,12 +946,22 @@ TemporalTileProvider::TemporalTileProvider(const ghoul::Dictionary& dictionary)
     if (!successfulInitialization) {
         LERRORC("TemporalTileProvider", "Unable to read file " + filePath.value());
     }
-    //std::cout << key << std::endl;
     if (interpolation) {
        interpolateTileProvider = new InterpolateTileProvider(dictionary);
+       interpolateTileProvider->colormap = colormap;
+       std::cout << "interpolateTileProvider->colormap: " << interpolateTileProvider->colormap << " colormap: " << colormap << std::endl;
        initialize(*interpolateTileProvider);
+       std::cout << "krasch här?" << std::endl;
+
+       ghoul::Dictionary dict;
+       std::string keyForDictionary = "FilePath";
+       dict.setValue(keyForDictionary, colormap);
+       std::cout << colormap << std::endl;
+       interpolateTileProvider->singleImageProvider = new SingleImageProvider(dict);
+       std::cout << "eller krasch här?" << std::endl;
+       //initialize(interpolateTileProvider->singleImageProvider);
+       std::cout << "krasch här då?" << std::endl;
     }
-    
 }
 
 
@@ -1050,7 +1077,7 @@ InterpolateTileProvider::InterpolateTileProvider(const ghoul::Dictionary&)
     ZoneScoped
     type = Type::InterpolateTileProvider;
     glGenFramebuffers(1, &fbo);
-
+    
     // Generate VAO and VBO for Quad.
     glGenVertexArrays(1, &vaoQuad);
     glGenBuffers(1, &vboQuad);
@@ -1088,6 +1115,8 @@ InterpolateTileProvider::InterpolateTileProvider(const ghoul::Dictionary&)
         absPath("${MODULE_GLOBEBROWSING}/shaders/interpolate_vs.glsl"),
         absPath("${MODULE_GLOBEBROWSING}/shaders/interpolate_fs.glsl")
     );
+
+    
 }
 
 InterpolateTileProvider::~InterpolateTileProvider() {
@@ -1112,14 +1141,7 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
         ghoul::opengl::Texture* readTexture;
         ghoul::opengl::Texture* writeTexture;
         ghoul::opengl::Texture* tempTexture;
-        if (prevprev.texture)
-        {
-            ghoul::opengl::Texture* load1Texture = prevprev.texture;
-        }
-        if (nextnext.texture)
-        {
-            ghoul::opengl::Texture* load2Texture = nextnext.texture;
-        }
+        ghoul::opengl::Texture* colormapTexture=singleImageProvider->tile.texture;
 
         cache::ProviderTileHasher hashKey;
         long long hkey = hashKey(key);
@@ -1217,7 +1239,13 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
             glGetIntegerv(GL_CURRENT_PROGRAM, &id);
 
             //Activate shader and bind uniforms
+            
             shaderProgram->activate();
+            
+            ghoul::opengl::TextureUnit colormapUnit;
+            colormapUnit.activate();
+            colormapTexture->bind();
+
 
               ghoul::opengl::TextureUnit prevUnit;
               prevUnit.activate();
@@ -1229,7 +1257,7 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
             
 
             shaderProgram->setUniform("blendFactor", factor);
-            
+            shaderProgram->setUniform("colormapTexture", colormapUnit);
             shaderProgram->setUniform("prevTexture", prevUnit);
             shaderProgram->setUniform("nextTexture", nextUnit);
             
@@ -1804,16 +1832,6 @@ ChunkTile chunkTile(TileProvider& tp, TileIndex tileIndex, int parents, int maxP
     // Step 2. Traverse 0 or more parents up the chunkTree to make sure we're inside
     //         the range of defined data.
     int maximumLevel = maxLevel(tp);
-    /* if (tp.type == Type::TemporalTileProvider) {
-       // TemporalTileProvider& t = static_cast<TemporalTileProvider&>(tp);
-       if (t.interpolation) {
-            maximumLevel = maxLevel(*t.interpolateTileProvider->t1);
-            std::cout << "interpolation " << static_cast<int>(tileIndex.level) << " " << maximumLevel << std::endl;
-        }
-        if (!t.interpolation) {
-            std::cout << "inte interpolation " << static_cast<int>(tileIndex.level) << " " << maximumLevel << std::endl;
-        }
-    }*/
     while (tileIndex.level > maximumLevel) {
 
         ascendToParent(tileIndex, uvTransform);

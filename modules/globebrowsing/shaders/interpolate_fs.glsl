@@ -26,18 +26,24 @@
 
 uniform sampler2D prevTexture;
 uniform sampler2D nextTexture;
+uniform sampler2D colormapTexture;
 uniform float blendFactor;
 
 in vec2 texCoord;
 //out vec4 fragColor;
 
 Fragment getFragment() {
+	vec4 mixedTexture;
     vec4 texel0 = texture2D(prevTexture, texCoord);
     vec4 texel1 = texture2D(nextTexture, texCoord);
     //fragColor = mix(texel0, texel1, blendFactor);
 
     Fragment frag;
-	frag.color = mix(texel0, texel1, blendFactor);
+	mixedTexture = mix(texel0, texel1, blendFactor);
+	//frag.color = mix(texel0, texel1, blendFactor);
+	vec2 position = vec2(mixedTexture.r , 0.5);
+	frag.color = texture2D(colormapTexture, position)+0.00000001*texel0*texel1*blendFactor;
+	frag.color.a=mixedTexture.a;
     //frag.color = vec4(blendFactor, 1-blendFactor, 0.0, 1.0);
     // Place stars at back to begin with. 
     //frag.depth = 0;
