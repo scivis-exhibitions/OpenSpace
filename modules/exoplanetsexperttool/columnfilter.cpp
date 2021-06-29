@@ -56,6 +56,15 @@ namespace {
 
 namespace openspace::exoplanets {
 
+const char* ColumnFilter::TextFilterDescription =
+    "Text filter. Start with '-' for exclusive check \n \n"
+    "Combine multiple conditions with comma";
+
+const char* ColumnFilter::NumericFilterDescription =
+    "Numeric filter. Supported operators: \n"
+    "\t >, >=, <, <=, =, null, !null \n \n"
+    "Combine multiple conditions with comma. Ex: '> 30, !null'";
+
 ColumnFilter::ColumnFilter(std::string query, Type type)
     : _query(query), _type(type)
 {

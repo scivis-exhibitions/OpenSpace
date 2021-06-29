@@ -534,9 +534,24 @@ bool DataViewer::renderFilterSettings() {
         ImGuiInputTextFlags_EnterReturnsTrue
     );
 
+    bool numeric = isNumericColumn(_columns[filterColIndex].id);
+
+    // Help marker
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(numeric ?
+            ColumnFilter::NumericFilterDescription :
+            ColumnFilter::TextFilterDescription
+        );
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+
     ImGui::SameLine();
     if (ImGui::Button("Add filter") || inputEntered) {
-        bool numeric = isNumericColumn(_columns[filterColIndex].id);
         ColumnFilter filter = numeric ?
             ColumnFilter(queryString, ColumnFilter::Type::Numeric) :
             ColumnFilter(queryString, ColumnFilter::Type::Text);
