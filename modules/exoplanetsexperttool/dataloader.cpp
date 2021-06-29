@@ -24,6 +24,7 @@
 
 #include <modules/exoplanetsexperttool/dataloader.h>
 
+#include <modules/exoplanetsexperttool/datahelper.h>
 #include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/util/coordinateconversion.h>
@@ -44,44 +45,6 @@ namespace {
 
     constexpr const double EarthMass = 5.972e24; // kg
     constexpr const double EarthRadius = 6.3781e6; // meter
-
-    // TODO: these should be moved to somewhere more general!
-    float parseFloatData(const std::string& str) {
-#ifdef WIN32
-        float result;
-        auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-        if (ec == std::errc()) {
-            return result;
-        }
-        return std::numeric_limits<float>::quiet_NaN();
-#else
-        // clang is missing float support for std::from_chars
-        return !str.empty() ? std::stof(str.c_str(), nullptr) : NAN;
-#endif
-    };
-
-    double parseDoubleData(const std::string& str) {
-#ifdef WIN32
-        double result;
-        auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-        if (ec == std::errc()) {
-            return result;
-        }
-        return std::numeric_limits<double>::quiet_NaN();
-#else
-        // clang is missing double support for std::from_chars
-        return !str.empty() ? std::stod(str.c_str(), nullptr) : NAN;
-#endif
-    };
-
-    int parseIntegerData(const std::string& str) {
-        int result;
-        auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-        if (ec == std::errc()) {
-            return result;
-        }
-        return std::numeric_limits<int>::quiet_NaN();
-    };
 } // namespace
 
 namespace openspace::exoplanets {
@@ -140,59 +103,59 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            }
            // Planet properties
            else if (column == "pl_rade") {
-               p.radius.value = parseFloatData(data);
+               p.radius.value = data::parseFloatData(data);
            }
            else if (column == "pl_masse") {
-               p.mass.value = parseFloatData(data);
+               p.mass.value = data::parseFloatData(data);
            }
            // Orbital properties
            else if (column == "pl_orbsmax") {
-               p.semiMajorAxis.value = parseFloatData(data);
+               p.semiMajorAxis.value = data::parseFloatData(data);
            }
            else if (column == "pl_orbeccen") {
-               p.eccentricity.value = parseFloatData(data);
+               p.eccentricity.value = data::parseFloatData(data);
            }
            else if (column == "pl_orbper") {
-               p.period.value = parseFloatData(data);
+               p.period.value = data::parseFloatData(data);
            }
            else if (column == "pl_orbincl") {
-               p.inclination.value = parseFloatData(data);
+               p.inclination.value = data::parseFloatData(data);
            }
            // Star properties
            else if (column == "st_teff") {
-               p.starEffectiveTemp.value = parseFloatData(data);
+               p.starEffectiveTemp.value = data::parseFloatData(data);
            }
            else if (column == "st_rad") {
-               p.starRadius.value = parseFloatData(data);
+               p.starRadius.value = data::parseFloatData(data);
            }
            else if (column == "st_age") {
-               p.starAge.value = parseFloatData(data);
+               p.starAge.value = data::parseFloatData(data);
            }
            else if (column == "sy_jmag") {
-               p.magnitudeJ.value = parseFloatData(data);
+               p.magnitudeJ.value = data::parseFloatData(data);
            }
            else if (column == "sy_kmag") {
-               p.magnitudeK.value = parseFloatData(data);
+               p.magnitudeK.value = data::parseFloatData(data);
            }
            // System properties
            else if (column == "sy_snum") {
-               p.nStars = parseFloatData(data);
+               p.nStars = data::parseFloatData(data);
            }
            else if (column == "sy_pnum") {
-               p.nPlanets = parseFloatData(data);
+               p.nPlanets = data::parseFloatData(data);
            }
            else if (column == "disc_year") {
-               p.discoveryYear = parseFloatData(data);
+               p.discoveryYear = data::parseFloatData(data);
            }
            // Position
            else if (column == "ra") {
-               p.ra.value = parseFloatData(data);
+               p.ra.value = data::parseFloatData(data);
            }
            else if (column == "dec") {
-               p.dec.value = parseFloatData(data);
+               p.dec.value = data::parseFloatData(data);
            }
            else if (column == "sy_dist") {
-               p.distance.value = parseFloatData(data);
+               p.distance.value = data::parseFloatData(data);
            }
        }
 

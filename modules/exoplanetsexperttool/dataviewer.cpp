@@ -226,8 +226,7 @@ void DataViewer::renderScatterPlotAndColormap() {
     if (ImGui::BeginCombo("Column", _columns[_columnForColormap].name)) {
         for (int i = 0; i < _columns.size(); ++i) {
             // Ignore non-numeric columns
-            auto aValue = valueFromColumn(_columns[i].id, _data.front());
-            if (!std::holds_alternative<float>(aValue)) {
+            if (!isNumericColumn(_columns[i].id)) {
                 continue;
             }
 
@@ -294,7 +293,7 @@ void DataViewer::renderScatterPlotAndColormap() {
 
     static float pointSize = 1.5f;
     ImPlot::PushColormap(_colormaps[_currentColormapIndex]);
-    ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0);
+    ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0, ImGuiCond_Always);
     if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", size, plotFlags, axisFlags)) {
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, pointSize);
 
@@ -316,6 +315,7 @@ void DataViewer::renderScatterPlotAndColormap() {
                 pointColor = nanColor;
             }
             else {
+                // TODO: handle max == min and min > max etc
                 float t = (fValue - colorScaleMin) / (colorScaleMax - colorScaleMin);
                 t = std::clamp(t, 0.f, 1.f);
                 pointColor = ImPlot::SampleColormap(t);
@@ -375,59 +375,15 @@ void DataViewer::renderTable() {
     const int nColumns = static_cast<int>(_columns.size());
 
     bool selectionChanged = false;
-    bool filterChanged = false;
+    bool filterChanged = renderFilterSettings();
 
-    static bool hideNanTsm = false;
-    static bool hideNanEsm = false;
-    static bool showOnlyMultiPlanetSystems = false;
-
-    // Filtering
-    filterChanged |= ImGui::Checkbox("Hide nan TSM", &hideNanTsm);
-    ImGui::SameLine();
-    filterChanged |= ImGui::Checkbox("Hide nan ESM", &hideNanEsm);
-    ImGui::SameLine();
-    filterChanged |= ImGui::Checkbox("Only multi-planet", &showOnlyMultiPlanetSystems);
-
-    static ImGuiTextFilter filter;
-    filterChanged |= filter.Draw();
-
-    ImGui::SameLine();
-    if (ImGui::Button("Clear")) {
-        filter.Clear();
-        filterChanged = true;
-    }
-
-    if (filterChanged) {
-        _filteredData.clear();
-        _filteredData.reserve(_tableData.size());
-
-        for (TableItem& f : _tableData) {
-            const ExoplanetItem& d = _data[f.index];
-
-            // TODO: implement filter per column
-
-            bool filteredOut = hideNanTsm && std::isnan(d.tsm);
-            filteredOut |= hideNanEsm && std::isnan(d.esm);
-            filteredOut |= showOnlyMultiPlanetSystems && !d.multiSystemFlag;
-            filteredOut |= !(filter.PassFilter(d.planetName.c_str()));
-
-            if (!filteredOut) {
-                _filteredData.push_back(f.index);
-            }
-
-            // If a filteredOut item is selected, remove it from selection
-            if (filteredOut) {
-                auto found = std::find(_selection.begin(), _selection.end(), f.index);
-                const bool itemIsSelected = found != _selection.end();
-
-                if (itemIsSelected) {
-                    _selection.erase(found);
-                    selectionChanged = true;
-                }
-            }
-        }
-        _filteredData.shrink_to_fit();
-    }
+    ImGui::Separator();
+    ImGui::TextColored(
+        ImVec4(0.6f, 0.6f, 0.6f, 1.f),
+        fmt::format(
+            "Showing {} / {} matching exoplanets", _filteredData.size(), _data.size()
+        ).c_str()
+    );
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags, size)) {
         // Header
@@ -538,6 +494,158 @@ void DataViewer::renderTable() {
     }
 }
 
+bool DataViewer::renderFilterSettings() {
+    static bool hideNanTsm = false;
+    static bool hideNanEsm = false;
+    static bool showOnlyMultiPlanetSystems = false;
+
+    bool filterChanged = false;
+
+    // Filtering
+    filterChanged |= ImGui::Checkbox("Hide nan TSM", &hideNanTsm);
+    ImGui::SameLine();
+    filterChanged |= ImGui::Checkbox("Hide nan ESM", &hideNanEsm);
+    ImGui::SameLine();
+    filterChanged |= ImGui::Checkbox("Only multi-planet", &showOnlyMultiPlanetSystems);
+
+    // Per-column filtering
+    static int filterColIndex = 0;
+    ImGui::Separator();
+    ImGui::Text("Filter on column");
+    ImGui::SetNextItemWidth(100);
+    if (ImGui::BeginCombo("##Column", _columns[filterColIndex].name)) {
+        for (int i = 0; i < _columns.size(); ++i) {
+            if (ImGui::Selectable(_columns[i].name, filterColIndex == i)) {
+                filterColIndex = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+
+    static char queryString[128] = "";
+
+    ImGui::SetNextItemWidth(200);
+    bool inputEntered = ImGui::InputText(
+        "##Query",
+        queryString,
+        IM_ARRAYSIZE(queryString),
+        ImGuiInputTextFlags_EnterReturnsTrue
+    );
+
+    ImGui::SameLine();
+    if (ImGui::Button("Add filter") || inputEntered) {
+        bool numeric = isNumericColumn(_columns[filterColIndex].id);
+        ColumnFilter filter = numeric ?
+            ColumnFilter(queryString, ColumnFilter::Type::Numeric) :
+            ColumnFilter(queryString, ColumnFilter::Type::Text);
+
+        if (filter.isValid()) {
+            _appliedFilters.push_back({ filterColIndex , filter });
+            strcpy(queryString, "");
+            filterChanged = true;
+        }
+    }
+
+    // Clear the text field
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) {
+        strcpy(queryString, "");
+    }
+
+    const std::string filtersHeader = _appliedFilters.empty() ?
+        "Added filters" :
+        fmt::format("Added filters ({})", _appliedFilters.size());
+
+    // The ### operator overrides the ID, ignoring the preceding label
+    // => Won't rerender when label changes
+    const std::string headerWithId = fmt::format("{}###FiltersHeader", filtersHeader);
+
+    if (ImGui::CollapsingHeader(headerWithId.c_str())) {
+        ImGui::Indent();
+
+        if (_appliedFilters.empty()) {
+            ImGui::Text("No active filters");
+        }
+
+        int indexToErase = -1;
+        constexpr const int nColumns = 4;
+        if (ImGui::BeginTable("filtersTable", nColumns, ImGuiTableFlags_SizingFixedFit)) {
+            for (int i = 0; i < _appliedFilters.size(); ++i) {
+                ColumnFilterEntry f = _appliedFilters[i];
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text(_columns[f.columnIndex].name);
+                ImGui::TableNextColumn();
+                ImGui::Text("    ");
+                ImGui::TableNextColumn();
+                ImGui::Text(f.filter.query().c_str());
+                ImGui::TableNextColumn();
+
+                ImGui::PushID(i);
+                if (ImGui::SmallButton("Delete")) {
+                    indexToErase = i;
+                }
+                ImGui::PopID();
+            }
+
+            if (indexToErase != -1) {
+                _appliedFilters.erase(_appliedFilters.begin() + indexToErase);
+                filterChanged = true;
+            }
+
+            ImGui::EndTable();
+        }
+        ImGui::Unindent();
+    }
+
+    if (filterChanged) {
+        _filteredData.clear();
+        _filteredData.reserve(_tableData.size());
+
+        for (TableItem& f : _tableData) {
+            const ExoplanetItem& d = _data[f.index];
+
+            bool filteredOut = hideNanTsm && std::isnan(d.tsm);
+            filteredOut |= hideNanEsm && std::isnan(d.esm);
+            filteredOut |= showOnlyMultiPlanetSystems && !d.multiSystemFlag;
+
+            for (const ColumnFilterEntry& f : _appliedFilters) {
+                std::variant<const char*, float> value =
+                    valueFromColumn(_columns[f.columnIndex].id, d);
+
+                if (std::holds_alternative<float>(value)) {
+                    float val = std::get<float>(value);
+                    filteredOut |= !f.filter.passFilter(val);
+                }
+                else { // text
+                    const char* val = std::get<const char*>(value);
+                    filteredOut |= !f.filter.passFilter(val);
+                }
+            }
+
+            if (!filteredOut) {
+                _filteredData.push_back(f.index);
+            }
+
+            // If a filteredOut item is selected, remove it from selection
+            if (filteredOut) {
+                auto found = std::find(_selection.begin(), _selection.end(), f.index);
+                const bool itemIsSelected = found != _selection.end();
+
+                if (itemIsSelected) {
+                    _selection.erase(found);
+                    // TODO: should also update selection changed?
+                }
+            }
+        }
+        _filteredData.shrink_to_fit();
+    }
+
+    return filterChanged;
+}
+
 void DataViewer::renderColumnValue(ColumnID column, const char* format,
                                    const ExoplanetItem& item)
 {
@@ -558,7 +666,7 @@ void DataViewer::renderColumnValue(ColumnID column, const char* format,
 }
 
 bool DataViewer::compareColumnValues(ColumnID column, const ExoplanetItem& left,
-                                     const ExoplanetItem& right)
+                                     const ExoplanetItem& right) const
 {
     std::variant<const char*, float> leftValue = valueFromColumn(column, left);
     std::variant<const char*, float> rightValue = valueFromColumn(column, right);
@@ -581,7 +689,7 @@ bool DataViewer::compareColumnValues(ColumnID column, const ExoplanetItem& left,
 }
 
 std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
-                                                             const ExoplanetItem& item)
+                                                         const ExoplanetItem& item) const
 {
     switch (column) {
         case ColumnID::Name:
@@ -644,6 +752,12 @@ std::string DataViewer::composePositionIndexList(const std::vector<size_t>& data
         result.pop_back();
     }
     return result;
+}
+
+bool DataViewer::isNumericColumn(ColumnID id) const {
+    // Test type using the first data point
+    std::variant<const char*, float> aValue = valueFromColumn(id, _data.front());
+    return std::holds_alternative<float>(aValue);
 }
 
 } // namespace openspace::gui

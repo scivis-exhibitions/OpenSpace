@@ -25,6 +25,8 @@
 include(${OPENSPACE_CMAKE_EXT_DIR}/module_definition.cmake)
 
 set(HEADER_FILES
+    columnfilter.h
+    datahelper.h
     dataloader.h
     datastructures.h
     dataviewer.h
@@ -35,9 +37,11 @@ set(HEADER_FILES
 source_group("Header Files" FILES ${HEADER_FILES})
 
 set(SOURCE_FILES
-    exoplanetsexperttoolmodule.cpp
+    columnfilter.cpp
+    datahelper.cpp
     dataloader.cpp
     dataviewer.cpp
+    exoplanetsexperttoolmodule.cpp
     gui.cpp
     rendering/renderablepointdata.cpp
 )

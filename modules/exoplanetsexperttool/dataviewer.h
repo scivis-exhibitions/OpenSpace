@@ -27,6 +27,7 @@
 
 #include <openspace/properties/propertyowner.h>
 
+#include <modules/exoplanetsexperttool/columnfilter.h>
 #include <modules/exoplanetsexperttool/dataloader.h>
 #include <modules/exoplanetsexperttool/datastructures.h>
 #include <openspace/properties/optionproperty.h>
@@ -76,16 +77,22 @@ private:
     void renderScatterPlotAndColormap();
     void renderTable();
 
+    // Render filter settings and return true if filtering changed
+    bool renderFilterSettings();
+
     void renderColumnValue(ColumnID column, const char* format,
         const ExoplanetItem& item);
 
     std::variant<const char*, float> valueFromColumn(ColumnID column,
-        const ExoplanetItem& item);
+        const ExoplanetItem& item) const;
 
     bool compareColumnValues(ColumnID column, const ExoplanetItem& left,
-        const ExoplanetItem& right);
+        const ExoplanetItem& right) const ;
 
     std::string composePositionIndexList(const std::vector<size_t>& dataIndices);
+
+    // Check if a column is numeric. If it isn't, then it is text based
+    bool isNumericColumn(ColumnID id) const;
 
     DataLoader _dataLoader;
     std::vector<ExoplanetItem> _data;
@@ -105,6 +112,12 @@ private:
     std::vector<const char*> _colormaps;
     int _currentColormapIndex;
     int _columnForColormap; // index
+
+    struct ColumnFilterEntry {
+        int columnIndex;
+        ColumnFilter filter;
+    };
+    std::vector<ColumnFilterEntry> _appliedFilters;
 };
 
 } // namespace openspace::exoplanets::gui
