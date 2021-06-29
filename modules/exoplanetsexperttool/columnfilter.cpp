@@ -37,7 +37,7 @@ namespace {
     constexpr const char LessOperator = '<';
     constexpr const char EqualsOperator = '=';
     constexpr const char NotOperator = '!';
-    constexpr const char* NanOperator = "nan";
+    constexpr const char* NullOperator = "null";
 
     bool contains(const char* op, const std::string& str, size_t& pos) {
         pos = str.find(op);
@@ -62,7 +62,7 @@ ColumnFilter::ColumnFilter(std::string query, Type type)
     _subqueries = ghoul::tokenizeString(_query, Separator);
 
     for (std::string& s : _subqueries) {
-        removeWhitespaces(s);
+        ghoul::trimWhitespace(s);
     }
 
     // Validate numeric filter query (text filters cannot be invalid)
@@ -97,8 +97,10 @@ bool ColumnFilter::passFilter(float value) const {
     bool pass = true;
 
     // Test against each subquery
-    for (const std::string& q : _subqueries) {
+    for (std::string q : _subqueries) {
         bool passSubquery = false;
+
+        removeWhitespaces(q);
 
         if (q.empty()) {
             continue;
@@ -107,7 +109,7 @@ bool ColumnFilter::passFilter(float value) const {
         size_t pos; // contains position of first character on match
 
         // Is null
-        if (contains(NanOperator, q, pos)) {
+        if (contains(NullOperator, q, pos)) {
             bool isNot = contains(NotOperator, q, pos);
             passSubquery = isNot ? !std::isnan(value) : std::isnan(value);
         }
@@ -188,7 +190,7 @@ bool ColumnFilter::passFilter(const std::string& value) const {
     std::transform(lowercaseValue.begin(), lowercaseValue.end(), lowercaseValue.begin(),
         [](unsigned char c) { return std::tolower(c); });
 
-    removeWhitespaces(lowercaseValue);
+    ghoul::trimWhitespace(lowercaseValue);
 
     // Test against each subquery
     for (const std::string& q : _subqueries) {
@@ -204,7 +206,8 @@ bool ColumnFilter::passFilter(const std::string& value) const {
 
         if (query[0] == '-') {
             // Subtract
-            const std::string str = query.substr(1);
+            std::string str = query.substr(1);
+            ghoul::trimWhitespace(str);
             passSubquery = (lowercaseValue.find(str) == std::string::npos);
         }
         else {
