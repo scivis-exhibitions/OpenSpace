@@ -25,6 +25,7 @@
 #include <modules/base/basemodule.h>
 
 #include <modules/base/dashboard/dashboarditemangle.h>
+#include <modules/base/dashboard/dashboarditemballoon.h>
 #include <modules/base/dashboard/dashboarditemdate.h>
 #include <modules/base/dashboard/dashboarditemdistance.h>
 #include <modules/base/dashboard/dashboarditemframerate.h>
@@ -102,6 +103,7 @@ void BaseModule::internalInitialize(const ghoul::Dictionary&) {
     ghoul_assert(fDashboard, "Dashboard factory was not created");
 
     fDashboard->registerClass<DashboardItemAngle>("DashboardItemAngle");
+    fDashboard->registerClass<DashboardItemBalloon>("DashboardItemBalloon");
     fDashboard->registerClass<DashboardItemDate>("DashboardItemDate");
     fDashboard->registerClass<DashboardItemDistance>("DashboardItemDistance");
     fDashboard->registerClass<DashboardItemFramerate>("DashboardItemFramerate");
@@ -183,6 +185,7 @@ void BaseModule::internalDeinitializeGL() {
 std::vector<documentation::Documentation> BaseModule::documentations() const {
     return {
         DashboardItemAngle::Documentation(),
+        DashboardItemBalloon::Documentation(),
         DashboardItemDate::Documentation(),
         DashboardItemDistance::Documentation(),
         DashboardItemFramerate::Documentation(),

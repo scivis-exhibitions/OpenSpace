@@ -40,7 +40,7 @@
 #include <ghoul/opengl/textureunit.h>
 #include <optional>
 #include <variant>
-
+#include <iostream>
 namespace {
     constexpr const std::array<const char*, 4> UniformNames = {
         "Alpha", "ModelTransform", "ViewProjectionMatrix", "texture1"
@@ -307,9 +307,11 @@ ScreenSpaceRenderable::ScreenSpaceRenderable(const ghoul::Dictionary& dictionary
     , _faceCamera(FaceCameraInfo, true)
     , _cartesianPosition(
         CartesianPositionInfo,
-        glm::vec3(0.f, 0.f, -2.f),
-        glm::vec3(-4.f, -4.f, -10.f),
-        glm::vec3(4.f, 4.f, 0.f)
+        glm::vec3(1.f, -0.5f, -2.f),
+        glm::vec3(0.f, 0.f, 0.f),
+        glm::vec3(0.f, 0.f, 0.f)
+       //glm::vec3(-4.f, -4.f, -10.f),
+       // glm::vec3(4.f, 4.f, 0.f)
     )
     , _raePosition(
         RadiusAzimuthElevationInfo,
@@ -319,13 +321,15 @@ ScreenSpaceRenderable::ScreenSpaceRenderable(const ghoul::Dictionary& dictionary
     )
     , _localRotation(
         LocalRotationInfo,
-        glm::vec3(0.f),
-        glm::vec3(-glm::pi<float>()),
-        glm::vec3(glm::pi<float>())
+        glm::vec3(0.0f),
+        glm::vec3(3.0f),
+        glm::vec3(30.0f)
     )
+
     , _scale(ScaleInfo, 0.25f, 0.f, 2.f)
     , _opacity(OpacityInfo, 1.f, 0.f, 1.f)
     , _delete(DeleteInfo)
+    
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
 
@@ -535,9 +539,9 @@ glm::mat4 ScreenSpaceRenderable::localRotationMatrix() {
         ));
     }
 
-    float roll = _localRotation.value().x;
-    float pitch = _localRotation.value().y;
-    float yaw = _localRotation.value().z;
+    float roll = 0.0172f*2 * 3.14f; // _localRotation.value().x;
+    float pitch =  -1.33581766 + 1.570795f; //2 * 3.14f; // _localRotation.value().y;
+    float yaw = -1.10714872f+ 1.570795f; // 2 * 3.14f; // _localRotation.value().z;
     return rotation * glm::mat4(glm::quat(glm::vec3(pitch, yaw, roll)));
 }
 

@@ -13,7 +13,7 @@ assetHelper.registerDashboardItems(asset, {
     {
         Type = "DashboardItemDate",
         Identifier = "Date",
-        GuiName = "Date"
+        GuiName = "DateDateradasffa"
     },
     {
         Type = "DashboardItemSimulationIncrement",

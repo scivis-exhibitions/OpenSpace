@@ -52,7 +52,7 @@ Dashboard::Dashboard()
     : properties::PropertyOwner({ "Dashboard" })
     , _isEnabled(EnabledInfo, true)
     , _startPositionOffset(
-        properties::IVec2Property(StartPositionOffsetInfo, glm::ivec2(10, -25))
+        properties::IVec2Property(StartPositionOffsetInfo, glm::ivec2(1000, -25))
     )
 {
     addProperty(_isEnabled);

@@ -53,3 +53,8 @@ data/assets/scene/solarsystem/interstellar/sixth_balloon_20200419_12.asset
 data/assets/scene/solarsystem/interstellar/third_balloon_20200416_12.asset
 data/assets/scene/solarsystem/interstellar/third_balloon_20200419_12.asset
 data/assets/base.asset
+config/OpenSpace_0_16_0-2021-6-22-10-11-40--20444--20680.dmp
+config/single-possize.xml
+config/single-masked.xml
+config/mask.png
+config/colormapLegend.png

@@ -82,7 +82,9 @@ HorizonsTranslation::HorizonsTranslation(const ghoul::Dictionary& dictionary)
     : HorizonsTranslation()
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
+
     _horizonsTextFile = absPath(p.horizonsTextFile);
+
 }
 
 glm::dvec3 HorizonsTranslation::position(const UpdateData& data) const {

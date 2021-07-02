@@ -1,7 +1,7 @@
 local item = {
-    Type = "DashboardItemDate",
-    Identifier = "Datexsfthgf",
-    GuiName = "Datesadgasgfd"
+    Type = "DashboardItemBalloon",
+    Identifier = "Balloon3",
+    GuiName = "Balloon2"
 }
 
 asset.onInitialize(function()

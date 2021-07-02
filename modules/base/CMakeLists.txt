@@ -26,6 +26,7 @@ include(${OPENSPACE_CMAKE_EXT_DIR}/module_definition.cmake)
 
 set(HEADER_FILES
   dashboard/dashboarditemangle.h
+  dashboard/dashboarditemballoon.h
   dashboard/dashboarditemdate.h
   dashboard/dashboarditemdistance.h
   dashboard/dashboarditemframerate.h
@@ -77,6 +78,7 @@ source_group("Header Files" FILES ${HEADER_FILES})
 
 set(SOURCE_FILES
   dashboard/dashboarditemangle.cpp
+  dashboard/dashboarditemballoon.cpp
   dashboard/dashboarditemdate.cpp
   dashboard/dashboarditemdistance.cpp
   dashboard/dashboarditemframerate.cpp

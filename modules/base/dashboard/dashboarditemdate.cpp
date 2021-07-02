@@ -57,7 +57,7 @@ namespace {
         std::optional<std::string> formatString;
 
         // [[codegen::verbatim(TimeFormatInfo.description)]]
-        std::optional<std::string> timeFormat;
+        std::optional<std::string> timeFormats;
     };
 #include "dashboarditemdate_codegen.cpp"
 } // namespace
@@ -76,11 +76,10 @@ DashboardItemDate::DashboardItemDate(const ghoul::Dictionary& dictionary)
     , _timeFormat(TimeFormatInfo, "YYYY MON DDTHR:MN:SC.### ::RND")
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
-
     _formatString = p.formatString.value_or(_formatString);
     addProperty(_formatString);
 
-    _timeFormat = p.timeFormat.value_or(_timeFormat);
+    _timeFormat = p.timeFormats.value_or(_timeFormat);
     addProperty(_timeFormat);
 }
 
@@ -91,6 +90,7 @@ void DashboardItemDate::render(glm::vec2& penPosition) {
         global::timeManager->time().j2000Seconds(),
         _timeFormat.value().c_str()
     );
+    time.append(" hejsan");
     try {
         RenderFont(*_font, penPosition, fmt::format(_formatString.value().c_str(), time));
     }

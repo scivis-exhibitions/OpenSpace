@@ -49,7 +49,8 @@
 #include <fstream>
 #include "cpl_minixml.h"
 #include <openspace/rendering/transferfunction.h>
-
+#include <modules/imgui/include/gui.h>
+#include <openspace/util/camera.h>
 //#include "stb_image.h"
 namespace ghoul {
     template <>
@@ -519,7 +520,6 @@ std::string consumeTemporalMetaData(TemporalTileProvider& t, const std::string& 
 
     if (xml.find("<OpenSpaceTransferFunction>") != std::string::npos) {
         t.colormap = xmlValue(t, node, temporal::TransferFunction, "none");
-        std::cout << t.colormap << std::endl;
         //timeInterpolation = "linear";
     }
 
@@ -723,10 +723,10 @@ SingleImageProvider::SingleImageProvider(const ghoul::Dictionary& dictionary)
     std::vector<std::string_view> keys = dictionary.keys();
     for (size_t i = 0; i < 1; ++i) {
         const std::string_view& k = keys[i];
-        std::cout << " K är " << k << " KeyFilePath är " << KeyFilePath << std::endl;
+
     }
     filePath = dictionary.value<std::string>(KeyFilePath);
-    std::cout << "filePath " << filePath << std::endl;
+;
     addProperty(filePath);
     
     reset(*this);
@@ -949,18 +949,15 @@ TemporalTileProvider::TemporalTileProvider(const ghoul::Dictionary& dictionary)
     if (interpolation) {
        interpolateTileProvider = new InterpolateTileProvider(dictionary);
        interpolateTileProvider->colormap = colormap;
-       std::cout << "interpolateTileProvider->colormap: " << interpolateTileProvider->colormap << " colormap: " << colormap << std::endl;
        initialize(*interpolateTileProvider);
-       std::cout << "krasch här?" << std::endl;
 
        ghoul::Dictionary dict;
        std::string keyForDictionary = "FilePath";
        dict.setValue(keyForDictionary, colormap);
-       std::cout << colormap << std::endl;
+       std::cout << "hej hej" << std::endl;
+       //openspace::imgui::GUI mittgui;
        interpolateTileProvider->singleImageProvider = new SingleImageProvider(dict);
-       std::cout << "eller krasch här?" << std::endl;
-       //initialize(interpolateTileProvider->singleImageProvider);
-       std::cout << "krasch här då?" << std::endl;
+
     }
 }
 

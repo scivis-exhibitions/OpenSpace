@@ -33,7 +33,7 @@
 #include <ghoul/opengl/texture.h>
 #include <ghoul/opengl/textureconversion.h>
 #include <optional>
-
+#include <iostream>
 namespace {
     constexpr openspace::properties::Property::PropertyInfo TexturePathInfo = {
         "TexturePath",
@@ -67,7 +67,6 @@ ScreenSpaceImageLocal::ScreenSpaceImageLocal(const ghoul::Dictionary& dictionary
     , _texturePath(TexturePathInfo)
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
-
     // @TODO (abock, 2021-02-02) Should this be the name variable? The identifier wasn't
     // declared in the documentation
     std::string identifier;

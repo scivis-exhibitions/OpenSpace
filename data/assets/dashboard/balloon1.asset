@@ -1,0 +1,16 @@
+local item = {
+    Type = "DashboardItemBalloon",
+    Identifier = "Balloon",
+    BalloonTextFile = "D:/OpenSpace/OpenSpaceData/Earth/Climate/era5/sixth_balloon_dashboard_20200416_12.txt",
+    GuiName = "Balloon",
+    TimeFormat = "gl urg",
+    FormatString = "Blu rg"
+}
+
+asset.onInitialize(function()
+    openspace.dashboard.addDashboardItem(item)
+end)
+
+asset.onDeinitialize(function()
+    openspace.dashboard.removeDashboardItem(item.Identifier)
+end)
