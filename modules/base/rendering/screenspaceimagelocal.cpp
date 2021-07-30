@@ -50,6 +50,7 @@ namespace {
 
         // [[codegen::verbatim(TexturePathInfo.description)]]
         std::optional<std::string> texturePath;
+
     };
 #include "screenspaceimagelocal_codegen.cpp"
 } // namespace
@@ -91,6 +92,7 @@ ScreenSpaceImageLocal::ScreenSpaceImageLocal(const ghoul::Dictionary& dictionary
         }
     });
     addProperty(_texturePath);
+
 
     if (p.texturePath.has_value()) {
         if (FileSys.fileExists(FileSys.absolutePath(*p.texturePath))) {

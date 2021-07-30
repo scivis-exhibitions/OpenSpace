@@ -1,7 +1,7 @@
 local item = {
     Type = "DashboardItemBalloon",
-    Identifier = "first_balloon2",
-    BalloonTextFile = "D:/OpenSpace/OpenSpaceData/Earth/Climate/era5/first_balloon_dashboard_20200419_12.txt",
+    Identifier = "sixth_balloon",
+    BalloonTextFile = "D:/OpenSpace/OpenSpaceData/Earth/Climate/era5/sixth_balloon_dashboard_20200416_12.txt",
     GuiName = "Balloon"
 
 }

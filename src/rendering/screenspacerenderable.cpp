@@ -21,9 +21,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE  *
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
-
+#include <openspace/util/time.h>
 #include <openspace/rendering/screenspacerenderable.h>
-
+#include <openspace/util/timemanager.h>
 #include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/engine/globals.h>
@@ -123,6 +123,21 @@ namespace {
         "the camera."
     };
 
+    constexpr openspace::properties::Property::PropertyInfo AnimatedImageStartInfo = {
+        "AnimatedImageStart",
+        "Animated Image Start",
+        "Something something"
+    };
+    constexpr openspace::properties::Property::PropertyInfo AnimatedImageEndInfo = {
+        "AnimatedImageEnd",
+        "Animated Image End",
+        "Something something"
+    };
+    constexpr openspace::properties::Property::PropertyInfo AxisInfo = {
+        "Axis",
+        "Axis",
+        "Something something"
+    };
     float wrap(float value, float min, float max) {
         return glm::mod(value - min, max - min) + min;
     }
@@ -252,6 +267,14 @@ namespace {
         // ScreenSpaceRenderable, thus making it possible to address multiple, separate 
         // Renderables with a single property change
         std::optional<std::variant<std::string, std::vector<std::string>>> tag;
+
+
+        // [[codegen::verbatim(AnimatedImageStartInfo.description)]]
+        std::optional<std::string> animatedImageStart;
+        // [[codegen::verbatim(AnimatedImageEndInfo.description)]]
+        std::optional<std::string> animatedImageEnd;
+        // [[codegen::verbatim(AxisInfo.description)]]
+        std::optional<std::string> axis;
     };
 #include "screenspacerenderable_codegen.cpp"
 } // namespace
@@ -329,9 +352,16 @@ ScreenSpaceRenderable::ScreenSpaceRenderable(const ghoul::Dictionary& dictionary
     , _scale(ScaleInfo, 0.25f, 0.f, 2.f)
     , _opacity(OpacityInfo, 1.f, 0.f, 1.f)
     , _delete(DeleteInfo)
-    
+    ,_animatedImageStart(AnimatedImageStartInfo)
+    , _animatedImageEnd(AnimatedImageEndInfo)
+    , _axis(AxisInfo)
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
+    animatedImageTimeStart = Time::convertTime(*p.animatedImageStart); 
+    animatedImageTimeEnd = Time::convertTime(*p.animatedImageEnd);
+    if (p.axis == "true") {
+        axis = true;
+    }
 
     if (p.identifier.has_value()) {
         setIdentifier(*p.identifier);
@@ -378,7 +408,7 @@ ScreenSpaceRenderable::ScreenSpaceRenderable(const ghoul::Dictionary& dictionary
     _usePerspectiveProjection =
         p.usePerspectiveProjection.value_or(_usePerspectiveProjection);
 
-    _faceCamera = p.faceCamera.value_or(_faceCamera);
+    _faceCamera = false;// p.faceCamera.value_or(_faceCamera);
 
     if (p.tag.has_value()) {
         if (std::holds_alternative<std::string>(*p.tag)) {
@@ -433,7 +463,6 @@ bool ScreenSpaceRenderable::deinitializeGL() {
 
 void ScreenSpaceRenderable::render() {
     ZoneScoped
-
     draw(
         globalRotationMatrix() *
         translationMatrix() *
@@ -446,7 +475,8 @@ bool ScreenSpaceRenderable::isReady() const {
     return _shader != nullptr;
 }
 
-void ScreenSpaceRenderable::update() {}
+void ScreenSpaceRenderable::update() {
+}
 
 bool ScreenSpaceRenderable::isEnabled() const {
     return _enabled;
@@ -539,16 +569,29 @@ glm::mat4 ScreenSpaceRenderable::localRotationMatrix() {
         ));
     }
 
-    float roll = 0.0172f*2 * 3.14f; // _localRotation.value().x;
-    float pitch =  -1.33581766 + 1.570795f; //2 * 3.14f; // _localRotation.value().y;
-    float yaw = -1.10714872f+ 1.570795f; // 2 * 3.14f; // _localRotation.value().z;
+    float roll = _localRotation.value().x;
+    float pitch =  _localRotation.value().y;
+    float yaw = _localRotation.value().z;
     return rotation * glm::mat4(glm::quat(glm::vec3(pitch, yaw, roll)));
 }
 
 glm::mat4 ScreenSpaceRenderable::translationMatrix() {
+    double time = fmod(global::timeManager->time().j2000Seconds(), 30)/30; 
     glm::vec3 translation = _useRadiusAzimuthElevation ?
         sphericalToCartesian(raeToSpherical(_raePosition)) :
         _cartesianPosition;
+    if (animatedImageTimeStart > 1 && animatedImageTimeEnd > 1) {
+        if (animatedImageTimeStart < global::timeManager->time().j2000Seconds() && animatedImageTimeEnd > global::timeManager->time().j2000Seconds()) {
+            if (axis) {
+                translation.x = -1;
+            }
+            else {
+                translation.x = -0.5-(global::timeManager->time().j2000Seconds()- animatedImageTimeStart)/(animatedImageTimeEnd- animatedImageTimeStart);
+
+            }
+        }
+    }
+    
 
     return glm::translate(glm::mat4(1.f), translation);
 }
@@ -581,6 +624,7 @@ void ScreenSpaceRenderable::draw(glm::mat4 modelTransform) {
 }
 
 void ScreenSpaceRenderable::unbindTexture() {
+
 }
 
 

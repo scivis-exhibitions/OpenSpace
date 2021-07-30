@@ -98,7 +98,7 @@ DashboardItemBalloon::DashboardItemBalloon(const ghoul::Dictionary& dictionary)
     _formatString = p.formatString.value_or(_formatString);
     addProperty(_formatString);
     addProperty(_balloonTextFile);
-    std::cout << "är jag här inne nu?" << std::endl;
+
     loadData();
     _balloonTextFile.onChange([&]() {
 
@@ -112,7 +112,7 @@ DashboardItemBalloon::DashboardItemBalloon(const ghoul::Dictionary& dictionary)
         });
 }
 void DashboardItemBalloon::loadData() {
-    std::cout << "kommer jag in hit?" << std::endl;
+
     std::string file = _balloonTextFile;
     if (!FileSys.fileExists(absPath(file))) {
         return;
@@ -251,13 +251,13 @@ void DashboardItemBalloon::render(glm::vec2& penPosition) {
         dataString.append(std::to_string((1 - diff)*lastBefore2->data.x + (diff)*firstAfter2->data.x));
         dataString.append("\n Temperature: ");
         dataString.append(std::to_string((1 - diff)*lastBefore2->data.y + (diff)*firstAfter2->data.y));
-        dataString.append("\n Q: ");
+        dataString.append("\n Humidity: ");
         dataString.append(std::to_string((1 - diff)*lastBefore2->data.z + (diff)*firstAfter2->data.z));
         dataString.append("\n TH: ");
         dataString.append(std::to_string((1 - diff)*lastBefore3->data.x + (diff)*firstAfter3->data.x));
         dataString.append("\n Distance: ");
         dataString.append(std::to_string((1 - diff)*lastBefore3->data.y + (diff)*firstAfter3->data.y));
-        dataString.append("\n RH: ");
+        dataString.append("\n Relative Humidity: ");
         dataString.append(std::to_string((1 - diff)*lastBefore3->data.z + (diff)*firstAfter3->data.z));
         dataString.append("\n PS: ");
         dataString.append(std::to_string((1 - diff)*lastBefore4->data.x + (diff)*firstAfter4->data.x));
@@ -272,13 +272,13 @@ void DashboardItemBalloon::render(glm::vec2& penPosition) {
         dataString.append(std::to_string(lastBefore2->data.x));
         dataString.append("\n Temperature: ");
         dataString.append(std::to_string(lastBefore2->data.y));
-        dataString.append("\n Q: ");
+        dataString.append("\n Humidity: ");
         dataString.append(std::to_string(lastBefore2->data.z));
         dataString.append("\n TH: ");
         dataString.append(std::to_string(lastBefore3->data.x));
         dataString.append("\n Distance: ");
         dataString.append(std::to_string(lastBefore3->data.y));
-        dataString.append("\n RH: ");
+        dataString.append("\n Relative Humidity: ");
         dataString.append(std::to_string(lastBefore3->data.z));
         dataString.append("\n PS: ");
         dataString.append(std::to_string(lastBefore4->data.x));
@@ -293,13 +293,13 @@ void DashboardItemBalloon::render(glm::vec2& penPosition) {
         dataString.append(std::to_string(firstAfter2->data.x));
         dataString.append("\n Temperature: ");
         dataString.append(std::to_string(firstAfter2->data.y));
-        dataString.append("\n Q: ");
+        dataString.append("\n Humidity: ");
         dataString.append(std::to_string(firstAfter2->data.z));
         dataString.append("\n TH: ");
         dataString.append(std::to_string(firstAfter3->data.x));
         dataString.append("\n Distance: ");
         dataString.append(std::to_string(firstAfter3->data.y));
-        dataString.append("\n RH: ");
+        dataString.append("\n Relative HumidityH: ");
         dataString.append(std::to_string(firstAfter3->data.z));
         dataString.append("\n PS: ");
         dataString.append(std::to_string(firstAfter4->data.x));
@@ -315,7 +315,7 @@ void DashboardItemBalloon::render(glm::vec2& penPosition) {
 
 void DashboardItemBalloon::readHorizonsTextFile() {
     std::ifstream fileStream(_balloonTextFile);
-    std::cout << "kommer jag in hit?" << std::endl;
+
     if (!fileStream.good()) {
         //LERROR(fmt::format(
           //  "Failed to open Horizons text file '{}'", _horizonsTextFile
@@ -367,7 +367,6 @@ void DashboardItemBalloon::readHorizonsTextFile() {
             1000 * range * cos(glm::radians(gLat)) * sin(glm::radians(gLon)),
             1000 * range * sin(glm::radians(gLat))
         );*/
-        std::cout  <<" "<< date << " " << time << " " << height << " " << gLon << " " << gLat << " " << P << " " << T << " " << Q << " " << TH << " " << DIST << " " << RH << " " << PS<<std::endl;
         glm::dvec3 heightlonlat = glm::dvec3(height, gLon, gLat);
         glm::dvec3 ptq = glm::dvec3(P, T, Q);
         glm::dvec3 thdistrh = glm::dvec3(TH, DIST, RH);

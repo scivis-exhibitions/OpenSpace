@@ -358,7 +358,6 @@ std::unique_ptr<TileProvider> initTileProvider(TemporalTileProvider& t,
     FileSys.expandPathTokens(gdalDatasetXml, IgnoredTokens);
 
     t.initDict.setValue(KeyFilePath, gdalDatasetXml);
-
     return std::make_unique<DefaultTileProvider>(t.initDict);
 }
 
@@ -368,11 +367,15 @@ TileProvider* getTileProvider(TemporalTileProvider& t, std::string_view timekey)
     // @TODO (abock, 2020-08-20) This std::string creation can be removed once we switch
     // to C++20 thanks to P0919R2
     const auto it = t.tileProviderMap.find(std::string(timekey));
+
     if (it != t.tileProviderMap.end()) {
+
         return it->second.get();
     }
     else {
+
         std::unique_ptr<TileProvider> tileProvider = initTileProvider(t, timekey);
+
         initialize(*tileProvider);
 
         TileProvider* res = tileProvider.get();
@@ -387,7 +390,9 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
     Time nextTile; 
     Time nextnextTile;
     Time prevTile;
+
     if (t.interpolation) {
+
         InterpolateTileProvider* currentInterpolateTileProvider = t.interpolateTileProvider;
         if (t.timeQuantizer.quantize(tCopy, true)) {
             char Buffer[22];
@@ -398,7 +403,6 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
                 currentInterpolateTileProvider->timeT1 = tCopy.j2000Seconds();
 
                 currentInterpolateTileProvider->t1 = getTileProvider(t, std::string_view(Buffer, Size));
-
             }
             catch (const ghoul::RuntimeError& e) {
                 LERRORC("TemporalTileProvider", e.message);
@@ -407,9 +411,8 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
             if (t.timeQuantizer.myResolution == "1M") {
                 nextTile.setTime(tCopy.j2000Seconds() + 32 * 60 * 60 * 24);
                 nextnextTile.setTime(tCopy.j2000Seconds() + 64 * 60 * 60 * 24);
-                prevTile.setTime(tCopy.j2000Seconds() - 30 * 60 * 60 * 24);
+                prevTile.setTime(tCopy.j2000Seconds() - 2 * 60 * 60 * 24);
                 std::string timeString{ nextTile.ISO8601() };
-                
                 timeString[8] = '0';
                 timeString[9] = '1';
                 nextTile.setTime(timeString);
@@ -430,7 +433,9 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
             const int Size4 = timeStringify(t.timeFormat, prevTile, Buffer2);
             try {
                 currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer, Size2));
+
                 currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer1, Size3));
+
                 currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer2, Size4));
 
                 currentInterpolateTileProvider->timeT2 = nextTile.j2000Seconds();
@@ -438,6 +443,7 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
 
                 if (currentInterpolateTileProvider->factor > 1)
                     currentInterpolateTileProvider->factor = 1;
+
                 return  currentInterpolateTileProvider;
             }
             catch (const ghoul::RuntimeError& e) {
@@ -445,7 +451,6 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
             return nullptr;
             }
             return  currentInterpolateTileProvider;
-
         }
     }
     else {
@@ -954,10 +959,8 @@ TemporalTileProvider::TemporalTileProvider(const ghoul::Dictionary& dictionary)
        ghoul::Dictionary dict;
        std::string keyForDictionary = "FilePath";
        dict.setValue(keyForDictionary, colormap);
-       std::cout << "hej hej" << std::endl;
        //openspace::imgui::GUI mittgui;
        interpolateTileProvider->singleImageProvider = new SingleImageProvider(dict);
-
     }
 }
 

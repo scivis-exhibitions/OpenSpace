@@ -23,6 +23,8 @@ asset.require('scene/solarsystem/interstellar/imageplane')
 asset.require('customization/globebrowsing')
 
 asset.onInitialize(function ()
+    openspace.setPropertyValue('Dashboard.sixth_balloon.Enabled', false);
+    openspace.setPropertyValue('Dashboard.first_balloon.Enabled', false);
     openspace.globebrowsing.loadWMSServersFromFile(
         openspace.absPath("${DATA}/globebrowsing_servers.lua")
     )

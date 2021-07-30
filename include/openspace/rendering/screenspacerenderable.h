@@ -31,6 +31,7 @@
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/vector/vec3property.h>
+#include <openspace/properties/stringproperty.h>
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/uniformcache.h>
 #include <memory>
@@ -70,7 +71,9 @@ public:
     virtual bool isReady() const;
     bool isEnabled() const;
     float depth();
-
+    double animatedImageTimeStart; 
+    double animatedImageTimeEnd;
+    bool axis = false; 
     static documentation::Documentation Documentation();
 
 protected:
@@ -106,7 +109,9 @@ protected:
     properties::FloatProperty _scale;
     properties::FloatProperty _opacity;
     properties::TriggerProperty _delete;
-
+    properties::StringProperty _animatedImageStart;
+    properties::StringProperty _animatedImageEnd;
+    properties::StringProperty _axis;
     glm::ivec2 _objectSize = glm::ivec2(0);
     UniformCache(alpha, modelTransform, viewProj, texture) _uniformCache;
     std::unique_ptr<ghoul::opengl::ProgramObject> _shader;

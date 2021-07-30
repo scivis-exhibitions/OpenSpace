@@ -5,8 +5,8 @@ local overlaysPath = "./layers/overlays"
 local waterMasksPath = "./layers/watermasks"
 
 -- Color layers
-local colorLayer = asset.require(colorLayersPath .. "/esri_viirs_combo")
-local colorLayer = asset.require("../../../../../../../OpenSpaceData/Earth/Climate/colorlayers/temperature_land_highres")
+asset.require(colorLayersPath .. "/esri_viirs_combo")
+asset.require("../../../../../../../OpenSpaceData/Earth/Climate/colorlayers/temperature_land_highres")
 asset.require(colorLayersPath .. "/esri_world_imagery") 
 asset.require(colorLayersPath .. "/esri_imagery_world_2D")
 asset.require(colorLayersPath .. "/viirs_snpp_temporal")
@@ -23,8 +23,8 @@ asset.require(colorLayersPath .. "/ghrsst_l4_mur_sea_surface_temperature_tempora
 local heightLayer = asset.require(heightLayersPath .. "/terrain_tileset")
 
 -- Night layers
-local nightLayer = asset.require(nightLayersPath .. "/earth_at_night_2012")
-asset.require(nightLayersPath .. "/earth_at_night_temporal")
+--local nightLayer = asset.require(nightLayersPath .. "/earth_at_night_2012")
+--asset.require(nightLayersPath .. "/earth_at_night_temporal")
 
 -- Overlays
 asset.require(overlaysPath .. "/coastlines")
