@@ -208,7 +208,7 @@ void ParallelPeer::sendAuthentication() {
 }
 
 void ParallelPeer::queueInMessage(const ParallelConnection::Message& message) {
-    std::lock_guard<std::mutex> unqlock(_receiveBufferMutex);
+    std::lock_guard unqlock(_receiveBufferMutex);
     _receiveBuffer.push_back(message);
 }
 
@@ -230,7 +230,7 @@ void ParallelPeer::handleMessage(const ParallelConnection::Message& message) {
 }
 
 void ParallelPeer::analyzeTimeDifference(double messageTimestamp) {
-    std::lock_guard<std::mutex> latencyLock(_latencyMutex);
+    std::lock_guard latencyLock(_latencyMutex);
 
     const double timeDiff = global::windowDelegate->applicationTime() - messageTimestamp;
     if (_latencyDiffs.empty()) {
@@ -244,7 +244,7 @@ void ParallelPeer::analyzeTimeDifference(double messageTimestamp) {
 }
 
 double ParallelPeer::convertTimestamp(double messageTimestamp) {
-    std::lock_guard<std::mutex> latencyLock(_latencyMutex);
+    std::lock_guard latencyLock(_latencyMutex);
     return messageTimestamp + _initialTimeDiff + _bufferTime;
 }
 
@@ -504,7 +504,7 @@ void ParallelPeer::sendScript(std::string script) {
 void ParallelPeer::resetTimeOffset() {
     global::navigationHandler->keyframeNavigator().clearKeyframes();
     global::timeManager->clearKeyframes();
-    std::lock_guard<std::mutex> latencyLock(_latencyMutex);
+    std::lock_guard latencyLock(_latencyMutex);
     _latencyDiffs.clear();
 }
 
