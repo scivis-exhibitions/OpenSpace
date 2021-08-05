@@ -99,7 +99,7 @@ namespace {
     constexpr openspace::properties::Property::PropertyInfo IndependentViewInfo = {
         "IndependentView",
         "Independent View",
-        "blabla" // @TODO Missing documentation
+        "Enable or disable host-independent camera viewpoint. Has no effect for host."
     };
 } // namespace
 
@@ -482,7 +482,7 @@ void ParallelPeer::setHostPassword(std::string hostPassword) {
 }
 
 void ParallelPeer::sendScript(std::string script) {
-    if (!isHost()) {
+    if (!isHost() && !_independentView) {
         return;
     }
 
@@ -518,7 +518,7 @@ void ParallelPeer::preSynchronization() {
         _receiveBuffer.pop_front();
     }
 
-    if (isHost()) {
+    if (isHost() || _independentView) {
         double now = global::windowDelegate->applicationTime();
 
         if (_lastCameraKeyframeTimestamp + _cameraKeyframeInterval < now) {
@@ -545,7 +545,7 @@ void ParallelPeer::setStatus(ParallelConnection::Status status) {
         _timeJumped = true;
         _connectionEvent->publish("statusChanged");
     }
-    if (isHost()) {
+    if (isHost() || _independentView) {
         global::timeManager->addTimeJumpCallback([this]() {
             _timeJumped = true;
         });
