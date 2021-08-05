@@ -29,18 +29,6 @@
 layout(location = 0) out vec4 renderTarget1;
 layout(location = 1) out vec4 renderTarget2;
 
-uniform float Rg;
-uniform float Rt;
-uniform float HR;
-uniform vec3 betaRayleigh;
-uniform float HO;
-uniform float HM;
-uniform vec3 betaMieScattering;
-uniform bool ozoneLayerEnabled;
-uniform int SAMPLES_MU;
-uniform int SAMPLES_MU_S;
-uniform int SAMPLES_NU;
-uniform sampler2D transmittanceTexture;
 uniform float r;
 uniform vec4 dhdH;
 
@@ -72,9 +60,7 @@ void integrand(float r, float mu, float muSun, float nu, float y, out vec3 S_R,
   if (muSun_i >= -sqrt(1.0 - Rg * Rg / (ri * ri))) {
     // It's the transmittance from the point y (ri) to the top of atmosphere in direction
     // of the sun (muSun_i) and the transmittance from the observer at x (r) to y (ri).
-    vec3 transmittanceY =
-      transmittance(transmittanceTexture, r, mu, y, Rg, Rt) *
-      transmittance(transmittanceTexture, ri, muSun_i, Rg, Rt);
+    vec3 transmittanceY = transmittance(r, mu, y) * transmittance(ri, muSun_i);
     // exp(-h/H)*T(x,v)
     if (ozoneLayerEnabled) {
       S_R = (exp(-(ri - Rg) / HO) + exp(-(ri - Rg) / HR)) * transmittanceY;
@@ -97,7 +83,7 @@ void inscatter(float r, float mu, float muSun, float nu, out vec3 S_R, out vec3 
   S_R = vec3(0.0);
   S_M = vec3(0.0);
 
-  float rayDist = rayDistance(r, mu, Rt, Rg);
+  float rayDist = rayDistance(r, mu);
   float dy = rayDist / float(INSCATTER_INTEGRAL_SAMPLES);
   vec3 S_Ri;
   vec3 S_Mi;
@@ -117,10 +103,13 @@ void inscatter(float r, float mu, float muSun, float nu, out vec3 S_R, out vec3 
 }
 
 void main() {
+  vec3 S_R; // First Order Rayleigh InScattering 
+  vec3 S_M; // First Order Mie InScattering
+
   // From the layer interpolation (see C++ code for layer to r) and the textures
   // parameters (uv), we unmapping mu, muSun and nu.
   float mu, muSun, nu;
-  unmappingMuMuSunNu(r, dhdH, SAMPLES_MU, Rg, Rt, SAMPLES_MU_S, SAMPLES_NU, mu, muSun, nu);
+  unmappingMuMuSunNu(r, dhdH, mu, muSun, nu);
   
   // Here we calculate the single inScattered light. Because this is a single
   // inscattering, the light that arrives at a point y in the path from the eye to the
@@ -133,8 +122,6 @@ void main() {
   // S[L0] = P_R*S_R[L0] + P_M*S_M[L0]
   // In order to save memory, we just store the red component of S_M[L0], and later we use
   // the proportionality rule to calcule the other components.
-  vec3 S_R; // First Order Rayleigh InScattering 
-  vec3 S_M; // First Order Mie InScattering
   inscatter(r, mu, muSun, nu, S_R, S_M);
   renderTarget1 = vec4(S_R, 1.0);
   renderTarget2 = vec4(S_M, 1.0);

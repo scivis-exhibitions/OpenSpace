@@ -28,7 +28,6 @@
 #include <QDialog>
 
 #include <openspace/scene/profile.h>
-#include <openspace/util/keys.h>
 #include <QWidget>
 #include <QListWidgetItem>
 
@@ -69,7 +68,6 @@ private slots:
     void parseSelections();
     void chooseScripts();
     void keySelected(int index);
-    void keyModSelected(int index);
 
     /**
      * Adds scripts to the _scriptEdit from outside dialogs
@@ -85,16 +83,12 @@ private:
     int indexInKeyMapping(std::vector<int>& mapVector, int keyInt);
     bool areRequiredFormsFilled();
     bool isLineEmpty(int index);
-    void addStringToErrorDisplay(const QString& newString);
-    void checkForNumberKeyConflict(int key);
-    void checkForBindingConflict(int selectedModKey, int selectedKey);
 
     openspace::Profile& _profile;
     std::vector<openspace::Profile::Keybinding> _data;
     std::vector<int> _mapModKeyComboBoxIndexToKeyValue;
     std::vector<int> _mapKeyComboBoxIndexToKeyValue;
     bool _editModeNewItem = false;
-    int _currentKeybindingSelection = 0;
 
     QListWidget* _list = nullptr;
     QLabel* _keyModLabel = nullptr;

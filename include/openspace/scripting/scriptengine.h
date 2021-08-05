@@ -31,10 +31,9 @@
 #include <openspace/scripting/lualibrary.h>
 #include <ghoul/lua/luastate.h>
 #include <ghoul/misc/boolean.h>
-#include <filesystem>
 #include <mutex>
-#include <optional>
 #include <queue>
+#include <optional>
 #include <functional>
 
 namespace openspace { class SyncBuffer; }
@@ -83,7 +82,7 @@ public:
     bool hasLibrary(const std::string& name);
 
     bool runScript(const std::string& script, ScriptCallback callback = ScriptCallback());
-    bool runScriptFile(const std::filesystem::path& filename);
+    bool runScriptFile(const std::string& filename);
 
     bool writeLog(const std::string& script);
 

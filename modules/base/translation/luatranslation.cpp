@@ -81,7 +81,7 @@ LuaTranslation::LuaTranslation(const ghoul::Dictionary& dictionary) : LuaTransla
 }
 
 glm::dvec3 LuaTranslation::position(const UpdateData& data) const {
-    ghoul::lua::runScriptFile(_state, _luaScriptFile.value());
+    ghoul::lua::runScriptFile(_state, _luaScriptFile);
 
     // Get the scaling function
     lua_getglobal(_state, "translation");
@@ -91,7 +91,7 @@ glm::dvec3 LuaTranslation::position(const UpdateData& data) const {
             "LuaScale",
             fmt::format(
                 "Script '{}' does not have a function 'translation'",
-                _luaScriptFile.value()
+                _luaScriptFile
             )
         );
         return glm::dvec3(0.0);
@@ -119,7 +119,7 @@ glm::dvec3 LuaTranslation::position(const UpdateData& data) const {
 
     double values[3];
     for (int i = 1; i <= 3; ++i) {
-        values[i - 1] = ghoul::lua::value<double>(_state, i);
+        values[i] = ghoul::lua::value<double>(_state, i);
     }
 
     return glm::make_vec3(values);

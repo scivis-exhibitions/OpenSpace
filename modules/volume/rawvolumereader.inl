@@ -28,10 +28,10 @@
 namespace openspace::volume {
 
 template <typename VoxelType>
-RawVolumeReader<VoxelType>::RawVolumeReader(const std::filesystem::path& path,
+RawVolumeReader<VoxelType>::RawVolumeReader(const std::string& path,
                                             const glm::uvec3& dimensions)
     : _dimensions(dimensions)
-    , _path(std::move(path))
+    , _path(path)
 {}
 
 template <typename VoxelType>
@@ -45,14 +45,15 @@ void RawVolumeReader<VoxelType>::setDimensions(const glm::uvec3& dimensions) {
 }
 
 template <typename VoxelType>
-std::filesystem::path RawVolumeReader<VoxelType>::path() const {
+std::string RawVolumeReader<VoxelType>::path() const {
     return _path;
 }
 
 template <typename VoxelType>
-void RawVolumeReader<VoxelType>::setPath(std::filesystem::path path) {
-    _path = std::move(path);
+void RawVolumeReader<VoxelType>::setPath(const std::string& path) {
+    _path = path;
 }
+
 
 /*
 TODO: Implement these methods for random access in raw volume file

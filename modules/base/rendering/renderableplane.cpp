@@ -255,7 +255,21 @@ void RenderablePlane::render(const RenderData& data, RendererTasks&) {
 
     _shader->setUniform("multiplyColor", _multiplyColor);
 
-    bool additiveBlending = (_blendMode == static_cast<int>(BlendMode::Additive));
+    bool usingFramebufferRenderer = global::renderEngine->rendererImplementation() ==
+                                    RenderEngine::RendererImplementation::Framebuffer;
+
+    bool usingABufferRenderer = global::renderEngine->rendererImplementation() ==
+                                RenderEngine::RendererImplementation::ABuffer;
+
+    if (usingABufferRenderer) {
+        _shader->setUniform(
+            "additiveBlending",
+            _blendMode == static_cast<int>(BlendMode::Additive)
+        );
+    }
+
+    bool additiveBlending =
+        (_blendMode == static_cast<int>(BlendMode::Additive)) && usingFramebufferRenderer;
     if (additiveBlending) {
         glDepthMask(false);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);

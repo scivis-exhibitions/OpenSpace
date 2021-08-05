@@ -738,8 +738,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (HasGLDebugInfo) {
@@ -758,8 +756,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (HasGLDebugInfo) {
@@ -778,8 +774,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (HasGLDebugInfo) {
@@ -798,8 +792,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (HasGLDebugInfo) {
@@ -818,8 +810,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (glbinding::Binding::ObjectLabel.isResolved()) {
@@ -844,8 +834,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (glbinding::Binding::ObjectLabel.isResolved()) {
@@ -865,8 +853,6 @@ void FramebufferRenderer::updateResolution() {
         GL_UNSIGNED_BYTE,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (glbinding::Binding::ObjectLabel.isResolved()) {
@@ -890,12 +876,9 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    float volumeBorderColor[] = { 0.f, 0.f, 0.f, 1.f };
+    float volumeBorderColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, volumeBorderColor);
     if (glbinding::Binding::ObjectLabel.isResolved()) {
         glObjectLabel(
@@ -922,8 +905,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (glbinding::Binding::ObjectLabel.isResolved()) {
@@ -948,8 +929,6 @@ void FramebufferRenderer::updateResolution() {
         GL_UNSIGNED_SHORT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (glbinding::Binding::ObjectLabel.isResolved()) {
@@ -968,8 +947,6 @@ void FramebufferRenderer::updateResolution() {
         GL_FLOAT,
         nullptr
     );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     if (glbinding::Binding::ObjectLabel.isResolved()) {
@@ -1067,6 +1044,7 @@ void FramebufferRenderer::updateDeferredcastData() {
 
         std::filesystem::path vsPath = caster->deferredcastVSPath();
         std::filesystem::path fsPath = caster->deferredcastFSPath();
+        std::filesystem::path deferredShaderPath = caster->deferredcastPath();
 
         ghoul::Dictionary dict;
         dict.setValue("rendererData", _rendererData);
@@ -1085,8 +1063,15 @@ void FramebufferRenderer::updateDeferredcastData() {
             _deferredcastPrograms[caster] = ghoul::opengl::ProgramObject::Build(
                 "Deferred " + std::to_string(data.id) + " raycast",
                 vsPath,
-                fsPath,
+                deferredShaderPath,
                 dict
+            );
+
+            _deferredcastPrograms[caster]->setIgnoreSubroutineUniformLocationError(
+                ghoul::opengl::ProgramObject::IgnoreError::Yes
+            );
+            _deferredcastPrograms[caster]->setIgnoreUniformLocationError(
+                ghoul::opengl::ProgramObject::IgnoreError::Yes
             );
 
             caster->initializeCachedVariables(*_deferredcastPrograms[caster]);
@@ -1254,7 +1239,7 @@ void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFac
         TracyGpuZone("Apply TMO")
         GLDebugGroup group("Apply TMO");
 
-        applyTMO(blackoutFactor, viewport);
+        applyTMO(blackoutFactor, glm::ivec4(viewport[0], viewport[1], viewport[2], viewport[3]));
     }
 
     if (_enableFXAA) {

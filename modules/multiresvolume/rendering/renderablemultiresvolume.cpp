@@ -455,21 +455,21 @@ bool RenderableMultiresVolume::initializeSelector() {
     switch (_selector) {
         case Selector::TF:
             if (_errorHistogramManager) {
-                 std::filesystem::path cached = FileSys.cacheManager()->cachedFilename(
+                 std::string cacheFilename = FileSys.cacheManager()->cachedFilename(
                      fmt::format(
                          "{}_{}_errorHistograms",
                          std::filesystem::path(_filename).stem().string(), nHistograms
                      ),
                      ""
                 );
-                std::ifstream cacheFile(cached, std::ios::in | std::ios::binary);
+                std::ifstream cacheFile(cacheFilename, std::ios::in | std::ios::binary);
                 if (cacheFile.is_open()) {
                     // Read histograms from cache.
                     cacheFile.close();
                     LINFO(
-                        fmt::format("Loading histograms from cache: {}", cached)
+                        fmt::format("Loading histograms from cache: {}", cacheFilename)
                     );
-                    success &= _errorHistogramManager->loadFromFile(cached);
+                    success &= _errorHistogramManager->loadFromFile(cacheFilename);
                 }
                 else if (!_errorHistogramsPath.empty()) {
                     // Read histograms from scene data.
@@ -482,11 +482,11 @@ bool RenderableMultiresVolume::initializeSelector() {
                 }
                 else {
                     // Build histograms from tsp file.
-                    LWARNING(fmt::format("Failed to open {}", cached));
+                    LWARNING(fmt::format("Failed to open {}", cacheFilename));
                     success &= _errorHistogramManager->buildHistograms(nHistograms);
                     if (success) {
-                        LINFO(fmt::format("Writing cache to {}", cached));
-                        _errorHistogramManager->saveToFile(cached);
+                        LINFO(fmt::format("Writing cache to {}", cacheFilename));
+                        _errorHistogramManager->saveToFile(cacheFilename);
                     }
                 }
                 success &= _tfBrickSelector && _tfBrickSelector->initialize();
@@ -495,29 +495,29 @@ bool RenderableMultiresVolume::initializeSelector() {
 
         case Selector::SIMPLE:
             if (_histogramManager) {
-                std::filesystem::path cached = FileSys.cacheManager()->cachedFilename(
+                std::string cacheFilename = FileSys.cacheManager()->cachedFilename(
                     fmt::format("{}_{}_histogram",
                         std::filesystem::path(_filename).stem().string(), nHistograms
                     ),
                     ""
                 );
-                std::ifstream cacheFile(cached, std::ios::in | std::ios::binary);
+                std::ifstream cacheFile(cacheFilename, std::ios::in | std::ios::binary);
                 if (cacheFile.is_open()) {
                     // Read histograms from cache.
                     cacheFile.close();
-                    LINFO(fmt::format("Loading histograms from {}", cached));
-                    success &= _histogramManager->loadFromFile(cached);
+                    LINFO(fmt::format("Loading histograms from {}", cacheFilename));
+                    success &= _histogramManager->loadFromFile(cacheFilename);
                 }
                 else {
                     // Build histograms from tsp file.
-                    LWARNING(fmt::format("Failed to open {}", cached));
+                    LWARNING(fmt::format("Failed to open '{}'", cacheFilename));
                     success &= _histogramManager->buildHistograms(
                         _tsp.get(),
                         nHistograms
                     );
                     if (success) {
-                        LINFO(fmt::format("Writing cache to {}", cached));
-                        _histogramManager->saveToFile(cached);
+                        LINFO(fmt::format("Writing cache to {}", cacheFilename));
+                        _histogramManager->saveToFile(cacheFilename);
                     }
                 }
                 success &= _simpleTfBrickSelector && _simpleTfBrickSelector->initialize();
@@ -526,27 +526,27 @@ bool RenderableMultiresVolume::initializeSelector() {
 
         case Selector::LOCAL:
             if (_localErrorHistogramManager) {
-                 std::filesystem::path cached = FileSys.cacheManager()->cachedFilename(
+                 std::string cacheFilename = FileSys.cacheManager()->cachedFilename(
                     fmt::format(
                         "{}_{}_localErrorHistograms",
                         std::filesystem::path(_filename).stem().string(), nHistograms
                     ),
                     ""
                 );
-                std::ifstream cacheFile(cached, std::ios::in | std::ios::binary);
+                std::ifstream cacheFile(cacheFilename, std::ios::in | std::ios::binary);
                 if (cacheFile.is_open()) {
                     // Read histograms from cache.
                     cacheFile.close();
-                    LINFO(fmt::format("Loading histograms from {}", cached));
-                    success &= _localErrorHistogramManager->loadFromFile(cached);
+                    LINFO(fmt::format("Loading histograms from {}", cacheFilename));
+                    success &= _localErrorHistogramManager->loadFromFile(cacheFilename);
                 }
                 else {
                     // Build histograms from tsp file.
-                    LWARNING(fmt::format("Failed to open {}", cached));
+                    LWARNING(fmt::format("Failed to open {}", cacheFilename));
                     success &= _localErrorHistogramManager->buildHistograms(nHistograms);
                     if (success) {
-                        LINFO(fmt::format("Writing cache to {}", cached));
-                        _localErrorHistogramManager->saveToFile(cached);
+                        LINFO(fmt::format("Writing cache to {}", cacheFilename));
+                        _localErrorHistogramManager->saveToFile(cacheFilename);
                     }
                 }
                 success &= _localTfBrickSelector && _localTfBrickSelector->initialize();

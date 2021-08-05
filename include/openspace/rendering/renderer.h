@@ -22,57 +22,62 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include <openspace/util/coordinateconversion.h>
+#ifndef __OPENSPACE_CORE___RENDERER___H__
+#define __OPENSPACE_CORE___RENDERER___H__
 
-namespace openspace::space::luascriptfunctions {
+#include <ghoul/glm.h>
+#include <vector>
 
-int convertFromRaDec(lua_State* L) {
-    ghoul::lua::checkArgumentsAndThrow(L, 3, "lua::convertFromRaDec");
+namespace ghoul { class Dictionary; }
+namespace ghoul::filesystem { class File; }
+namespace ghoul::opengl {
+    class ProgramObject;
+    class Texture;
+} // namespace ghoul::opengl
 
-    glm::dvec2 degrees = glm::dvec2(0.0);
-    if (lua_type(L, 1) == LUA_TSTRING && lua_type(L, 2) == LUA_TSTRING) {
-        std::string ra = ghoul::lua::value<std::string>(L, 1);
-        std::string dec = ghoul::lua::value<std::string>(L, 2);
-        degrees = icrsToDecimalDegrees(ra, dec);
-    }
-    else if (lua_type(L, 1) == LUA_TNUMBER && lua_type(L, 2) == LUA_TNUMBER) {
-        degrees.x = ghoul::lua::value<double>(L, 1);
-        degrees.y = ghoul::lua::value<double>(L, 2);
-    }
-    else {
-        throw ghoul::lua::LuaRuntimeException("lua::convertFromRaDec: Ra and Dec have to "
-            "be of the same type, either String or Number"
-        );
-    }
+namespace openspace {
 
-    double distance = ghoul::lua::value<double>(L, 3);
-    lua_settop(L, 0);
+class RenderableVolume;
+class Camera;
+class Scene;
 
-    glm::dvec3 pos = icrsToGalacticCartesian(degrees.x, degrees.y, distance);
-    ghoul::lua::push(L, pos);
+class Renderer {
+public:
+    virtual ~Renderer() = default;
 
-    ghoul_assert(lua_gettop(L) == 1, "Incorrect number of items left on stack");
-    return 1;
-}
+    virtual void initialize() = 0;
+    virtual void deinitialize() = 0;
 
-int convertToRaDec(lua_State* L) {
-    ghoul::lua::checkArgumentsAndThrow(L, 3, "lua::convertToRaDec");
+    virtual void setResolution(glm::ivec2 res) = 0;
+    virtual void setHDRExposure(float hdrExposure) = 0;
+    virtual void setGamma(float gamma) = 0;
+    virtual void setHue(float hue) = 0;
+    virtual void setValue(float value) = 0;
+    virtual void setSaturation(float sat) = 0;
+    virtual void enableFXAA(bool enable) = 0;
+    virtual void setDisableHDR(bool disable) = 0;
 
-    double x = ghoul::lua::value<double>(L, 1);
-    double y = ghoul::lua::value<double>(L, 2);
-    double z = ghoul::lua::value<double>(L, 3);
-    lua_settop(L, 0);
+    /**
+    * Set raycasting uniforms on the program object, and setup raycasting.
+    */
+    virtual void preRaycast(ghoul::opengl::ProgramObject& /*programObject*/) {};
 
-    glm::dvec3 degrees = galacticCartesianToIcrs(x, y, z);
-    std::pair<std::string, std::string> raDecPair
-        = decimalDegreesToIcrs(degrees.x, degrees.y);
+    /**
+    * Tear down raycasting for the specified program object.
+    */
+    virtual void postRaycast(ghoul::opengl::ProgramObject& /*programObject*/) {};
 
-    ghoul::lua::push(L, raDecPair.first);  // Ra
-    ghoul::lua::push(L, raDecPair.second); // Dec
-    ghoul::lua::push(L, degrees.z);        // Distance
 
-    ghoul_assert(lua_gettop(L) == 3, "Incorrect number of items left on stack");
-    return 3;
-}
+    virtual void update() = 0;
 
-}  // namespace openspace::space::luascriptfunctions
+    virtual void render(Scene* scene, Camera* camera, float blackoutFactor) = 0;
+    /**
+     * Update render data
+     * Responsible for calling renderEngine::setRenderData
+     */
+    virtual void updateRendererData() = 0;
+};
+
+} // openspace
+
+#endif // __OPENSPACE_CORE___RENDERER___H__

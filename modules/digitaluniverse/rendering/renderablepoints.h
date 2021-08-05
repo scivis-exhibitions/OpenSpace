@@ -35,7 +35,6 @@
 #include <openspace/properties/vector/vec3property.h>
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/uniformcache.h>
-#include <filesystem>
 
 namespace ghoul::filesystem { class File; }
 
@@ -96,8 +95,8 @@ private:
         spriteTexture, hasColorMap
     ) _uniformCache;
 
-    std::filesystem::path _speckFile;
-    std::filesystem::path _colorMapFile;
+    std::string _speckFile;
+    std::string _colorMapFile;
 
     Unit _unit = Parsec;
 

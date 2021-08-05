@@ -228,7 +228,7 @@ bool HttpSynchronization::trySyncFromUrl(std::string listUrl) {
                 return !_shouldCancel;
             }
 
-            std::lock_guard guard(sizeDataMutex);
+            std::lock_guard<std::mutex> guard(sizeDataMutex);
 
             sizeData[line] = { p.totalBytesKnown, p.totalBytes, p.downloadedBytes };
 

@@ -42,7 +42,8 @@ namespace {
 
 namespace openspace {
 
-LabelParser::LabelParser(std::string fileName, const ghoul::Dictionary& dictionary)
+LabelParser::LabelParser(std::string name, std::string fileName,
+                         const ghoul::Dictionary& dictionary)
     : _fileName(std::move(fileName))
 {
     // get the different instrument types
@@ -165,9 +166,7 @@ bool LabelParser::create() {
         std::ifstream file(path);
 
         if (!file.good()) {
-            LERROR(fmt::format(
-                "Failed to open label file {}", std::filesystem::path(path)
-            ));
+            LERROR(fmt::format("Failed to open label file '{}'", path));
             return false;
         }
 

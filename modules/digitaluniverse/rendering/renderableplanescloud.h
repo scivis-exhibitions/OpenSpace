@@ -34,9 +34,10 @@
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/vector/vec2property.h>
 #include <openspace/properties/vector/vec3property.h>
+
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/uniformcache.h>
-#include <filesystem>
+
 #include <functional>
 #include <unordered_map>
 
@@ -128,9 +129,9 @@ private:
     std::unordered_map<int, std::string> _textureFileMap;
     std::unordered_map<int, PlaneAggregate> _planesMap;
 
-    std::filesystem::path _speckFile;
-    std::filesystem::path _labelFile;
-    std::filesystem::path _texturesPath;
+    std::string _speckFile;
+    std::string _labelFile;
+    std::string _texturesPath;
     std::string _luminosityVar;
 
     Unit _unit = Parsec;

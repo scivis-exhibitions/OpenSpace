@@ -25,7 +25,6 @@
 #ifndef __OPENSPACE_MODULE_FITSFILEREADER___FITSFILEREADER___H__
 #define __OPENSPACE_MODULE_FITSFILEREADER___FITSFILEREADER___H__
 
-#include <filesystem>
 #include <string>
 #include <memory>
 #include <mutex>
@@ -64,7 +63,7 @@ public:
     ~FitsFileReader();
 
     template<typename T>
-    std::shared_ptr<ImageData<T>> readImage(const std::filesystem::path& path);
+    std::shared_ptr<ImageData<T>> readImage(const std::string& path);
 
     template<typename T>
     std::shared_ptr<std::unordered_map<std::string, T>> readHeader(
@@ -79,7 +78,7 @@ public:
      * If no HDU index is given the current Extension HDU will be read from.
      */
     template<typename T>
-    std::shared_ptr<TableData<T>> readTable(const std::filesystem::path& path,
+    std::shared_ptr<TableData<T>> readTable(std::string& path,
         const std::vector<std::string>& columnNames, int startRow = 1, int endRow = 10,
         int hduIdx = 1, bool readAll = false);
 
@@ -89,7 +88,7 @@ public:
      * If additional columns are given by <code>filterColumnNames</code>, they will be
      * read but it will slow doen the reading tremendously.
      */
-    std::vector<float> readFitsFile(std::filesystem::path filePath, int& nValuesPerStar,
+    std::vector<float> readFitsFile(std::string filePath, int& nValuesPerStar,
         int firstRow, int lastRow, std::vector<std::string> filterColumnNames,
         int multiplier = 1);
 
@@ -97,8 +96,7 @@ public:
      * Reads a single SPECK file and returns a vector with <code>nRenderValues</code>
      * per star. Reads data in pre-defined order based on AMNH's star data files.
      */
-    std::vector<float> readSpeckFile(const std::filesystem::path& filePath,
-        int& nRenderValues);
+    std::vector<float> readSpeckFile(const std::string& filePath, int& nRenderValues);
 
 private:
     std::unique_ptr<CCfits::FITS> _infile;

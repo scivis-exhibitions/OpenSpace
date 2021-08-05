@@ -27,12 +27,12 @@
 #include <openspace/openspace.h>
 #include <openspace/engine/configuration.h>
 #include <openspace/engine/globals.h>
-#include <openspace/engine/globalscallbacks.h>
 #include <openspace/engine/openspaceengine.h>
 #include <openspace/engine/windowdelegate.h>
 #include <openspace/interaction/navigationhandler.h>
 #include <openspace/interaction/orbitalnavigator.h>
 #include <openspace/mission/missionmanager.h>
+#include <openspace/rendering/abufferrenderer.h>
 #include <openspace/rendering/dashboard.h>
 #include <openspace/rendering/deferredcastermanager.h>
 #include <openspace/rendering/helper.h>
@@ -57,7 +57,6 @@
 #include <ghoul/io/model/modelreaderassimp.h>
 #include <ghoul/io/model/modelreaderbinary.h>
 #include <ghoul/logging/logmanager.h>
-#include <ghoul/misc/easing.h>
 #include <ghoul/misc/profiling.h>
 #include <ghoul/misc/stringconversion.h>
 #include <ghoul/opengl/programobject.h>
@@ -66,7 +65,7 @@
 
 #ifdef GHOUL_USE_DEVIL
 #include <ghoul/io/texture/texturereaderdevil.h>
-#endif // GHOUL_USE_DEVIL
+#endif //GHOUL_USE_DEVIL
 #ifdef GHOUL_USE_FREEIMAGE
 #include <ghoul/io/texture/texturereaderfreeimage.h>
 #endif // GHOUL_USE_FREEIMAGE
@@ -75,7 +74,7 @@
 #include <ghoul/io/texture/texturereadersoil.h>
 #include <ghoul/io/texture/texturewriter.h>
 #include <ghoul/io/texture/texturewritersoil.h>
-#endif // GHOUL_USE_SOIL
+#endif //GHOUL_USE_SOIL
 
 #ifdef GHOUL_USE_STB_IMAGE
 #include <ghoul/io/texture/texturereaderstb.h>
@@ -302,27 +301,57 @@ RenderEngine::RenderEngine()
     addProperty(_showVersionInfo);
     addProperty(_showCameraInfo);
 
-    _enableFXAA.onChange([this]() { _renderer.enableFXAA(_enableFXAA); });
+    _enableFXAA.onChange([this]() {
+        if (_renderer) {
+            _renderer->enableFXAA(_enableFXAA);
+        }
+        });
     addProperty(_enableFXAA);
 
     _disableHDRPipeline.onChange([this]() {
-        _renderer.setDisableHDR(_disableHDRPipeline);
+        if (_renderer) {
+            _renderer->setDisableHDR(_disableHDRPipeline);
+        }
     });
     addProperty(_disableHDRPipeline);
 
-    _hdrExposure.onChange([this]() { _renderer.setHDRExposure(_hdrExposure); });
+    _hdrExposure.onChange([this]() {
+        if (_renderer) {
+            _renderer->setHDRExposure(_hdrExposure);
+        }
+    });
     addProperty(_hdrExposure);
 
-    _gamma.onChange([this]() { _renderer.setGamma(_gamma); });
+    _gamma.onChange([this]() {
+        if (_renderer) {
+            _renderer->setGamma(_gamma);
+        }
+    });
     addProperty(_gamma);
 
-    _hue.onChange([this]() { _renderer.setHue(_hue / 360.f); });
+    _hue.onChange([this]() {
+        if (_renderer) {
+            const float h = _hue / 360.f;
+            _renderer->setHue(h);
+        }
+    });
+
     addProperty(_hue);
 
-    _saturation.onChange([this]() { _renderer.setSaturation(_saturation); });
+    _saturation.onChange([this]() {
+        if (_renderer) {
+            _renderer->setSaturation(_saturation);
+        }
+    });
+
     addProperty(_saturation);
 
-    _value.onChange([this]() { _renderer.setValue(_value); });
+    _value.onChange([this]() {
+        if (_renderer) {
+            _renderer->setValue(_value);
+        }
+    });
+
     addProperty(_value);
 
     addProperty(_globalBlackOutFactor);
@@ -384,16 +413,39 @@ RenderEngine::RenderEngine()
 
 RenderEngine::~RenderEngine() {} // NOLINT
 
+void RenderEngine::setRendererFromString(const std::string& renderingMethod) {
+    ZoneScoped
+
+    _rendererImplementation = rendererFromString(renderingMethod);
+
+    std::unique_ptr<Renderer> newRenderer = nullptr;
+    switch (_rendererImplementation) {
+        case RendererImplementation::Framebuffer:
+            newRenderer = std::make_unique<FramebufferRenderer>();
+            break;
+        case RendererImplementation::ABuffer:
+#ifdef OPENSPACE_WITH_ABUFFER_RENDERER
+            newRenderer = std::make_unique<ABufferRenderer>();
+#endif // OPENSPACE_WITH_ABUFFER_RENDERER
+            break;
+        case RendererImplementation::Invalid:
+            LFATAL(fmt::format("Rendering method '{}' not available", renderingMethod));
+            return;
+    }
+
+    setRenderer(std::move(newRenderer));
+}
+
 void RenderEngine::initialize() {
     ZoneScoped
 
     // We have to perform these initializations here as the OsEng has not been initialized
     // in our constructor
-    _globalRotation = global::configuration->globalRotation;
-    _screenSpaceRotation = global::configuration->screenSpaceRotation;
-    _masterRotation = global::configuration->masterRotation;
+    _globalRotation = static_cast<glm::vec3>(global::configuration->globalRotation);
+    _screenSpaceRotation =
+        static_cast<glm::vec3>(global::configuration->screenSpaceRotation);
+    _masterRotation = static_cast<glm::vec3>(global::configuration->masterRotation);
     _disableMasterRendering = global::configuration->isRenderingOnMasterDisabled;
-    _screenshotUseDate = global::configuration->shouldUseScreenshotDate;
 
 #ifdef GHOUL_USE_DEVIL
     ghoul::io::TextureReader::ref().addReader(
@@ -446,6 +498,8 @@ void RenderEngine::initialize() {
             );
         }
     }
+
+    _screenshotUseDate = global::configuration->shouldUseScreenshotDate;
 }
 
 void RenderEngine::initializeGL() {
@@ -453,10 +507,21 @@ void RenderEngine::initializeGL() {
 
     LTRACE("RenderEngine::initializeGL(begin)");
 
-    _renderer.setResolution(renderingResolution());
-    _renderer.enableFXAA(_enableFXAA);
-    _renderer.setHDRExposure(_hdrExposure);
-    _renderer.initialize();
+    std::string renderingMethod = global::configuration->renderingMethod;
+    if (renderingMethod == "ABuffer") {
+        using Version = ghoul::systemcapabilities::Version;
+
+        // The default rendering method has a requirement of OpenGL 4.3, so if we are
+        // below that, we will fall back to frame buffer operation
+        if (OpenGLCap.openGLVersion() < Version{ 4,3,0 }) {
+            LINFO("Falling back to framebuffer implementation due to OpenGL limitations");
+            renderingMethod = "Framebuffer";
+        }
+    }
+
+    LINFO(fmt::format("Setting renderer from string: {}", renderingMethod));
+    setRendererFromString(renderingMethod);
+
 
     // set the close clip plane and the far clip plane to extreme values while in
     // development
@@ -466,15 +531,45 @@ void RenderEngine::initializeGL() {
     // initialized window
     _horizFieldOfView = static_cast<float>(global::windowDelegate->getHorizFieldOfView());
 
-    configuration::Configuration::FontSizes fontSize = global::configuration->fontSize;
     {
-        ZoneScopedN("Fonts")
-        TracyGpuZone("Fonts")
-        _fontFrameInfo = global::fontManager->font(KeyFontMono, fontSize.frameInfo);
-        _fontShutdown = global::fontManager->font(KeyFontMono, fontSize.shutdown);
-        _fontCameraInfo = global::fontManager->font(KeyFontMono, fontSize.cameraInfo);
-        _fontVersionInfo = global::fontManager->font(KeyFontMono, fontSize.versionInfo);
-        _fontLog = global::fontManager->font(KeyFontLight, fontSize.log);
+        ZoneScopedN("Font: FrameInfo")
+        TracyGpuZone("Font: FrameInfo")
+        _fontFrameInfo = global::fontManager->font(
+            KeyFontMono,
+            global::configuration->fontSize.frameInfo
+        );
+    }
+    {
+        ZoneScopedN("Font: Shutdown")
+        TracyGpuZone("Font: Shutdown")
+        _fontShutdown = global::fontManager->font(
+            KeyFontMono,
+            global::configuration->fontSize.shutdown
+        );
+    }
+    {
+        ZoneScopedN("Font: CameraInfo")
+        TracyGpuZone("Font: CameraInfo")
+        _fontCameraInfo = global::fontManager->font(
+            KeyFontMono,
+            global::configuration->fontSize.cameraInfo
+        );
+    }
+    {
+        ZoneScopedN("Font: VersionInfo")
+        TracyGpuZone("Font: VersionInfo")
+        _fontVersionInfo = global::fontManager->font(
+            KeyFontMono,
+            global::configuration->fontSize.versionInfo
+        );
+    }
+    {
+        ZoneScopedN("Font: Log")
+        TracyGpuZone("Font: Log")
+        _fontLog = global::fontManager->font(
+            KeyFontLight,
+            global::configuration->fontSize.log
+        );
     }
 
     {
@@ -492,7 +587,7 @@ void RenderEngine::initializeGL() {
 void RenderEngine::deinitializeGL() {
     ZoneScoped
 
-    _renderer.deinitialize();
+    _renderer = nullptr;
 }
 
 void RenderEngine::updateScene() {
@@ -537,7 +632,7 @@ void RenderEngine::updateRenderer() {
     const bool windowResized = global::windowDelegate->windowHasResized();
 
     if (windowResized) {
-        _renderer.setResolution(renderingResolution());
+        _renderer->setResolution(renderingResolution());
 
         using FR = ghoul::fontrendering::FontRenderer;
         FR::defaultRenderer().setFramebufferSize(fontResolution());
@@ -547,7 +642,7 @@ void RenderEngine::updateRenderer() {
             static_cast<float>(global::windowDelegate->getHorizFieldOfView());
     }
 
-    _renderer.update();
+    _renderer->update();
 }
 
 void RenderEngine::updateScreenSpaceRenderables() {
@@ -641,21 +736,13 @@ void RenderEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& viewMat
         _lastFrameTime = now + std::chrono::microseconds(static_cast<int>(delta));
     }
 
-    const bool renderingEnabled = delegate.isMaster() ? !_disableMasterRendering : true;
-    if (renderingEnabled && !delegate.isGuiWindow() && _globalBlackOutFactor > 0.f) {
-        _renderer.render(
+    const bool masterEnabled = delegate.isMaster() ? !_disableMasterRendering : true;
+    if (masterEnabled && !delegate.isGuiWindow() && _globalBlackOutFactor > 0.f) {
+        _renderer->render(
             _scene,
             _camera,
             _globalBlackOutFactor
         );
-    }
-
-    // The CEF webbrowser fix has to be called at least once per frame and we are doing
-    // that in the renderer::render method.  So if we disable the rendering, that fix is
-    // no longer called as we lose access to the Web UI.  Since we are calling the fix
-    // many times anyway, we can just add one call to it here and not lose much
-    if (global::callback::webBrowserPerformanceHotfix) {
-        (*global::callback::webBrowserPerformanceHotfix)();
     }
 
     if (_showFrameInformation) {
@@ -688,7 +775,7 @@ void RenderEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& viewMat
         RenderFont(*_fontFrameInfo, penPosition, res);
     }
 
-    if (renderingEnabled && !delegate.isGuiWindow() && _globalBlackOutFactor > 0.f) {
+    if (masterEnabled && !delegate.isGuiWindow() && _globalBlackOutFactor > 0.f) {
         ZoneScopedN("Render Screenspace Renderable")
 
         std::vector<ScreenSpaceRenderable*> ssrs;
@@ -776,9 +863,14 @@ void RenderEngine::renderOverlays(const ShutdownInformation& shutdownInfo) {
         renderScreenLog();
         renderVersionInformation();
         renderDashboard();
-        renderCameraInformation();
 
-        if (shutdownInfo.inShutdown) {
+        if (!shutdownInfo.inShutdown) {
+            // We render the camera information in the same location as the shutdown info
+            // and we won't need this if we are shutting down
+            renderCameraInformation();
+        }
+        else {
+            // If we are in shutdown mode, we can display the remaining time
             renderShutdownInformation(shutdownInfo.timer, shutdownInfo.waitTime);
         }
     }
@@ -798,13 +890,12 @@ void RenderEngine::renderEndscreen() {
         glm::vec2(global::windowDelegate->currentSubwindowSize()) / dpiScaling;
     glViewport(0, 0, res.x, res.y);
 
-    constexpr const std::string_view Text = "Shutting down";
-    const glm::vec2 size = _fontShutdown->boundingBox(Text);
+    const glm::vec2 size = _fontShutdown->boundingBox("Shutting down");
     glm::vec2 penPosition = glm::vec2(
         fontResolution().x / 2 - size.x / 2,
         fontResolution().y / 2 - size.y / 2
     );
-    RenderFont(*_fontShutdown, penPosition, Text);
+    RenderFont(*_fontShutdown, penPosition, "Shutting down");
 }
 
 void RenderEngine::renderShutdownInformation(float timer, float fullTime) {
@@ -812,42 +903,30 @@ void RenderEngine::renderShutdownInformation(float timer, float fullTime) {
 
     timer = std::max(timer, 0.f);
 
-    // Render progressive overlay
-    glEnable(GL_BLEND);
-
-    // t = 1.f -> start of shutdown counter    t = 0.f -> timer has reached shutdown
-    float t = 1.f - (timer / fullTime);
-
-    rendering::helper::renderBox(
-        glm::vec2(0.f),
-        glm::vec2(1.f),
-        glm::vec4(0.f, 0.f, 0.f, ghoul::circularEaseOut(t))
-    );
-
-    // No need to print the text if we are just about to finish since otherwise we'll be
-    // overplotting the actual "shutdown in progress" text
-    if (timer == 0.f) {
-        return;
-    }
-
-    constexpr const std::string_view FirstLine = "Shutdown in: {:.2f}s/{:.2f}s";
-    const glm::vec2 size1 = _fontShutdown->boundingBox(
-        fmt::format(FirstLine, timer, fullTime)
+    const glm::vec2 size = _fontShutdown->boundingBox(
+        fmt::format("Shutdown in: {:.2f}s/{:.2f}s", timer, fullTime)
     );
 
     glm::vec2 penPosition = glm::vec2(
-        fontResolution().x / 2 - size1.x / 2,
-        fontResolution().y / 2 - size1.y / 2
+        fontResolution().x - size.x - 10,
+        fontResolution().y - size.y
     );
 
     RenderFont(
         *_fontShutdown,
         penPosition,
-        fmt::format(FirstLine, timer, fullTime),
+        fmt::format("Shutdown in: {:.2f}s/{:.2f}s", timer, fullTime),
         ghoul::fontrendering::CrDirection::Down
     );
-    // Important: Length of this string is the same as the first line to make them align
-    RenderFont(*_fontShutdown, penPosition, "Press ESC again to abort");
+
+    RenderFont(
+        *_fontShutdown,
+        penPosition,
+        // Important: length of this string is the same as the shutdown time text
+        // to make them align
+        "Press ESC again to abort",
+        ghoul::fontrendering::CrDirection::Down
+    );
 }
 
 void RenderEngine::renderDashboard() {
@@ -878,6 +957,14 @@ void RenderEngine::setScene(Scene* scene) {
 
 void RenderEngine::setCamera(Camera* camera) {
     _camera = camera;
+}
+
+const Renderer& RenderEngine::renderer() const {
+    return *_renderer;
+}
+
+RenderEngine::RendererImplementation RenderEngine::rendererImplementation() const {
+    return _rendererImplementation;
 }
 
 ghoul::opengl::OpenGLStateCache& RenderEngine::openglStateCache() {
@@ -1031,10 +1118,39 @@ unsigned int RenderEngine::latestScreenshotNumber() const {
     return _latestScreenshotNumber;
 }
 
+void RenderEngine::preRaycast(ghoul::opengl::ProgramObject& programObject) {
+    _renderer->preRaycast(programObject);
+}
+
+void RenderEngine::postRaycast(ghoul::opengl::ProgramObject& programObject) {
+    _renderer->postRaycast(programObject);
+}
+
+void RenderEngine::setRenderer(std::unique_ptr<Renderer> renderer) {
+    ZoneScoped
+
+    if (_renderer) {
+        _renderer->deinitialize();
+    }
+
+    _renderer = std::move(renderer);
+    _renderer->setResolution(renderingResolution());
+    _renderer->enableFXAA(_enableFXAA);
+    _renderer->setHDRExposure(_hdrExposure);
+    _renderer->initialize();
+}
+
 scripting::LuaLibrary RenderEngine::luaLibrary() {
     return {
         "",
         {
+            {
+                "setRenderer",
+                &luascriptfunctions::setRenderer,
+                {},
+                "string",
+                "Sets the renderer (ABuffer or FrameBuffer)"
+            },
             {
                 "addScreenSpaceRenderable",
                 &luascriptfunctions::addScreenSpaceRenderable,
@@ -1139,6 +1255,24 @@ std::vector<ScreenSpaceRenderable*> RenderEngine::screenSpaceRenderables() const
         [](const std::unique_ptr<ScreenSpaceRenderable>& p) { return p.get(); }
     );
     return res;
+}
+
+RenderEngine::RendererImplementation RenderEngine::rendererFromString(
+                                                 const std::string& renderingMethod) const
+{
+    const std::map<std::string, RenderEngine::RendererImplementation> RenderingMethods = {
+#ifdef OPENSPACE_WITH_ABUFFER_RENDERER
+        { "ABuffer", RendererImplementation::ABuffer },
+#endif // OPENSPACE_WITH_ABUFFER_RENDERER
+        { "Framebuffer", RendererImplementation::Framebuffer }
+    };
+
+    if (RenderingMethods.find(renderingMethod) != RenderingMethods.end()) {
+        return RenderingMethods.at(renderingMethod);
+    }
+    else {
+        return RendererImplementation::Invalid;
+    }
 }
 
 void RenderEngine::renderCameraInformation() {

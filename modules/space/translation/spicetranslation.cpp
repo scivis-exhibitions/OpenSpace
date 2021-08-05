@@ -101,8 +101,8 @@ SpiceTranslation::SpiceTranslation(const ghoul::Dictionary& dictionary)
     : _target(TargetInfo)
     , _observer(ObserverInfo)
     , _frame(FrameInfo, DefaultReferenceFrame)
-    , _fixedDate(FixedDateInfo)
     , _cachedFrame(DefaultReferenceFrame)
+    , _fixedDate(FixedDateInfo)
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
 

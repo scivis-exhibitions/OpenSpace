@@ -27,7 +27,6 @@
 
 #include <openspace/rendering/dashboarditem.h>
 
-#include <openspace/properties/optionproperty.h>
 #include <openspace/properties/stringproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/scalar/intproperty.h>
@@ -50,15 +49,9 @@ public:
     static documentation::Documentation Documentation();
 
 private:
-    enum class DisplayFormat {
-        DecimalDegrees = 0,
-        DegreeMinuteSeconds
-    };
-
     properties::StringProperty _fontName;
     properties::FloatProperty _fontSize;
 
-    properties::OptionProperty _displayFormat;
     properties::IntProperty _significantDigits;
 
     std::shared_ptr<ghoul::fontrendering::Font> _font;

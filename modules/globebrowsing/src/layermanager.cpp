@@ -156,7 +156,7 @@ void LayerManager::reset(bool includeDisabled) {
 
     for (std::unique_ptr<LayerGroup>& layerGroup : _layerGroups) {
         for (Layer* layer : layerGroup->layers()) {
-            if ((layer->enabled() || includeDisabled) && layer->tileProvider()) {
+            if (layer->enabled() || includeDisabled) {
                 tileprovider::reset(*layer->tileProvider());
             }
         }

@@ -287,8 +287,8 @@ int goToGeo(lua_State* L) {
     return 0;
 }
 
-int getLocalPositionFromGeo(lua_State* L) {
-    ghoul::lua::checkArgumentsAndThrow(L, 4, "lua::getLocalPositionFromGeo");
+int getGeoPosition(lua_State* L) {
+    ghoul::lua::checkArgumentsAndThrow(L, 4, "lua::getGeoPosition");
 
     const std::string& globeIdentifier = ghoul::lua::value<std::string>(L, 1);
     const double latitude = ghoul::lua::value<double>(L, 2);

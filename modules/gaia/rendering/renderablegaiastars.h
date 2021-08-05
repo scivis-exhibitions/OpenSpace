@@ -78,28 +78,28 @@ private:
      *
      * \return the number of stars read.
      */
-    int readFitsFile(const std::filesystem::path& filePath);
+    int readFitsFile(const std::string& filePath);
 
     /**
      * Read a SPECK file by using FitsFileReader.readSpeckFile() and constructs an octree.
      *
      * \return the number of stars read.
      */
-    int readSpeckFile(const std::filesystem::path& filePath);
+    int readSpeckFile(const std::string& filePath);
 
     /**
      * Reads a preprocessed binary file and constructs an octree.
      *
      * \return the number of stars read.
      */
-    int readBinaryRawFile(const std::filesystem::path& filePath);
+    int readBinaryRawFile(const std::string& filePath);
 
     /**
      * Reads a pre-constructed octree, with all data, from a binary file.
      *
      * \return the number of stars read.
      */
-    int readBinaryOctreeFile(const std::filesystem::path& filePath);
+    int readBinaryOctreeFile(const std::string& filePath);
 
     /**
      * Reads the structure of a pre-constructed octree from a binary file, without any
@@ -107,7 +107,7 @@ private:
      *
      * \return the number of stars read.
      */
-    int readBinaryOctreeStructureFile(const std::filesystem::path& folderPath);
+    int readBinaryOctreeStructureFile(const std::string& folderPath);
 
     /**
      * Checks for any OpenGL errors and reports these to the log if _reportGlErrors is

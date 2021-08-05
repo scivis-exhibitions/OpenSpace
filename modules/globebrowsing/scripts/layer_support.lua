@@ -315,25 +315,24 @@ openspace.globebrowsing.addFocusNodesFromDirectory = function (dir, node_name)
         if file and file:find('.info') then
             local t = openspace.globebrowsing.parseInfoFile(file)
 
-            if node_name and t.Location then
-                openspace.printInfo("Creating focus node for '" .. node_name .. "'")
+            if t.Node and t.Location then
+                openspace.printInfo("Creating focus node for '" .. n .. "'")
 
-                local lat = t.Location.Center[1]
-                local long = t.Location.Center[2]
+                local lat = t.Location.Center[2]
+                local long = t.Location.Center[1]
+                local a, b, c = openspace.globebrowsing.getGeoPosition(node_name, lat, long, 0.0)
+                local p = { a, b, c }
 
                 local identifier = node_name .. " - " .. t.Identifier
-                local name = node_name .. " - " .. t.Name
+                local name = node_name .. " - " .. t.Node
 
                 openspace.addSceneGraphNode({
                     Identifier = identifier,
                     Parent = node_name,
                     Transform = {
                         Translation = {
-                            Type = "GlobeTranslation",
-                            Globe = node_name,
-                            Latitude = lat,
-                            Longitude = long,
-                            UseHeightmap = true
+                            Type = "StaticTranslation",
+                            Position = { p[1], p[2], p[3] }
                         }
                     },
                     GUI = {
@@ -349,6 +348,8 @@ end
 openspace.globebrowsing.addFocusNodeFromLatLong = function (name, globe_identifier, lat, long, altitude)
     altitude = altitude or 0;
 
+    local a, b, c = openspace.globebrowsing.getGeoPosition(globe_identifier, lat, long, altitude)
+    local p = { a, b, c }
     local identifier = globe_identifier .. "-" .. name
 
     openspace.addSceneGraphNode({

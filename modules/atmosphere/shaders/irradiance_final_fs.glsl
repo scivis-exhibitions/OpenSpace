@@ -24,9 +24,10 @@
 
 #version __CONTEXT__
 
+#include "atmosphere_common.glsl"
+
 out vec4 renderTableColor;
 
-uniform ivec2 OTHER_TEXTURES;
 uniform sampler2D deltaETexture;
 
 void main() {   

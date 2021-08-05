@@ -69,8 +69,7 @@ bool FitsFileReader::isPrimaryHDU() {
 }
 
 template <typename T>
-std::shared_ptr<ImageData<T>> FitsFileReader::readImage(const std::filesystem::path& path)
-{
+std::shared_ptr<ImageData<T>> FitsFileReader::readImage(const std::string& path) {
     try {
         _infile = std::make_unique<FITS>(path, Read, true);
         // Primary HDU Object
@@ -137,7 +136,7 @@ std::shared_ptr<T> FitsFileReader::readHeaderValue(const std::string key) {
 }
 
 template<typename T>
-std::shared_ptr<TableData<T>> FitsFileReader::readTable(const std::filesystem::path& path,
+std::shared_ptr<TableData<T>> FitsFileReader::readTable(std::string& path,
                                               const std::vector<std::string>& columnNames,
                                                                              int startRow,
                                                                                int endRow,
@@ -149,7 +148,7 @@ std::shared_ptr<TableData<T>> FitsFileReader::readTable(const std::filesystem::p
     std::lock_guard g(_mutex);
 
     try {
-        _infile = std::make_unique<FITS>(path.string(), Read, readAll);
+        _infile = std::make_unique<FITS>(path, Read, readAll);
 
         // Make sure FITS file is not a Primary HDU Object (aka an image).
         if (!isPrimaryHDU()) {
@@ -192,9 +191,8 @@ std::shared_ptr<TableData<T>> FitsFileReader::readTable(const std::filesystem::p
     return nullptr;
 }
 
-std::vector<float> FitsFileReader::readFitsFile(std::filesystem::path filePath,
-                                                int& nValuesPerStar, int firstRow,
-                                                int lastRow,
+std::vector<float> FitsFileReader::readFitsFile(std::string filePath, int& nValuesPerStar,
+                                                int firstRow, int lastRow,
                                                std::vector<std::string> filterColumnNames,
                                                                            int multiplier)
 {
@@ -247,7 +245,7 @@ std::vector<float> FitsFileReader::readFitsFile(std::filesystem::path filePath,
     );
 
     if (!table) {
-        throw ghoul::RuntimeError(fmt::format("Failed to open Fits file {}", filePath));
+        throw ghoul::RuntimeError(fmt::format("Failed to open Fits file '{}'", filePath));
     }
 
     int nStars = table->readRows - firstRow + 1;
@@ -522,7 +520,7 @@ std::vector<float> FitsFileReader::readFitsFile(std::filesystem::path filePath,
     return fullData;
 }
 
-std::vector<float> FitsFileReader::readSpeckFile(const std::filesystem::path& filePath,
+std::vector<float> FitsFileReader::readSpeckFile(const std::string& filePath,
                                                  int& nRenderValues)
 {
     std::vector<float> fullData;
@@ -530,7 +528,7 @@ std::vector<float> FitsFileReader::readSpeckFile(const std::filesystem::path& fi
     std::ifstream fileStream(filePath);
 
     if (!fileStream.good()) {
-        LERROR(fmt::format("Failed to open Speck file {}", filePath));
+        LERROR(fmt::format("Failed to open Speck file '{}'", filePath));
         return fullData;
     }
 

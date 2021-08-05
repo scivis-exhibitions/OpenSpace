@@ -332,10 +332,7 @@ int createSingleColorImage(lua_State* L) {
 
     const glm::dvec3 color = colorDict.value<glm::dvec3>(key);
 
-    std::filesystem::path fileName = FileSys.cacheManager()->cachedFilename(
-        name + ".ppm",
-        ""
-    );
+    std::string fileName = FileSys.cacheManager()->cachedFilename(name + ".ppm", "");
     const bool hasCachedFile = std::filesystem::is_regular_file(fileName);
     if (hasCachedFile) {
         LDEBUGC("OpenSpaceEngine", fmt::format("Cached file '{}' used", fileName));

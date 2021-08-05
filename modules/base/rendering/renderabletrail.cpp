@@ -430,8 +430,14 @@ void RenderableTrail::render(const RenderData& data, RendererTasks&) {
     /*glm::ivec2 resolution = global::renderEngine.renderingResolution();
     _programObject->setUniform(_uniformCache.resolution, resolution);*/
 
-    glDepthMask(false);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    const bool usingFramebufferRenderer =
+        global::renderEngine->rendererImplementation() ==
+        RenderEngine::RendererImplementation::Framebuffer;
+
+    if (usingFramebufferRenderer) {
+        glDepthMask(false);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    }
 
     const bool renderLines = (_appearance.renderingModes == RenderingModeLines) ||
                              (_appearance.renderingModes == RenderingModeLinesPoints);
@@ -502,8 +508,10 @@ void RenderableTrail::render(const RenderData& data, RendererTasks&) {
 
     glBindVertexArray(0);
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(true);
+    if (usingFramebufferRenderer) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(true);
+    }
 
     _programObject->deactivate();
 }

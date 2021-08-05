@@ -865,7 +865,7 @@ void RenderableStars::loadPSFTexture() {
 
         if (_pointSpreadFunctionTexture) {
             LDEBUG(fmt::format(
-                "Loaded texture from {}", absPath(_pointSpreadFunctionTexturePath)
+                "Loaded texture from '{}'", absPath(_pointSpreadFunctionTexturePath)
             ));
             _pointSpreadFunctionTexture->uploadTexture();
         }
@@ -1267,7 +1267,10 @@ void RenderableStars::update(const UpdateData&) {
                 absPath(_colorTexturePath).string()
             );
             if (_colorTexture) {
-                LDEBUG(fmt::format("Loaded texture from {}", absPath(_colorTexturePath)));
+                LDEBUG(fmt::format(
+                    "Loaded texture from '{}'",
+                    absPath(_colorTexturePath)
+                ));
                 _colorTexture->uploadTexture();
             }
 
@@ -1290,7 +1293,7 @@ void RenderableStars::update(const UpdateData&) {
             );
             if (_otherDataColorMapTexture) {
                 LDEBUG(fmt::format(
-                    "Loaded texture from {}",
+                    "Loaded texture from '{}'",
                     absPath(_otherDataColorMapPath)
                 ));
                 _otherDataColorMapTexture->uploadTexture();

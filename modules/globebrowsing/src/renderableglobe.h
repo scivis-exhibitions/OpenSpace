@@ -135,7 +135,6 @@ private:
         properties::BoolProperty  eclipseShadowsEnabled;
         properties::BoolProperty  eclipseHardShadows;
         properties::BoolProperty  shadowMapping;
-        properties::BoolProperty  renderAtDistance;
         properties::FloatProperty zFightingPercentage;
         properties::IntProperty   nShadowSamples;
         properties::FloatProperty targetLodScaleFactor;
