@@ -116,7 +116,7 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Planet radius (Earth radii)", ColumnID::PlanetRadius, "%.2f" },
         { "Planet equilibrium temp. (K)", ColumnID::PlanetTemperature, "%.0f" },
         { "Mass", ColumnID::PlanetMass, "%.2f" },
-        { "Surface Gravity (m/s^2)", ColumnID::SurfaceGravity, "%.2f" },
+        { "Surface gravity (m/s^2)", ColumnID::SurfaceGravity, "%.2f" },
         // Orbits
         { "Semi-major axis (AU)", ColumnID::SemiMajorAxis, "%.2f" },
         { "Eccentricity", ColumnID::Eccentricity, "%.2f" },
@@ -127,7 +127,9 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Star radius (Solar)", ColumnID::StarRadius, "%.2f" },
         { "MagJ", ColumnID::MagnitudeJ, "%.2f" },
         { "MagK", ColumnID::MagnitudeK, "%.2f" },
-        { "Distance (pc)", ColumnID::Distance, "%.2f" }
+        { "Distance (pc)", ColumnID::Distance, "%.2f" },
+        { "Metallicity (dex)", ColumnID::Metallicity, "%.2f" },
+        { "Metallicity ratio", ColumnID::MetallicityRatio }
     };
 
     // Must match names in implot and customly added ones
@@ -802,6 +804,10 @@ std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
             return item.magnitudeK.value;
         case ColumnID::Distance:
             return item.distance.value;
+        case ColumnID::Metallicity:
+            return item.starMetallicity.value;
+        case ColumnID::MetallicityRatio:
+            return item.starMetallicityRatio.c_str();
         default:
             throw ghoul::MissingCaseException();
     }

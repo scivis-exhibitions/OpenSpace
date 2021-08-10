@@ -64,6 +64,8 @@ struct ExoplanetItem {
     DataPoint starEffectiveTemp; // in Kelvin
     DataPoint starAge; // in Gyr
     DataPoint starRadius; // in Solar radii
+    DataPoint starMetallicity; // in dex
+    std::string starMetallicityRatio;
     DataPoint magnitudeJ; // apparent magnitude in the J band (star)
     DataPoint magnitudeK; // apparent magnitude in the K band (star)
 

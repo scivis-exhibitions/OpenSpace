@@ -130,6 +130,12 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            else if (column == "st_age") {
                p.starAge.value = data::parseFloatData(data);
            }
+           else if (column == "st_met") {
+               p.starMetallicity.value = data::parseFloatData(data);
+           }
+           else if (column == "st_metratio") {
+               p.starMetallicityRatio = data;
+           }
            else if (column == "sy_jmag") {
                p.magnitudeJ.value = data::parseFloatData(data);
            }

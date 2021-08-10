@@ -56,7 +56,9 @@ enum ColumnID {
     StarRadius,
     MagnitudeJ,
     MagnitudeK,
-    Distance
+    Distance,
+    Metallicity,
+    MetallicityRatio
 };
 
 struct Column {
