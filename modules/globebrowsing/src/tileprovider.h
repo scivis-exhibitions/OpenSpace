@@ -210,7 +210,8 @@ struct TemporalTileProvider : public TileProvider {
     bool interpolation = false; 
 
     TileProvider* currentTileProvider = nullptr;
-
+    double startTimeJ2000;
+    double endTimeJ2000;
     TimeFormatType timeFormat;
     TimeQuantizer timeQuantizer;
     std::string colormap;

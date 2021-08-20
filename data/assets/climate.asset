@@ -19,12 +19,12 @@ asset.require('scene/solarsystem/interstellar/third_balloon_20200416_12')
 asset.require('scene/solarsystem/interstellar/fourth_balloon_20200416_12')
 asset.require('scene/solarsystem/interstellar/fifth_balloon_20200416_12')
 asset.require('scene/solarsystem/interstellar/sixth_balloon_20200416_12')
-asset.require('scene/solarsystem/interstellar/imageplane')
+--asset.require('scene/solarsystem/interstellar/imageplane')
 asset.require('customization/globebrowsing')
 
 asset.onInitialize(function ()
     openspace.setPropertyValue('Dashboard.sixth_balloon.Enabled', false);
-    openspace.setPropertyValue('Dashboard.first_balloon.Enabled', false);
+    openspace.setPropertyValue('Dashboard.first_balloon2.Enabled', false);
     openspace.globebrowsing.loadWMSServersFromFile(
         openspace.absPath("${DATA}/globebrowsing_servers.lua")
     )

@@ -492,6 +492,8 @@ void ScreenSpaceRenderable::createShaders() {
     ghoul::Dictionary dict = ghoul::Dictionary();
 
     auto res = global::windowDelegate->currentDrawBufferResolution();
+
+
     ghoul::Dictionary rendererData;
     rendererData.setValue(
         "fragmentRendererPath",
@@ -510,6 +512,7 @@ void ScreenSpaceRenderable::createShaders() {
         "fragmentPath",
         std::string("${MODULE_BASE}/shaders/screenspace_fs.glsl")
     );
+
     _shader = ghoul::opengl::ProgramObject::Build(
         "ScreenSpaceProgram",
         absPath("${MODULE_BASE}/shaders/screenspace_vs.glsl"),
@@ -524,12 +527,20 @@ glm::mat4 ScreenSpaceRenderable::scaleMatrix() {
     // to scale the plane
     float textureRatio =
         static_cast<float>(_objectSize.y) / static_cast<float>(_objectSize.x);
+    glm::mat4 scale;
 
-    glm::mat4 scale = glm::scale(
-        glm::mat4(1.f),
-        glm::vec3(_scale, _scale * textureRatio, 1.f)
-    );
-
+    if (animatedImageTimeStart > 1 && animatedImageTimeEnd > 1 && !axis){
+        scale = glm::scale(
+            glm::mat4(1.f),
+            glm::vec3(_scale*3, _scale * textureRatio, 5.f)
+        );
+    }
+    else {
+        scale = glm::scale(
+            glm::mat4(1.f),
+            glm::vec3(_scale, _scale * textureRatio, 5.f)
+        );
+    }
     // Simulate orthographic projection by distance to plane.
     if (!_usePerspectiveProjection) {
         float distance = _useRadiusAzimuthElevation ?
@@ -576,7 +587,7 @@ glm::mat4 ScreenSpaceRenderable::localRotationMatrix() {
 }
 
 glm::mat4 ScreenSpaceRenderable::translationMatrix() {
-    double time = fmod(global::timeManager->time().j2000Seconds(), 30)/30; 
+ 
     glm::vec3 translation = _useRadiusAzimuthElevation ?
         sphericalToCartesian(raeToSpherical(_raePosition)) :
         _cartesianPosition;
@@ -586,8 +597,7 @@ glm::mat4 ScreenSpaceRenderable::translationMatrix() {
                 translation.x = -1;
             }
             else {
-                translation.x = -0.5-(global::timeManager->time().j2000Seconds()- animatedImageTimeStart)/(animatedImageTimeEnd- animatedImageTimeStart);
-
+                translation.x = 0.5-(global::timeManager->time().j2000Seconds()- animatedImageTimeStart)/(animatedImageTimeEnd- animatedImageTimeStart)*3;
             }
         }
     }
@@ -612,6 +622,22 @@ void ScreenSpaceRenderable::draw(glm::mat4 modelTransform) {
     ghoul::opengl::TextureUnit unit;
     unit.activate();
     bindTexture();
+    if (animatedImageTimeStart > 1 && animatedImageTimeEnd > 1) {
+        if (animatedImageTimeStart < global::timeManager->time().j2000Seconds() && animatedImageTimeEnd > global::timeManager->time().j2000Seconds()) {
+            if (!axis) {
+                _shader->setUniform("time", static_cast<float>((global::timeManager->time().j2000Seconds() - animatedImageTimeStart) / (animatedImageTimeEnd - animatedImageTimeStart)));
+            }
+            else {
+                _shader->setUniform("time", 0.0f);
+            }
+        } 
+        else {
+            _shader->setUniform("time", 0.0f);
+        }
+    }
+    else {
+        _shader->setUniform("time", 0.0f);
+    }
     _shader->setUniform(_uniformCache.texture, unit);
 
     glBindVertexArray(rendering::helper::vertexObjects.square.vao);

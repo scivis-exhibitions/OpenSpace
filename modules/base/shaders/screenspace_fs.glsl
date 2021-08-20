@@ -30,6 +30,7 @@ in vec4 vs_position;
 
 uniform sampler2D texture1;
 uniform float Alpha;
+uniform float time;
 
 Fragment getFragment() {
     Fragment frag;
@@ -39,8 +40,14 @@ Fragment getFragment() {
     if (frag.color.a == 0.0) {
         discard;
     }
-
+	if(time!=0){
+		if(vs_st.x>(0.133333+time))
+			frag.color.a = (0.16666+time-vs_st.x)*30;
+			//frag.color.a = 1.0-(vs_st.x-(0.4+time))*10;
+		if(vs_st.x<(time-0.133333))
+			//frag.color.a = (vs_st.x+(0.5-time))*10;
+			frag.color.a = (vs_st.x-(time-0.166666))*30;
+	}
     frag.depth = vs_position.z;
-
     return frag;
 }

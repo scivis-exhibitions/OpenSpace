@@ -390,7 +390,8 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
     Time nextTile; 
     Time nextnextTile;
     Time prevTile;
-
+    Time secondToLast;
+    Time secondToFirst;
     if (t.interpolation) {
 
         InterpolateTileProvider* currentInterpolateTileProvider = t.interpolateTileProvider;
@@ -398,6 +399,7 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
             char Buffer[22];
             char Buffer1[22];
             char Buffer2[22];
+            char Buffer3[22];
             const int Size = timeStringify(t.timeFormat, tCopy, Buffer);
             try {
                 currentInterpolateTileProvider->timeT1 = tCopy.j2000Seconds();
@@ -412,6 +414,9 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
                 nextTile.setTime(tCopy.j2000Seconds() + 32 * 60 * 60 * 24);
                 nextnextTile.setTime(tCopy.j2000Seconds() + 64 * 60 * 60 * 24);
                 prevTile.setTime(tCopy.j2000Seconds() - 2 * 60 * 60 * 24);
+                secondToLast.setTime(t.endTimeJ2000 - 2 * 60 * 60 * 24);
+                secondToFirst.setTime(t.startTimeJ2000 + 32 * 60 * 60 * 24);
+
                 std::string timeString{ nextTile.ISO8601() };
                 timeString[8] = '0';
                 timeString[9] = '1';
@@ -427,16 +432,55 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
                 timeString2[9] = '1';
                 prevTile.setTime(timeString2);
 
+                std::string timeString3{ secondToLast.ISO8601() };
+                timeString3[8] = '0';
+                timeString3[9] = '1';
+                secondToLast.setTime(timeString3);
+
+                std::string timeString4{ secondToFirst.ISO8601() };
+                timeString4[8] = '0';
+                timeString4[9] = '1';
+                secondToFirst.setTime(timeString4);
+
             }
-            const int Size2 = timeStringify(t.timeFormat, nextTile, Buffer);
-            const int Size3 = timeStringify(t.timeFormat, nextnextTile, Buffer1);
-            const int Size4 = timeStringify(t.timeFormat, prevTile, Buffer2);
+            const int Size2 = timeStringify(t.timeFormat, nextTile, Buffer1);
+            const int Size3 = timeStringify(t.timeFormat, nextnextTile, Buffer2);
+            const int Size4 = timeStringify(t.timeFormat, prevTile, Buffer3);
             try {
-                currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer, Size2));
 
-                currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer1, Size3));
+                if (secondToLast.j2000Seconds() > simulationTime.j2000Seconds() && secondToFirst.j2000Seconds() < simulationTime.j2000Seconds()) {
 
-                currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer2, Size4));
+
+                    currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer1, Size2));
+                    currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer2, Size3));
+                    currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer3, Size4));
+                }
+                else if (secondToLast.j2000Seconds() < simulationTime.j2000Seconds() && t.endTimeJ2000 > simulationTime.j2000Seconds()) {
+
+
+                    currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer1, Size2));
+                    currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer, Size));
+                    currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer3, Size4));
+                }
+                else if (secondToFirst.j2000Seconds() > simulationTime.j2000Seconds() && t.startTimeJ2000 < simulationTime.j2000Seconds()) {
+
+
+                    currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer1, Size2));
+                    currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer2, Size3));
+                    currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer, Size));
+                }
+                else {
+
+                    currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer, Size));
+
+                    currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer, Size));
+
+                    currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer, Size));
+                }
+
+                
+
+                
 
                 currentInterpolateTileProvider->timeT2 = nextTile.j2000Seconds();
                 currentInterpolateTileProvider->factor = (simulationTime.j2000Seconds() - tCopy.j2000Seconds()) / (nextTile.j2000Seconds() - tCopy.j2000Seconds());
@@ -531,6 +575,9 @@ std::string consumeTemporalMetaData(TemporalTileProvider& t, const std::string& 
     Time start;
     start.setTime(std::move(timeStart));
     Time end(Time::now());
+    Time endOfInterval(std::move(timeEnd));
+    t.startTimeJ2000 = start.j2000Seconds();
+    t.endTimeJ2000 = endOfInterval.j2000Seconds();
     if (timeEnd == "Yesterday") {
         end.advanceTime(-60.0 * 60.0 * 24.0); // Go back one day
     }
@@ -1128,14 +1175,14 @@ InterpolateTileProvider::~InterpolateTileProvider() {
 Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
     ZoneScoped
         TracyGpuZone("tile");
-
+ 
     Tile prev = tile(*t1, tileIndex);
     Tile next = tile(*t2, tileIndex);
     Tile prevprev = tile(*before, tileIndex);
     Tile nextnext = tile(*future, tileIndex);
     cache::ProviderTileKey key = { tileIndex, uniqueIdentifier };
 
-    
+
     if (prev.texture && next.texture) {
         Tile ourTile;
         ghoul::opengl::Texture* readTexture;
