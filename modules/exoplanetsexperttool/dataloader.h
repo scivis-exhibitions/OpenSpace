@@ -38,12 +38,6 @@ public:
     std::vector<ExoplanetItem> loadData();
 
 private:
-    // TODO: document / move to python
-    float computeTSM(const ExoplanetItem& p);
-
-    // TODO: document / move to python
-    float computeESM(const ExoplanetItem& p);
-
     std::string _inExoplanetsCsvPath;
 };
 
