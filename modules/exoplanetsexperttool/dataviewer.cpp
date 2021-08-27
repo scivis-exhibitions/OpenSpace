@@ -70,7 +70,7 @@ namespace {
     constexpr const glm::vec4 NanPointColor = { 0.3f, 0.3f, 0.3f, 1.f };
 
     constexpr const float DefaultColorScaleMinValue = 0.f;
-    constexpr const float DefaultColorScaleMaxValue = 1000.f;
+    constexpr const float DefaultColorScaleMaxValue = 100.f;
 
     // @TODO This can be implemented as a constructor in imconfig.h to enable conversion
     ImVec4 toImVec4(const glm::vec4& v) {
@@ -249,6 +249,17 @@ void DataViewer::render() {
     renderTable();
     ImGui::Spacing();
     renderScatterPlotAndColormap();
+}
+
+void DataViewer::renderHelpMarker(const char* text) {
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
 }
 
 void DataViewer::renderScatterPlotAndColormap() {
@@ -548,7 +559,11 @@ bool DataViewer::renderFilterSettings() {
     ImGui::SameLine();
     filterChanged |= ImGui::Checkbox("Only multi-planet", &showOnlyMultiPlanetSystems);
     ImGui::SameLine();
-    filterChanged |= ImGui::Checkbox("Must have positional data (3D)", &showOnlyHasPosition);
+    filterChanged |= ImGui::Checkbox("Must have 3D positional data", &showOnlyHasPosition);
+    ImGui::SameLine();
+    renderHelpMarker(
+        "Only include data points that will show up in OpenSpace's 3D rendered view"
+    );
 
     // Per-column filtering
     static int filterColIndex = 0;
@@ -587,17 +602,10 @@ bool DataViewer::renderFilterSettings() {
 
     // Help marker
     ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered()) {
-        ImGui::BeginTooltip();
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-        ImGui::TextUnformatted(numeric ?
-            ColumnFilter::NumericFilterDescription :
-            ColumnFilter::TextFilterDescription
-        );
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
-    }
+    renderHelpMarker(numeric ?
+        ColumnFilter::NumericFilterDescription :
+        ColumnFilter::TextFilterDescription
+    );
 
     // Clear the text field
     ImGui::SameLine();

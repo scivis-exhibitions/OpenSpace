@@ -76,6 +76,7 @@ public:
 
 private:
     void initializeRenderables();
+    void renderHelpMarker(const char* text);
     void renderScatterPlotAndColormap();
     void renderTable();
 
