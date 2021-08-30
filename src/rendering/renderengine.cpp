@@ -686,6 +686,15 @@ void RenderEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& viewMat
             fn, fr, sgFn, dt, avgDt
         );
         RenderFont(*_fontFrameInfo, penPosition, res);
+
+        Camera* camera = _scene->camera();
+        std::string res2 = fmt::format(
+            "Position: ({},{},{})\nScaling: {}",
+            camera->positionVec3().x, camera->positionVec3().y, camera->positionVec3().z,
+            camera->scaling()
+        );
+        penPosition += glm::vec2(-550.f, 250.f);
+        RenderFont(*_fontFrameInfo, penPosition, res2);
     }
 
     if (renderingEnabled && !delegate.isGuiWindow() && _globalBlackOutFactor > 0.f) {

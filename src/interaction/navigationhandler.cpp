@@ -265,6 +265,9 @@ void NavigationHandler::updateCamera(double deltaTime) {
             _orbitalNavigator.updateCameraStateFromStates(deltaTime);
         }
     }
+    else if (_playbackModeEnabled && _camera) {
+        _orbitalNavigator.updateCameraStateFromStates(deltaTime);
+    }
 }
 
 void NavigationHandler::applyNavigationState(const NavigationHandler::NavigationState& ns)
