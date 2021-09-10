@@ -410,6 +410,13 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
                 LERRORC("TemporalTileProvider", e.message);
                 return nullptr;
             }
+            if (t.timeQuantizer.myResolution == "1h") {
+                nextTile.setTime(tCopy.j2000Seconds() + 60 * 60 );
+                nextnextTile.setTime(tCopy.j2000Seconds() + 120 * 60 );
+                prevTile.setTime(tCopy.j2000Seconds() - 60 * 60+1);
+                secondToLast.setTime(t.endTimeJ2000 -  60 * 60);
+                secondToFirst.setTime(t.startTimeJ2000 + 60 * 60);
+            }
             if (t.timeQuantizer.myResolution == "1M") {
                 nextTile.setTime(tCopy.j2000Seconds() + 32 * 60 * 60 * 24);
                 nextnextTile.setTime(tCopy.j2000Seconds() + 64 * 60 * 60 * 24);
@@ -449,32 +456,23 @@ TileProvider* getTileProvider(TemporalTileProvider& t, const Time& time) {
             try {
 
                 if (secondToLast.j2000Seconds() > simulationTime.j2000Seconds() && secondToFirst.j2000Seconds() < simulationTime.j2000Seconds()) {
-
-
                     currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer1, Size2));
                     currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer2, Size3));
                     currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer3, Size4));
                 }
                 else if (secondToLast.j2000Seconds() < simulationTime.j2000Seconds() && t.endTimeJ2000 > simulationTime.j2000Seconds()) {
-
-
                     currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer1, Size2));
                     currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer, Size));
                     currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer3, Size4));
                 }
                 else if (secondToFirst.j2000Seconds() > simulationTime.j2000Seconds() && t.startTimeJ2000 < simulationTime.j2000Seconds()) {
-
-
                     currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer1, Size2));
                     currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer2, Size3));
                     currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer, Size));
                 }
                 else {
-
                     currentInterpolateTileProvider->t2 = getTileProvider(t, std::string_view(Buffer, Size));
-
                     currentInterpolateTileProvider->future = getTileProvider(t, std::string_view(Buffer, Size));
-
                     currentInterpolateTileProvider->before = getTileProvider(t, std::string_view(Buffer, Size));
                 }
 
@@ -1181,7 +1179,6 @@ Tile InterpolateTileProvider::calculateTile(const TileIndex& tileIndex) {
     Tile prevprev = tile(*before, tileIndex);
     Tile nextnext = tile(*future, tileIndex);
     cache::ProviderTileKey key = { tileIndex, uniqueIdentifier };
-
 
     if (prev.texture && next.texture) {
         Tile ourTile;

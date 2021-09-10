@@ -152,7 +152,7 @@ void HorizonsTranslation::loadData() {
 
 void HorizonsTranslation::readHorizonsTextFile() {
     std::ifstream fileStream(_horizonsTextFile);
-    std::cout << "filename " << _horizonsTextFile << std::endl;
+    //std::cout << "filename " << _horizonsTextFile << std::endl;
     if (!fileStream.good()) {
         LERROR(fmt::format(
             "Failed to open Horizons text file '{}'", _horizonsTextFile

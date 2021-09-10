@@ -38,11 +38,19 @@ Fragment getFragment() {
     vec4 texel1 = texture2D(nextTexture, texCoord);
     //fragColor = mix(texel0, texel1, blendFactor);
 
-    Fragment frag;
+    Fragment frag;  
 	mixedTexture = mix(texel0, texel1, blendFactor);
 	//frag.color = mix(texel0, texel1, blendFactor);
 	vec2 position = vec2(mixedTexture.r , 0.5);
-	frag.color = texture2D(colormapTexture, position)+0.00000001*texel0*texel1*blendFactor;
+
+	if(mixedTexture.r>0.999){
+		vec2 position = vec2(mixedTexture.r-0.01 , 0.5);
+		frag.color = texture2D(colormapTexture, position)+0.00000001*texel0*texel1*blendFactor;
+	}
+	else{
+		frag.color = texture2D(colormapTexture, position)+0.00000001*texel0*texel1*blendFactor;
+	}
+	
 	frag.color.a=mixedTexture.a;
     //frag.color = vec4(blendFactor, 1-blendFactor, 0.0, 1.0);
     // Place stars at back to begin with. 

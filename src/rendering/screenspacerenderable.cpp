@@ -528,14 +528,15 @@ glm::mat4 ScreenSpaceRenderable::scaleMatrix() {
     float textureRatio =
         static_cast<float>(_objectSize.y) / static_cast<float>(_objectSize.x);
     glm::mat4 scale;
-
-    if (animatedImageTimeStart > 1 && animatedImageTimeEnd > 1 && !axis){
+    std::cout << animatedImageTimeStart << std::endl;
+    if ((animatedImageTimeStart > 1  || animatedImageTimeStart < -1) && (animatedImageTimeEnd > 1 ||  animatedImageTimeEnd < -1) && !axis ){
         scale = glm::scale(
             glm::mat4(1.f),
             glm::vec3(_scale*3, _scale * textureRatio, 5.f)
         );
     }
     else {
+        std::cout<<"alkjshfkjshgfkjsagf"<<std::endl;
         scale = glm::scale(
             glm::mat4(1.f),
             glm::vec3(_scale, _scale * textureRatio, 5.f)
@@ -591,12 +592,16 @@ glm::mat4 ScreenSpaceRenderable::translationMatrix() {
     glm::vec3 translation = _useRadiusAzimuthElevation ?
         sphericalToCartesian(raeToSpherical(_raePosition)) :
         _cartesianPosition;
-    if (animatedImageTimeStart > 1 && animatedImageTimeEnd > 1) {
+
+    if ((animatedImageTimeStart > 1 || animatedImageTimeStart == 0 || animatedImageTimeStart < -1) && (animatedImageTimeEnd > 1 || animatedImageTimeEnd == 0 || animatedImageTimeEnd < -1)) {
+
         if (animatedImageTimeStart < global::timeManager->time().j2000Seconds() && animatedImageTimeEnd > global::timeManager->time().j2000Seconds()) {
             if (axis) {
+                
                 translation.x = -1;
             }
             else {
+                std::cout << "här är jag nu" << std::endl;
                 translation.x = 0.5-(global::timeManager->time().j2000Seconds()- animatedImageTimeStart)/(animatedImageTimeEnd- animatedImageTimeStart)*3;
             }
         }
@@ -622,7 +627,7 @@ void ScreenSpaceRenderable::draw(glm::mat4 modelTransform) {
     ghoul::opengl::TextureUnit unit;
     unit.activate();
     bindTexture();
-    if (animatedImageTimeStart > 1 && animatedImageTimeEnd > 1) {
+    if ((animatedImageTimeStart > 1 || animatedImageTimeStart == 0 || animatedImageTimeStart < -1) && (animatedImageTimeEnd > 1 || animatedImageTimeEnd == 0 || animatedImageTimeEnd < -1)) {
         if (animatedImageTimeStart < global::timeManager->time().j2000Seconds() && animatedImageTimeEnd > global::timeManager->time().j2000Seconds()) {
             if (!axis) {
                 _shader->setUniform("time", static_cast<float>((global::timeManager->time().j2000Seconds() - animatedImageTimeStart) / (animatedImageTimeEnd - animatedImageTimeStart)));
