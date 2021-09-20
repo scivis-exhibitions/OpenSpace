@@ -528,7 +528,6 @@ glm::mat4 ScreenSpaceRenderable::scaleMatrix() {
     float textureRatio =
         static_cast<float>(_objectSize.y) / static_cast<float>(_objectSize.x);
     glm::mat4 scale;
-    std::cout << animatedImageTimeStart << std::endl;
     if ((animatedImageTimeStart > 1  || animatedImageTimeStart < -1) && (animatedImageTimeEnd > 1 ||  animatedImageTimeEnd < -1) && !axis ){
         scale = glm::scale(
             glm::mat4(1.f),
@@ -536,7 +535,6 @@ glm::mat4 ScreenSpaceRenderable::scaleMatrix() {
         );
     }
     else {
-        std::cout<<"alkjshfkjshgfkjsagf"<<std::endl;
         scale = glm::scale(
             glm::mat4(1.f),
             glm::vec3(_scale, _scale * textureRatio, 5.f)
@@ -601,7 +599,6 @@ glm::mat4 ScreenSpaceRenderable::translationMatrix() {
                 translation.x = -1;
             }
             else {
-                std::cout << "här är jag nu" << std::endl;
                 translation.x = 0.5-(global::timeManager->time().j2000Seconds()- animatedImageTimeStart)/(animatedImageTimeEnd- animatedImageTimeStart)*3;
             }
         }
