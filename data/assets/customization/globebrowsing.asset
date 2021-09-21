@@ -65,23 +65,23 @@ local custom_layers = {
 -- Add require statements for assets exporting the neccessary globes
 -- here we add Earth, Mars, Moon and Mercury:
 if AddEarthLayers then
-    asset.require('../scene/solarsystem/planets/earth/earth')
+    asset.require('${ASSETS}/scene/solarsystem/planets/earth/earth')
 else
     vrt_folders['Earth'] = nil
 	custom_layers['Earth'] = nil
 end
 if AddMarsLayers then
-    asset.require('../scene/solarsystem/planets/mars/mars')
+    asset.require('${ASSETS}/scene/solarsystem/planets/mars/mars')
 else
     vrt_folders['Mars'] = nil
 end
 if AddMoonLayers then
-    asset.require('../scene/solarsystem/planets/earth/moon/moon')
+    asset.require('${ASSETS}/scene/solarsystem/planets/earth/moon/moon')
 else
     vrt_folders['Moon'] = nil
 end
 if AddMercuryLayers then
-    asset.require('../scene/solarsystem/planets/mercury/mercury')
+    asset.require('${ASSETS}/scene/solarsystem/planets/mercury/mercury')
 else
     vrt_folders['Mercury'] = nil
 end
